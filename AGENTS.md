@@ -52,9 +52,10 @@ Preserve `prek.toml` and run `prek run --all-files` on a working branch for
 content changes. Add application checks only when actual application code is
 introduced. Preserve required-check protection and the metadata policy gate.
 Renovate is the sole ongoing dependency merge owner after current CI and policy
-pass. Direct automerge remains disabled until the hosted canary proves the rollout;
-see CI.md. Genuine sign-offs remain required. This maintenance policy supersedes
-historical manual-update and no-DCO prose in preserved planning documents; it does
+pass. Eligible dependency PRs use native Renovate rebase merging; shared Renovate
+policy changes remain manual. See CI.md. Genuine sign-offs remain required. This
+maintenance policy supersedes historical manual-update and no-DCO prose in
+preserved planning documents; it does
 not authorize application implementation or toolchain migrations.
 For other changes, review exact head/base, the full diff, authors/sign-offs, every
 expected CI job and relevant artifacts before using the maintainer's reviewed
