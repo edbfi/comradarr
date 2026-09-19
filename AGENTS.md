@@ -50,13 +50,12 @@ Historical `.augment/rules` references are context, not another active ruleset.
 
 Preserve `prek.toml` and run `prek run --all-files` on a working branch for
 content changes. Add application checks only when actual application code is
-introduced. Do not configure branch protections or rulesets.
-Renovate updates of every type, including majors and shared-policy versions, may
-merge unattended after all three current-head checks in `.github/merge-policy.json`
-pass, with genuine sign-offs and full CI dispatched for the exact merged commit.
-No dashboard approval is required. This current maintenance policy supersedes the
-historical manual-update and no-DCO prose in the preserved planning documents;
-it does not authorize application implementation or toolchain migrations.
+introduced. Preserve required-check protection and the metadata policy gate.
+Renovate is the sole ongoing dependency merge owner after current CI and policy
+pass. Direct automerge remains disabled until the hosted canary proves the rollout;
+see CI.md. Genuine sign-offs remain required. This maintenance policy supersedes
+historical manual-update and no-DCO prose in preserved planning documents; it does
+not authorize application implementation or toolchain migrations.
 For other changes, review exact head/base, the full diff, authors/sign-offs, every
 expected CI job and relevant artifacts before using the maintainer's reviewed
 `ghmerge` process; verify the published tree and final CI afterwards.
