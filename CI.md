@@ -5,7 +5,7 @@ default-branch push, with the shared guard and fail-closed required aggregate.
 Run `SKIP=no-commit-to-branch prek run --all-files` locally. No application
 implementation, package toolchain, runtime smoke or placeholder tests are added.
 
-Shared actions, workflows and presets use immutable `v3.0.0` references.
+Shared actions, workflows and presets use immutable `v3.0.1` references.
 Renovate is the sole ongoing dependency merge owner. Direct automerge remains
 explicitly disabled, including matching package rules, until the hosted rollout
 proves native Renovate operation behind complete required CI. The legacy Actions
