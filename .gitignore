@@ -9,8 +9,6 @@
 !.codex/prompts/
 !.codex/prompts/**
 
-AGENTS.md
-
 # --- Python (Phase 0) ---
 __pycache__/
 *.pyc
