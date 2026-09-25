@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Commit messages and PR titles use Conventional Commits (the `conventional-pre-commit` commit-msg hook and the shared PR policy workflow enforce this).
 - PR commits need a genuine `Signed-off-by` that matches the author (`git commit -s`). This overrides the "no DCO sign-off" text in PRD §23.
-- Renovate owns ongoing dependency updates and their merges, including the pinned `edbfi/automation` `v3.0.1` refs. Leave version bumps to Renovate unless the task asks for one. Read `CI.md` before changing workflows, `renovate.json` or the merge policy.
+- Renovate owns ongoing dependency updates and their merges, including the pinned `edbfi/automation` `v4.0.0` refs. Leave version bumps to Renovate unless the task asks for one. Read `CI.md` before changing workflows, `renovate.json` or the merge policy.
 
 ## Planning documents
 
