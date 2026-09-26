@@ -24,11 +24,6 @@ The original implementation branch and history remain available for reference.
 
 ## Repository checks
 
-`prek run --all-files` checks repository content on a working branch. CI runs the
-same content checks, skipping only the local restriction on committing to `main`.
-Renovate uses the shared repository maintenance configuration. There are no
-application build, runtime or deployment jobs.
-
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE).
