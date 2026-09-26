@@ -46,7 +46,6 @@ Out of scope for v1 (explicitly captured for backlog): command palette (Cmd+K), 
 - [ ] **Encryption key denylist source.** PRD §15 references a weak-value denylist; assume an embedded list of 100–500 known-bad keys plus refusing all-zeros / all-FF / repeating-byte patterns. Corpus source `[needs maintainer confirmation]`.
 - [x] **Apprise version.** Resolved: pin to >=1.9 (BSD-2-Clause; AGPL-compatible per PRD §14).
 - [x] **OpenAPI annotations on Litestar.** Resolved: `litestar.openapi.OpenAPIController` is exposed; the setup-gate middleware allowlists `/schema`, `/api/schema`, `/api/docs`, `/api/redoc` (cross-ref §5.1.4 + §5.13.4).
-- [x] **Renovate vs. Dependabot.** Resolved: Renovate (richer grouping rules; better fit for `uv.lock` + `bun.lock` + workflow files).
 - [x] **Trusted-header role claim.** Resolved per PRD §26: in v1 ignore `X-Comradarr-Role` but reserve the schema column for post-v1.
 - [x] **Friendly install name.** Resolved per PRD §15 + §30: store `install_name` as a key/value row in the `app_config` table, defaulting to `comradarr`. The setup wizard's confirmation step writes the initial value; the post-setup settings UI exposes it for later editing. Used in snapshot filenames (`<install_name>-<ISO timestamp>.comradarr-snapshot`).
 - [x] **Dev CLI command surface.** Resolved: canonical command set pinned at `dev_cli check / format / lint / typecheck / test / test-fast / db-up / db-down / migrate / pg / regen-types / i18n extract / serve / record-fixture / replay-canary / snapshot-export / snapshot-import` (cross-ref §5.24.3). The `dev_cli check` umbrella runs the same gates as the CI fast lane so local-pass implies CI-pass per PRD §23.
@@ -103,7 +102,6 @@ Phases are ordered so each one's outputs unblock the next. Workstreams (B = Back
 - [ ] **Phase 20 — Observability.** structlog production JSON, request logging policy, redaction processor, `/health` final, `/metrics` opt-in, OTLP opt-in, traceback hygiene (B).
 - [ ] **Phase 21 — Import/export.** Snapshot export endpoint, snapshot import wizard backend, `.comradarr-snapshot` format, schema versioning, audit logging (B, F).
 - [ ] **Phase 22 — Testing matrix.** Unit + property-based coverage, integration tests with real Postgres + role-permission tests, fixture-based connector tests + recording tool, API tests for every Problem Details code, frontend component tests with axe-core, nightly canary (Q).
-- [ ] **Phase 23 — Supply chain hardening.** uv lock CI gate, pip-audit, Biome / svelte-check / tsc gates, prek.toml hooks, GitHub Actions tag pinning, Renovate config (Q, I).
 - [ ] **Phase 24 — Deployment artifacts.** Docker image with bundled PostgreSQL, init script, dev CLI, Granian launch, secret-key handling, multi-arch build, SBOM, image-tag policy (I).
 - [ ] **Phase 25 — Release prep.** Release notes, AGPL headers, docs site for API reference, contribution guidelines, license matrix, semver tagging policy in CI (S, I).
 
@@ -149,7 +147,6 @@ Phases are ordered so each one's outputs unblock the next. Workstreams (B = Back
 - [ ] Add `.github/workflows/integration.yaml` running integration tests with a PostgreSQL service container.
 - [ ] Add `.github/workflows/canary.yaml` scheduled nightly to run fixture-canary tests against demo upstream instances.
 - [ ] Pin every `uses:` to a concrete tag per PRD §23 (e.g., `actions/checkout@v6`); document the tag-pinning posture in CONTRIBUTING.md.
-- [ ] Add Renovate (or Dependabot — confirm) config at `.github/renovate.json` with separate groups for security updates (auto-PR) vs. routine bumps (manual review).
 
 #### 5.0.5 Foundational shared utilities
 
@@ -980,7 +977,6 @@ The wizard exposes exactly **four operator-visible steps** under `/api/setup/*`.
 - [ ] CI: `bun install --frozen-lockfile`.
 - [ ] CI: `prek run --all-files`.
 - [ ] CI: a job that runs `dev_cli regen-types` and fails on diff with the committed `schema.d.ts`.
-- [ ] Renovate config separating security updates (auto-PR) from routine bumps (manual review).
 - [ ] Pin every GitHub Action to a tag; document the tag-pinning posture (PRD §23).
 - [ ] Add `bunx biome ci` step; integrate `svelte-check --threshold warning` and `tsc --noEmit` per PRD §23.
 - [ ] **`Secret[T].expose()` audit gate.** A pre-commit + CI lint enumerates every `.expose()` call site in backend code and fails the build when a new call site appears outside an explicit allowlist (`comradarr/connectors/factory.py`, `comradarr/services/auth/oidc.py`, `comradarr/services/notifications/dispatcher.py`, `comradarr/services/snapshots/export.py`, etc. — every legitimate consumer recorded with a one-line justification). The intent is "every `.expose()` is an audited boundary crossing" — a new call site requires a PR-level review and a justification line, not silent addition. Implementation: a `dev_cli check expose-audit` subcommand that walks the AST, collects call sites, and diffs against `tools/expose_allowlist.toml`.
