@@ -1766,7 +1766,6 @@ Scheduled scans against the main branch catch the scenario where a vulnerability
 
 ### Automated Dependency Updates
 
-Updates to pinned dependencies are proposed by an automated tool (renovate or dependabot — the choice is deferred to implementation time based on whichever is easier to configure for the scope below) with two distinct behaviors depending on update type. Security updates — any lockfile entry whose current version matches a known vulnerability — are proposed automatically with the CI checks as the quality gate; a passing CI run on a security-update PR is a strong signal that the upgrade is safe to merge. Non-security updates — routine version bumps, new minor releases, new major releases — are proposed on a longer cadence and require explicit maintainer review. The split ensures that security-critical updates are not held up by general "update fatigue" while non-security updates are reviewed rather than auto-merged.
 
 Both kinds of update PRs update the lockfile in the same format a human would, so there is one canonical way to propose a dependency change regardless of whether the author is a human or an automation.
 
