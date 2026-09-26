@@ -9,13 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Checks
 
-- `SKIP=no-commit-to-branch prek run --all-files` is the only check, and matches CI (`.github/workflows/ci.yml`). Without the `SKIP`, `no-commit-to-branch` fails whenever you're on `main`.
+- `SKIP=no-commit-to-branch prek run --all-files` is the only check,. Without the `SKIP`, `no-commit-to-branch` fails whenever you're on `main`.
 - To run one hook: `prek run --all-files <hook-id>`, e.g. `prek run --all-files check-toml`.
 - `gitleaks` and `detect-private-key` scan every file, including docs. Use obvious placeholders in examples of keys, tokens or DSNs.
 
 ## Commits and PRs
 
-- Commit messages and PR titles use Conventional Commits (the `conventional-pre-commit` commit-msg hook and the shared PR policy workflow enforce this).
+- Commit messages and PR titles use Conventional Commits (the `conventional-pre-commit` commit-msg hook enforces this).
 - PR commits need a genuine `Signed-off-by` that matches the author (`git commit -s`). This overrides the "no DCO sign-off" text in PRD §23.
 
 ## Planning documents
