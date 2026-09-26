@@ -24,6 +24,8 @@ The original implementation branch and history remain available for reference.
 
 ## Repository checks
 
+Run `SKIP=no-commit-to-branch prek run --all-files` locally. See [CI.md](CI.md).
+
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE).
