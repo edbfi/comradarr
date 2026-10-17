@@ -7,25 +7,20 @@
 
 </div>
 
-Comradarr is a planned media library completion service for identifying and requesting missing or upgradeable content through *arr applications.
+> [!IMPORTANT]
+> **Rewrite in progress.** Comradarr is being rebuilt from scratch, and `main` is now the
+> starting point for the new version. The previous version is preserved on the
+> [`legacy-old/v1`](https://github.com/edbfi/comradarr/tree/legacy-old/v1) branch.
+> The partial implementation remains on the [`feat/comradarr-implementation-plan`](https://github.com/edbfi/comradarr/tree/feat/comradarr-implementation-plan) branch.
 
-**Planning only: this repository does not currently contain a functional application.**
-There is no backend, frontend, runnable container or deployment in `main`.
+## Tech stack
 
-## Documentation
-
-- [Product requirements](docs/comradarr-prd.md)
-- [Implementation plan](docs/comradarr-implementation-plan.md)
-
-The documents are preserved from `feat/comradarr-implementation-plan`. Their
-implementation checkboxes, commands and references describe earlier work and future
-design; they do not establish functionality in the current planning-only tree.
-The original implementation branch and history remain available for reference.
-
-## Repository checks
-
-Run `SKIP=no-commit-to-branch prek run --all-files` locally.
-
-## License
-
-[GNU Affero General Public License v3.0](LICENSE).
+| Concern | Choice |
+| --- | --- |
+| Language | TypeScript 6, strict type checking |
+| Framework | Svelte 5 and SvelteKit 3, server rendering on one origin |
+| Runtime and packages | Bun for development, CI and production |
+| Database | PostgreSQL as a separate service, through Drizzle and Bun SQL |
+| Styling and primitives | Panda CSS 2 and Ark UI for Svelte |
+| HTTP API clients | `@hey-api/openapi-ts`, generated from the app's OpenAPI document |
+| Deployment | `@sveltejs/adapter-bun`: one container, one process, one HTTP port |
