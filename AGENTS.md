@@ -162,13 +162,15 @@ where present). It only sends search commands; it never downloads. It is being r
 scratch; the previous version is on the `legacy-old/v1` branch and the partial implementation on
 `feat/comradarr-implementation-plan`, both for reference only.
 
-**Status:** context only, no spec yet. Next comes a tooling-only `package.json` and `bun.lock` that
-run Biome, before any application exists. The application starts later with `docs/SPEC.md` (through
-`spec-driven-development`) and a plan in `tasks/`; product modules each get an owner-approved
-`docs/SPEC-<id>.md`.
+**Status:** context and tooling only, no spec yet. A tooling-only `package.json` and `bun.lock` run
+Biome; CI runs the Bun web `checks` and `audit` jobs, with no smoke job or `tests` hook until an
+application exists. The application starts with `docs/SPEC.md` (through `spec-driven-development`)
+and a plan in `tasks/`; product modules each get an owner-approved `docs/SPEC-<id>.md`.
 
-**Commands:** none yet beyond `prek run --all-files --hook-stage manual`. The tooling-only
-`package.json` adds Biome.
+**Commands:**
+- `bun ci`: install the locked tooling.
+- `bun run --bun lint`: Biome checks (`bunx --bun biome check --write` fixes formatting).
+- `prek run --all-files --hook-stage manual`: every check CI runs, Biome included.
 
 **Boundaries.**
 - No application code or application dependencies before an approved `docs/SPEC.md` and plan; the
