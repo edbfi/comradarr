@@ -4,8 +4,8 @@
 > **Legacy product specification**, imported from the pre-rewrite documentation. It describes the
 > designed app's behaviour, which the rewrite keeps unless an approved spec or decision changes it.
 > Its technology and deployment content is superseded by [`docs/decisions.md`](../decisions.md):
-> §0 and the build column of §17.2 (status of the old code), "One container, one setting" in §2.2,
-> §15.2 (deployment shape), and the bundled relational store wherever it appears (§1.2, §11.5,
+> §0 and the build column of §17.2 (status of the old code), "One container, one setting" in §2.2 and
+> "one setting to start" in §16, §15.2 (deployment shape), and the bundled relational store wherever it appears (§1.2, §11.5,
 > §15.1, §15.4). The database is a separate PostgreSQL service. Sections are deleted as approved
 > `docs/SPEC-<id>.md` files cover them, and the file goes once nothing is left (AGENTS.md, cleanup
 > procedures).

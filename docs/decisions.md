@@ -146,7 +146,7 @@ with the audit module.
 ### D17. Deployment with a separate database
 
 The legacy spec describes one image with a bundled relational store, roles created automatically
-with generated credentials, and backup by copying one volume (§2.2, §11.5, §15.2, §15.4). With
+with generated credentials, and backup by copying one volume (§2.2, §11.5, §15.1, §15.2, §15.4, §16). With
 PostgreSQL as a separate service (D5), role provisioning, the first-run requirements and the
 operator's backup story need a new design. Closes with the deployment spec.
 
