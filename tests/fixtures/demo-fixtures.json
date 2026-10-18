@@ -1,0 +1,24 @@
+{
+	"note": "Fictional historical fixture, deliberately independent of the current date. Production values come from server responses; screenshots never define calculations.",
+	"snapshotDate": "2025-10-15",
+	"comradarr": {
+		"items": 148240,
+		"tiers": {
+			"missing": 2416,
+			"recent": 12803,
+			"monitored": 74221,
+			"completed": 58800
+		},
+		"commandsToday": 126,
+		"itemsCoveredToday": 1284,
+		"indexer": {
+			"upstream": 500,
+			"safetyReservePercent": 20,
+			"safetyReserve": 100,
+			"effective": 400,
+			"used": 126,
+			"available": 274
+		},
+		"connectors": ["Sonarr Main", "Radarr Movies", "Prowlarr"]
+	}
+}
