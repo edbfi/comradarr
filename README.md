@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/comradarr-icon.svg" alt="Comradarr Icon" width="240" height="240" />
+  <img src="static/comradarr-icon.svg" alt="Comradarr Icon" width="240" height="240" />
 
 # Comradarr (WIP)
 
