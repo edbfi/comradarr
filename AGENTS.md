@@ -229,19 +229,16 @@ where present). It only sends search commands; it never downloads. It is being r
 scratch; the previous version is on the `legacy-old/v1` branch and the partial implementation on
 `feat/comradarr-implementation-plan`, both for reference only.
 
-**Status:** context and tooling only, no spec yet. A tooling-only `package.json` and `bun.lock` run
-Biome; CI runs the Bun web `checks` and `audit` jobs, with no smoke job or `tests` hook until an
-application exists. The application starts with `docs/SPEC.md` (through `spec-driven-development`)
-and a plan in `tasks/`; product modules each get an owner-approved `docs/SPEC-<id>.md`.
+**Status:** the ground floor is built: an empty SvelteKit app on Bun with Panda tokens, `/healthz`,
+one unit test, one e2e smoke and the Bun web CI ([`docs/SPEC.md`](docs/SPEC.md)). Product modules
+come next, each through an owner-approved `docs/SPEC-<id>.md`, starting with the capability map.
 
-**Commands:**
-- `bun ci`: install the locked tooling.
-- `bun run --bun lint`: Biome checks (`bunx --bun biome check --write` fixes formatting).
-- `prek run --all-files --hook-stage manual`: every check CI runs, Biome included.
+**Commands** (what each does: [docs/SPEC.md](docs/SPEC.md#commands)): `bun ci`, then
+`bun run --bun <dev|build|preview|check|test|smoke|lint>`; `prek run --all-files --hook-stage
+manual` is CI's `checks` job. `smoke` runs against the built server, so run `build` first, and it
+needs Chromium once per machine: `bunx --bun playwright install chromium`.
 
 **Boundaries.**
-- No application code or application dependencies before an approved `docs/SPEC.md` and plan; the
-  tooling-only `package.json` holds Biome only.
 - The database is PostgreSQL as a separate service ([D5](docs/decisions.md)). The legacy spec
   describes behaviour to keep, not the technology: its header names the superseded sections.
 - Never bring code over from `legacy-old/v1` or `feat/comradarr-implementation-plan`; rebuild from
@@ -250,6 +247,41 @@ and a plan in `tasks/`; product modules each get an owner-approved `docs/SPEC-<i
 **Read next.**
 - Product: [PRODUCT.md](PRODUCT.md), [legacy spec](docs/product/legacy-spec.md).
 - Design: [DESIGN.md](DESIGN.md), the [surface briefs](.impeccable/surfaces/) (one per route),
-  [screens and references](docs/design/), [seed tokens](docs/design/tokens.json),
+  [screens and references](docs/design/), [design tokens](panda.config.ts),
   [demo fixtures](tests/fixtures/demo-fixtures.json).
 - Decisions: [docs/decisions.md](docs/decisions.md).
+
+## Structure
+
+The tree as it stands; `later:` marks the folders that modules add. Its rules are in
+[Code structure](#code-structure).
+
+```text
+src/
+  app.html                       document shell; `class="dark"` sets the default colour mode
+  app.css                        Panda layer order; the Vite plugin appends the generated CSS
+  app.d.ts                       SvelteKit ambient types
+  routes/
+    +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
+    (public)/+page.svelte        `/`: placeholder page
+    healthz/+server.ts           `/healthz`: public one-word status
+    setup/ login/ dashboard/ …   later: one folder per surface brief; api/ for JSON endpoints
+  lib/                           imported as `#lib/<path>.<ext>`, e.g.
+                                 `#lib/server/services/health.ts`
+    server/                      server-only: services/health.ts; later db/ (schema per aggregate),
+                                 providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
+                                 http/ (SSRF-safe fetch), config/, security/, logging/
+    components/                  later: ui/ (Ark wrappers), layout/, <feature>/
+    shared/                      later: browser-safe shared code
+static/                          served as is (comradarr-icon.svg, also the favicon)
+tests/
+  e2e/smoke.test.ts              Playwright smoke against the built server
+  fixtures/demo-fixtures.json    design fixtures
+drizzle/                         later: reviewed migrations
+panda.config.ts                  every design token; components use them through
+                                 `#styled-system/<module>` (generated, gitignored)
+vite.config.ts                   SvelteKit (all its configuration), Panda and Vitest
+playwright.config.ts  tsconfig.json  package.json  bun.lock
+```
+
+Vitest runs `src/**/*.test.ts`; Playwright runs `tests/e2e/`.

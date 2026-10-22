@@ -60,15 +60,15 @@ What exists:
 - `docs/decisions.md`: the stack and architecture decisions, decided and open.
 - `docs/design/references/aurora-observatory.webp`: the reference board for the selected visual direction.
 - `docs/design/screens/01-entry-and-setup.webp` to `docs/design/screens/10-states-and-components.webp`: generated mockups (desktop boards covering the routes, a mobile board and a states board). They're proposed design seeds; their body copy, chart axes, icons and glyphs are illustrative raster renderings.
-- `docs/design/tokens.json` and `docs/design/tokens.css`: proposed seed tokens, marked `proposed-seed`.
+- `panda.config.ts`: the seed tokens, still a proposed design seed.
 - `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
-- `public/comradarr-icon.svg`: the product icon, used in the README.
+- `static/comradarr-icon.svg`: the product icon, used as the favicon and in the README.
 - `LICENSE`: the GNU Affero General Public License, version 3.
 
 What doesn't exist, and must not be fabricated:
 
-- A running application, release, container image or deployment of the rewrite, or an approved `docs/SPEC.md`.
+- A release, container image or deployment of the rewrite, or any product module. The rewrite has only its ground floor (`docs/SPEC.md`).
 - Users, customers, testimonials, case studies, press, adoption or download figures, and any pricing or commercial offering.
 - Measured performance, coverage, throughput or budget data. The demo fixture values are fictional, and the legacy defaults (tier windows, daily command limits, the safety margin, health thresholds) are unvalidated.
 - Screenshots of a working interface. The screens are generated mockups, not captures.
