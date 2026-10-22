@@ -38,7 +38,7 @@ Comradarr sits beside Sonarr and Radarr, never between them and anything else. T
 - **The surrounding stack.** Comradarr reads library state from Sonarr and Radarr and sends them search commands; it reads indexer limits, usage and health from Prowlarr as information only; it can push alerts to notification destinations the operator configures. The legacy targets are Sonarr's v3 API (serving Sonarr v3 and v4), Radarr's v3 API and Prowlarr v1; the spec verifies them.
 - **How it runs.** A self-hosted web application in one container, as one process on one HTTP port, with PostgreSQL as a separate service (D4, D5); how it ships is open (D17). The operator manages it from a browser: desktop first, with the phone a real but secondary use.
 - **Rituals.** First run is claimed with a short-lived token printed to the process log; networking is then verified from the operator's own browser before it's saved, the owner account is created, and connectors are added after sign-in. Day to day the operator glances at the rotation overview, inspects or searches individual items, checks connector health and the inherited budget, and reviews the audit log when something changes or fails.
-- **Project state.** Nothing runs yet. The rewrite has context and tooling only, with no approved `docs/SPEC.md`; the previous version (`legacy-old/v1`) and the partial backend (`feat/comradarr-implementation-plan`) are reference only.
+- **Project state.** Nothing runs yet; [AGENTS.md](AGENTS.md) has the current status.
 
 ## Product requirements
 
@@ -59,9 +59,9 @@ What exists:
 - `docs/product/legacy-spec.md`: the imported product and behaviour specification from before the rewrite. Its designed behaviour has never run against a real library, real indexers or real users, and its thresholds are reasoned defaults, not measurements (§0, §17.1).
 - `docs/decisions.md`: the stack and architecture decisions, decided and open.
 - `docs/design/references/aurora-observatory.webp`: the reference board for the selected visual direction.
-- `docs/design/screens/01-entry-and-setup.webp` to `docs/design/screens/10-states-and-components.webp`: ten generated mockups (eight desktop boards covering the nine routes, a mobile board and a states board). They're proposed design seeds; their body copy, chart axes, icons and glyphs are illustrative raster renderings.
+- `docs/design/screens/01-entry-and-setup.webp` to `docs/design/screens/10-states-and-components.webp`: generated mockups (desktop boards covering the routes, a mobile board and a states board). They're proposed design seeds; their body copy, chart axes, icons and glyphs are illustrative raster renderings.
 - `docs/design/tokens.json` and `docs/design/tokens.css`: proposed seed tokens, marked `proposed-seed`.
-- `.impeccable/surfaces/route-*.md`: nine proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
+- `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
 - `public/comradarr-icon.svg`: the product icon, used in the README.
 - `LICENSE`: the GNU Affero General Public License, version 3.
