@@ -6,9 +6,14 @@
 > Its technology and deployment content is superseded by [`docs/decisions.md`](../decisions.md):
 > §0 and the build column of §17.2 (status of the old code), "One container, one setting" in §2.2 and
 > "one setting to start" in §16, §15.2 (deployment shape), and the bundled relational store wherever it appears (§1.2, §11.5,
-> §15.1, §15.4). The database is a separate PostgreSQL service. Sections are deleted as approved
-> `docs/SPEC-<id>.md` files cover them, and the file goes once nothing is left (AGENTS.md, cleanup
-> procedures).
+> §15.1, §15.4). The database is a separate PostgreSQL service whose roles the app creates, with
+> passwords derived from the master key, and whose backup is PostgreSQL's own (D17, superseding the
+> generated and audit-admin credentials of §11.5 and §15.1). The roles, permissions and provisioned
+> users of §3, §10.3 and §10.4, header sign-in, several OIDC providers, turning password sign-in off
+> (§10.1), the setup-claim cookie and token file (§9.1) and the wizard order of §9.4 are superseded
+> by D20, the English-only first release (§14.7) by D21, and the configuration snapshots of §12 are
+> left out (owner decision). Sections are deleted as approved `docs/SPEC-<id>.md` files cover them,
+> and the file goes once nothing is left (AGENTS.md, cleanup procedures).
 
 ## 0. Status: read this first
 
