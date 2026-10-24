@@ -279,6 +279,28 @@ notes for translators, which i18next JSON v4 can't, but those integrations are y
 language in stores, which need care when the server renders concurrent requests; svelte-i18n
 resolves messages at runtime, without typed messages. The owner left the choice to the agents.
 
+### D23. Other software: the latest stable release only
+
+Each edbfi app works with the latest stable release of every service it talks to, and with nothing
+older. Its contract tests run against that release; when a new stable release ships, the tests and
+the app move to it in the app's next release, and support for the one before goes. The app adds no
+code for older versions and no workarounds for upstream bugs that a later release may fix: a bug
+that harms users is reported upstream and named in the app's docs. A service on any other version
+(older, newer than the one tested, a prerelease, or a version the app can't read) keeps working,
+and the app says plainly in setup and on its health page which version it is tested with.
+Responses are still validated, so a real difference in the API shows up as an error, not as wrong
+data.
+
+In comradarr the services are Sonarr, Radarr and Prowlarr, each at its latest stable release:
+today Sonarr v4 through its v3 API, Radarr through its v3 API and Prowlarr through its v1 API. The
+version step of connector validation (legacy spec §7.3, step 5) warns instead of failing, and the
+legacy support for Sonarr v3 (§7.3, §13) goes.
+
+Why: the owner doesn't want a backlog of backwards compatibility in any app (owner decision). Code
+for old versions and for upstream bugs is seldom removed once it's in, and each workaround outlives
+the upstream fix as code to maintain. Warning instead of refusing keeps users who update a week
+late working.
+
 ## Open
 
 ### D13. Producing the OpenAPI document
