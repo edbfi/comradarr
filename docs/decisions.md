@@ -117,6 +117,167 @@ Logs are structured, one entry per line, written to standard output. The library
 
 Why: the container runtime collects stdout; structured lines can be filtered without parsing prose.
 
+### D17. PostgreSQL in its own container; the app creates its roles
+
+PostgreSQL runs as its own service, never inside the app image (D4). The documented Docker Compose
+example runs it in a container next to comradarr, and an existing PostgreSQL server works the same
+way. The `setup` spec pins the oldest PostgreSQL major version comradarr accepts.
+
+- **Before the first start**, the operator supplies two secrets, each as an environment variable or
+  a secret file: the master key (D20) and one database URL for a role that owns comradarr's
+  database and may create roles. Missing either stops startup.
+- **At startup**, before serving or starting jobs, the migration step runs as that owner role (D5)
+  and creates or updates the two other roles of D7: the app role and the audit-admin role. Their
+  passwords are derived from the master key with HKDF (WebCrypto), so there are no more credentials
+  to store or hand out, and after a key rotation the migration step sets the new passwords. A
+  pre-flight check names any missing privilege before anything migrates. The owner connection
+  closes once migrations are done.
+- **At runtime**, requests and jobs use the app role only, and the retention sweep connects as the
+  audit-admin role on a short connection of its own. Each role logs in separately: switching roles
+  on one connection (`SET ROLE`) would let an injected statement switch back.
+- **Backup** is PostgreSQL's own: a `pg_dump` of comradarr's database and its restore, documented
+  with the Compose example. The master key is backed up separately and restored with the database
+  (D18). comradarr ships no backup command. The migration step recreates the two roles after a
+  restore, so a dump without roles is enough.
+
+Why: the owner chose this shape. It keeps PostgreSQL out of the app image (D4) and stays close to
+the legacy "one setting to start" (legacy spec §1.2, §2.2): two secrets and a Compose example. The
+owner role is used only at startup, as the legacy migration role was (legacy spec §11.5). Deriving
+the role passwords from the master key replaces the legacy generated credentials and the separate
+audit-admin credential (legacy spec §11.5, §15.1) with nothing to store.
+
+### D20. Shared opening modules and owner sign-in, in the same shape in every app
+
+Every edbfi rewrite app builds five modules before any feature module, in this order: `secrets`,
+`i18n`, `setup`, `sign-in`, then `two-factor`. Each app also gets `oidc-sign-in` later. These
+modules have the same shape in all five apps, so signing in works the same way everywhere. Each
+app keeps its own copy; there is no shared package.
+
+- **One owner.** Each instance has exactly one owner account, with no other roles: no co-admins,
+  viewers or operators, and none planned for later.
+- **`secrets`.** Secret values are encrypted in the app before they reach the database, with
+  AES-256-GCM through WebCrypto, so this works on any database engine:
+  - The key is 32 random bytes from an environment variable or a secret file. It is never derived
+    from a password, and a missing or malformed key stops the app at startup.
+  - Every encryption uses a fresh random 12-byte nonce.
+  - Associated data ties each value to its record and field, so a value copied to another row or
+    field fails to decrypt.
+  - Every stored value carries its key ID, so the key can be rotated.
+- **`i18n`.** The translation groundwork (D21), in place before the first screen.
+- **`setup`.** If nobody has claimed the instance yet, the app prints a one-time bootstrap token to
+  the console at startup, outside the structured logs (D12). Whoever types that token claims the
+  instance, creates the owner account and is signed in. After that, the claim no longer exists: its
+  page answers "not found", and the rest of first run happens signed in, as the steps later modules
+  add.
+- **`sign-in`.** The owner signs in with the username and password created in `setup`. Sessions
+  are server-side, and only a hash of each session token is stored.
+- **`two-factor`.** Optional, but strongly recommended: first-run setup offers it right after the
+  owner account is created, before any connection step, and the admin shell keeps reminding the
+  owner until it is on. It uses authenticator-app codes (TOTP), with
+  the secret encrypted by `secrets`, single-use backup codes stored only as hashes, each code
+  accepted once and a limit on failed attempts. When it is on, every way of signing in passes
+  through it, with one optional exception for OIDC (below).
+- **Recovery.** An owner who loses their password, or their authenticator and backup codes, turns on
+  a recovery setting in the environment and restarts the app. It then prints a one-time recovery
+  token to the console, outside the structured logs, as `setup` does. Typing the token lets the
+  owner set a new password; it also turns two-factor off, so they can set it up again, and signs out
+  every session. The token expires after 15 minutes (a restart prints a new one), failed attempts
+  are limited per address, and once it is used the app prints no new one while the setting stays on,
+  and warns at startup that the setting should be cleared. `sign-in` builds it, and `two-factor`
+  adds turning itself off.
+- **Plex for the owner is an option.** In the apps that use Plex (all of them except comradarr and
+  zimuarr), the owner can link their account to their own Plex account in the admin settings once
+  setup is done. After that, "Sign in with Plex" also signs them in as the owner. The password
+  keeps working, and Plex sign-in for the owner stays off until they link. Where an app has users
+  besides the owner, those users sign in with Plex.
+- **`oidc-sign-in`.** The owner can also link their account to one OpenID Connect provider, such as
+  Authentik, Authelia, Pocket ID or Tinyauth, which then signs them in as the owner. It uses
+  discovery and the authorization code flow with PKCE, and keys the link on the provider's issuer
+  and subject. As with Plex, linking never creates an owner, and the password keeps working.
+  Signing in through a reverse proxy's headers isn't supported.
+  - **The provider's own second factor can replace the app's, if the owner chooses.** When the ID
+    token's `amr` claim (RFC 8176) reports that the owner used a second factor at the provider,
+    such as Authentik's or Authelia's TOTP or a passkey, the app offers to skip its own two-factor
+    for OIDC sign-ins. It stays on until the owner accepts. Every OIDC sign-in checks the claim
+    again, and one that reports no second factor goes through the app's two-factor. Password and
+    Plex sign-ins always do. A provider that doesn't send `amr` never gets the offer.
+
+Each app's connection modules add their own first-run steps after `setup`. In comradarr, first run
+continues with the two-factor offer, then verifying access from the operator's own browser
+(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until
+Verify access passes, the setup gate keeps sending every signed-in page back to it, as the legacy
+setup flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating the account (owner decision).
+`setup` keeps the origin the instance was claimed from as the first allowed origin, so the account
+request is still origin-checked. Because claiming and creating the owner is one step, the legacy
+setup-claim cookie goes, and the token is printed only to the console, without the legacy token
+file (legacy spec §9.1). Every claim and recovery is audited (legacy spec §9.3, §10.8).
+
+comradarr has no Plex and no users besides the owner, so the provider chain of legacy spec §10.1
+shrinks to the password, OIDC and two-factor: no header sign-in, one OIDC provider instead of
+several, no users created by a provider, and password sign-in can't be turned off (owner decision).
+API keys (`api-keys`) aren't a way of signing in: the owner creates them while signed in, and they
+reach only the JSON API, never pages.
+
+Why: the owner wants the five apps to look and work alike, and everything else depends on these
+modules: every app stores upstream secrets, shows text that must be translatable, needs a safe first
+claim and has to know who its owner is. Encrypting in the app (D4: secrets are configured apart from
+the database) keeps stolen database files unreadable without the key. Two-factor and OIDC sign-in
+were the owner's call for every app, and so was letting a provider's own second factor stand in for
+the app's, optionally; one standard OIDC flow covers the self-hosted identity providers without a
+client for each, and `amr` is the standard way to see the provider's factor. A copy per app is
+enough for five apps and avoids building a shared package before it's needed (YAGNI). comradarr's
+legacy design already had most of this shape: the log-printed claim token, server-side sessions
+stored as hashes, and the encrypted field with its nonce, row binding and key version (legacy spec
+§9.1, §10.6, §11.2), which the shared `secrets` keeps. Its recovery mode (legacy spec §10.8) showed
+that the shared opening had no way back in, and the owner asked for recovery in every app.
+
+### D21. Every interface is translatable, in English and Danish
+
+Every edbfi app is built for translation from its first screen. No user-facing text is written into
+components or services: it comes from message files, one per language. English is the source
+language and the default, and Danish is the second language. Each request uses the viewer's own
+choice, then the browser's preferred languages, then English. Dates, times and numbers are formatted
+for the viewer's locale through `Intl`, never in a fixed format. The message files use a format
+Weblate reads, plurals included, so a Weblate project can be connected later without changing code.
+Connecting Weblate is later work and belongs to no module yet. Text the owner writes, such as
+comradarr's notification template overrides, is content, stored as written (legacy spec §8.2), not
+translated through the message files. Built-in notification templates are translated and sent in
+the owner's language.
+
+Why: the owner wants full translation support in every app, with Weblate as the translation tool,
+and English and Danish now. Adding translation afterwards touches every screen; building it in from
+the first one costs little. The legacy design already passed every string through translation but
+shipped English only (legacy spec §2.2, §14.7).
+
+### D22. Paraglide JS with i18next JSON v4 messages
+
+Translation (D21) uses Paraglide JS 2 (`@inlang/paraglide-js`) through its Vite plugin, SvelteKit's
+official i18n integration. Messages live in `messages/en.json` and `messages/da.json` in i18next
+JSON v4, through `@inlang/plugin-i18next` 6.2.0 or later (which fixed its plural handling), with
+plurals under CLDR suffixes. Weblate reads that format as "i18next JSON v4" (`i18nextv4`),
+monolingual, with `messages/en.json` as the base file.
+
+- Components and services call the typed message functions Paraglide compiles, so a missing
+  message is a type error. The compiled output is generated and gitignored.
+- On the server, `paraglideMiddleware` in `hooks.server.ts` picks each request's language (the
+  viewer's cookie, then the browser's preferred languages, then English) and keeps it in
+  AsyncLocalStorage, so concurrent requests can't mix languages. Under SvelteKit 3 it passes the
+  translated request on a copy of the event, because `event.request` is read-only.
+- Dates, times and numbers stay with `Intl` (D21).
+
+Still to validate in the `i18n` module: the pinned versions with SvelteKit 3, TypeScript 6 and Bun;
+building and serving through adapter-bun (Paraglide issue
+[#725](https://github.com/opral/paraglide-js/issues/725) reports the middleware returning nothing in
+builds that use instrumentation); and a Weblate round trip of a plural message.
+
+Why: it is the integration SvelteKit itself points to. Compiled, tree-shaken message functions add
+almost nothing to the bundle and are checked by strict TypeScript. A language per request through
+AsyncLocalStorage is safe for server rendering. i18next JSON v4 is a native Weblate format with
+correct plurals for English and Danish. gettext PO (through wuchale or Lingui) would also carry
+notes for translators, which i18next JSON v4 can't, but those integrations are younger and keep the
+language in stores, which need care when the server renders concurrent requests; svelte-i18n
+resolves messages at runtime, without typed messages. The owner left the choice to the agents.
+
 ## Open
 
 ### D13. Producing the OpenAPI document
@@ -143,14 +304,7 @@ module.
 The PostgreSQL role and privilege matrix (D7) and the append-only audit enforcement still have to be
 implemented and tested, including that the runtime role can't change the schema or an audit row.
 Choosing PostgreSQL makes this possible; it doesn't prove the role configuration is correct. Closes
-with the audit module.
-
-### D17. Deployment with a separate database
-
-The legacy spec describes one image with a bundled relational store, roles created automatically
-with generated credentials, and backup by copying one volume (§2.2, §11.5, §15.1, §15.2, §15.4, §16). With
-PostgreSQL as a separate service (D5), role provisioning, the first-run requirements and the
-operator's backup story need a new design. Closes with the deployment spec.
+with `setup`, which creates the roles (D17) and the audit trail.
 
 ### D18. Runtime validation gaps
 
@@ -158,8 +312,8 @@ Not yet validated for this stack: browser interaction with a real component, pro
 realistic load, and job recovery after a restart. Hydration is validated: the e2e smoke test waits
 for the hydrated app in Chromium against the built server, with no console errors.
 A crash test doesn't prove recovery from power loss or storage faults. PostgreSQL backup and restore
-hasn't been validated; the procedure is still to be defined and tested, and the database and the
-master key must be restored together. Each closes with the work that first depends on it.
+hasn't been validated; the procedure (D17) is still to be tested, and the database and the master
+key must be restored together. Each closes with the work that first depends on it.
 
 ### D19. One process
 

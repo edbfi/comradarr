@@ -231,7 +231,8 @@ scratch; the previous version is on the `legacy-old/v1` branch and the partial i
 
 **Status:** the ground floor is built: an empty SvelteKit app on Bun with Panda tokens, `/healthz`,
 one unit test, one e2e smoke and the Bun web CI ([`docs/SPEC.md`](docs/SPEC.md)). Product modules
-come next, each through an owner-approved `docs/SPEC-<id>.md`, starting with the capability map.
+come next, in the order of the approved capability map in `docs/SPEC.md`, each through an
+owner-approved `docs/SPEC-<id>.md`.
 
 **Commands** (what each does: [docs/SPEC.md](docs/SPEC.md#commands)): `bun ci`, then
 `bun run --bun <dev|build|preview|check|test|smoke|lint>`; `prek run --all-files --hook-stage
@@ -239,7 +240,7 @@ manual` is CI's `checks` job. `smoke` runs against the built server, so run `bui
 needs Chromium once per machine: `bunx --bun playwright install chromium`.
 
 **Boundaries.**
-- The database is PostgreSQL as a separate service ([D5](docs/decisions.md)). The legacy spec
+- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)). The legacy spec
   describes behaviour to keep, not the technology: its header names the superseded sections.
 - Never bring code over from `legacy-old/v1` or `feat/comradarr-implementation-plan`; rebuild from
   the spec.
