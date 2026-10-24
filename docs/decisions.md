@@ -166,8 +166,9 @@ app keeps its own copy; there is no shared package.
 - **`i18n`.** The translation groundwork (D21), in place before the first screen.
 - **`setup`.** If nobody has claimed the instance yet, the app prints a one-time bootstrap token to
   the console at startup, outside the structured logs (D12). Whoever types that token claims the
-  instance and creates the owner account. After that, setup no longer exists: its routes answer
-  "not found".
+  instance, creates the owner account and is signed in. After that, the claim no longer exists: its
+  page answers "not found", and the rest of first run happens signed in, as the steps later modules
+  add.
 - **`sign-in`.** The owner signs in with the username and password created in `setup`. Sessions
   are server-side, and only a hash of each session token is stored.
 - **`two-factor`.** Optional, but strongly recommended: first-run setup offers it right after the
@@ -202,8 +203,9 @@ app keeps its own copy; there is no shared package.
 
 Each app's connection modules add their own first-run steps after `setup`. In comradarr, first run
 continues with the two-factor offer, then verifying access from the operator's own browser
-(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. This
-replaces the legacy order, which verified access before creating the account (owner decision).
+(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until
+Verify access passes, the setup gate keeps sending every signed-in page back to it, as the legacy
+setup flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating the account (owner decision).
 `setup` keeps the origin the instance was claimed from as the first allowed origin, so the account
 request is still origin-checked. Because claiming and creating the owner is one step, the legacy
 setup-claim cookie goes, and the token is printed only to the console, without the legacy token
