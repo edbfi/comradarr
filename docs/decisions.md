@@ -204,8 +204,9 @@ app keeps its own copy; there is no shared package.
 
 Each app's connection modules add their own first-run steps after `setup`. In comradarr, first run
 continues with the two-factor offer, then verifying access from the operator's own browser
-(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. This
-replaces the legacy order, which verified access before creating the account (owner decision).
+(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until
+Verify access passes, the setup gate keeps sending every signed-in page back to it, as the legacy
+setup flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating the account (owner decision).
 `setup` keeps the origin the instance was claimed from as the first allowed origin, so the account
 request is still origin-checked. Because claiming and creating the owner is one step, the legacy
 setup-claim cookie goes, and the token is printed only to the console, without the legacy token
