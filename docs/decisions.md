@@ -177,13 +177,14 @@ app keeps its own copy; there is no shared package.
   the secret encrypted by `secrets`, single-use backup codes stored only as hashes, each code
   accepted once and a limit on failed attempts. When it is on, every way of signing in passes
   through it, with one optional exception for OIDC (below).
-- **Recovery.** An owner who loses their password, or their authenticator and backup codes, turns
-  on a recovery setting in the environment and restarts the app. It then prints a one-time recovery
+- **Recovery.** An owner who loses their password, or their authenticator and backup codes, turns on
+  a recovery setting in the environment and restarts the app. It then prints a one-time recovery
   token to the console, outside the structured logs, as `setup` does. Typing the token lets the
-  owner set a new password; it also turns two-factor off, so they can set it up again, and signs
-  out every session. Once used, the token is gone, and while the setting stays on the app prints no
-  new one and warns at startup that the setting should be cleared. `sign-in` builds it, and
-  `two-factor` adds turning itself off.
+  owner set a new password; it also turns two-factor off, so they can set it up again, and signs out
+  every session. The token expires after 15 minutes (a restart prints a new one), failed attempts
+  are limited per address, and once it is used the app prints no new one while the setting stays on,
+  and warns at startup that the setting should be cleared. `sign-in` builds it, and `two-factor`
+  adds turning itself off.
 - **Plex for the owner is an option.** In the apps that use Plex (all of them except comradarr and
   zimuarr), the owner can link their account to their own Plex account in the admin settings once
   setup is done. After that, "Sign in with Plex" also signs them in as the owner. The password
@@ -203,9 +204,8 @@ app keeps its own copy; there is no shared package.
 
 Each app's connection modules add their own first-run steps after `setup`. In comradarr, first run
 continues with the two-factor offer, then verifying access from the operator's own browser
-(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until
-Verify access passes, the setup gate keeps sending every signed-in page back to it, as the legacy
-setup flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating the account (owner decision).
+(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. This
+replaces the legacy order, which verified access before creating the account (owner decision).
 `setup` keeps the origin the instance was claimed from as the first allowed origin, so the account
 request is still origin-checked. Because claiming and creating the owner is one step, the legacy
 setup-claim cookie goes, and the token is printed only to the console, without the legacy token
