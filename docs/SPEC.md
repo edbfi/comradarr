@@ -1,7 +1,8 @@
 # Spec: comradarr
 
 **Status:** the ground floor (skeleton) is specified here, approved by the orchestrator
-(2026-10-22) and built. The capability map below is approved; no product module is specified yet.
+(2026-10-22) and built. The capability map below is approved; `secrets` is specified in
+[SPEC-secrets.md](SPEC-secrets.md).
 
 ## Objective
 
@@ -108,8 +109,6 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 
 ### Open decisions each module closes
 
-- `secrets`: whether the legacy checks against weak master keys (legacy §11.3: repeated bytes, low
-  entropy, a denylist) join every app's key check.
 - `i18n`: the validation that D22 lists (pinned versions, the adapter-bun build, a Weblate round
   trip).
 - `setup`: D15 (Drizzle versions for Bun SQL), D16 (with the roles of D17), the oldest PostgreSQL
