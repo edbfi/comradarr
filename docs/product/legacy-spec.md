@@ -15,8 +15,8 @@
 > the master key's file precedence, versions, rotation and denylist (§11.3) by D24, and the
 > configuration snapshots of §12 are left out (owner decision). D23 makes the version step of §7.3
 > a warning and drops Sonarr v3 (§7.3, §13): each upstream is supported at its latest stable release
-> only. Sections are deleted as approved `docs/SPEC-<id>.md` files cover them, and the file goes once
-> nothing is left (AGENTS.md, cleanup procedures).
+> only. Sections are deleted as approved `docs/SPEC-<id>.md` files cover them, and the file goes
+> once nothing is left (AGENTS.md, cleanup procedures).
 
 ## 0. Status: read this first
 

@@ -105,7 +105,7 @@ v1.<key id>.<nonce>.<ciphertext and tag>
 - Each segment after `v1` is canonical unpadded base64url: the key ID is 22 characters (16 bytes),
   the nonce 16 characters (12 fresh random bytes from WebCrypto for every encryption), and the
   ciphertext ends in GCM's 16-byte tag.
-- **No value is SQL `NULL`.** Encrypting an empty secret is an error, so an empty string never
+- **Nothing stored is SQL `NULL`.** Encrypting an empty secret is an error, so an empty string never
   means "nothing stored". Any stored text that isn't exactly this shape is corruption and an error,
   never a silent empty value.
 - One self-describing column: its parts can't drift apart, and the same column works in PostgreSQL
@@ -117,8 +117,8 @@ v1.<key id>.<nonce>.<ciphertext and tag>
 binding of the place it reads from or writes to, never one stored beside the value, so a value
 copied to another row, field or app fails to decrypt. Table, field and row ID must be non-empty.
 
-A rule for the modules that store secrets: **every row holding an encrypted field has a stable ID the
-app generates before the insert** (an autoincrement ID doesn't exist yet when the value is
+A rule for the modules that store secrets: **every row holding an encrypted field has a stable ID
+the app generates before the insert** (an autoincrement ID doesn't exist yet when the value is
 encrypted), which never changes for the row's life; names and URLs, which do change, are never part
 of it. A table with one row uses a fixed ID.
 
@@ -127,7 +127,8 @@ value:
 - `SecretFormatError`: the stored text isn't the format above, or names an unknown version.
 - `SecretKeyMismatchError`: the value's key ID isn't the loaded key's: it was written under another
   master key. It names the table, field and row ID.
-- `SecretDecryptError`: the tag doesn't verify: the value was changed, or read under another binding.
+- `SecretDecryptError`: the tag doesn't verify: the value was changed, or read under another
+  binding.
 
 **The limit:** with random 12-byte nonces, one master key may encrypt at most 2³² values (NIST SP
 800-38D); comradarr encrypts a handful per connector or channel, so this is never near.
@@ -159,15 +160,15 @@ this; `setup` tests the restore with the Compose example.
 ## Project structure
 
 ```text
-src/lib/server/config/secret-key.ts         reads the two variables and the file; no checks on the key itself
-src/lib/server/security/secrets/key-text.ts      canonical base64 decoding and the weak-key checks
-src/lib/server/security/secrets/keyring.ts       HKDF import and derivation, the key ID, the loaded key
-src/lib/server/security/secrets/cipher.ts        the stored format, the binding, encrypt, decrypt, errors
-src/lib/server/security/secrets/secret.ts        the wrapper
+src/lib/server/config/secret-key.ts             reads the two variables and the file, nothing more
+src/lib/server/security/secrets/key-text.ts     canonical base64 decoding, the weak-key checks
+src/lib/server/security/secrets/keyring.ts      HKDF import and derivation, the key ID, the key
+src/lib/server/security/secrets/cipher.ts       stored format, binding, encrypt, decrypt, errors
+src/lib/server/security/secrets/secret.ts       the wrapper
   (each with its *.test.ts)
-src/env.ts                                   declares the two variables (SvelteKit's file)
-src/hooks.server.ts                          the `init` hook; thin, calls the keyring
-tests/e2e/secret-key.test.ts                 the built server refuses to start without a valid key
+src/env.ts                                      declares the two variables (SvelteKit's file)
+src/hooks.server.ts                             the `init` hook; thin, calls the keyring
+tests/e2e/secret-key.test.ts                    the built server refuses to start without a key
 ```
 
 `config/` reads text and knows nothing about keys; `security/secrets/` imports it, as imports go
@@ -202,9 +203,9 @@ Unit tests (Vitest), next to their source; every key in them is generated at tes
 - **Errors never echo a key:** for every failing case, the message contains no part of the key text.
 - **Keyring:** the key ID is stable across loads, 22 characters, and differs between keys; the AES
   key isn't extractable.
-- **Cipher:** a round trip; two encryptions of one secret differ; another table, field, row ID or
-  app name, a flipped bit in any segment, a swapped key ID and a truncated value each fail with the
-  right error; an empty secret can't be encrypted; a value written under another key fails with
+- **Cipher:** a round trip; two encryptions of one secret differ; another table, field or row ID, a
+  flipped bit in any segment, a swapped key ID and a truncated value each fail with the right error;
+  an empty secret can't be encrypted; a value written under another key fails with
   `SecretKeyMismatchError`; every segment's length is checked.
 - **Wrapper:** each form above prints `[redacted]`, and only `reveal()` returns the value.
 
@@ -224,9 +225,9 @@ in `.env` or the environment.
   test time.
 - **Ask first:** any dependency (none is planned: WebCrypto and Bun cover it); any change to the
   stored format or the `info` labels once a value is stored, since the five apps share them.
-- **Never:** a key or a decodable example key in the repo, logs or test output; deriving a key from a
-  password; trying other keys when a key ID isn't loaded; a database, schema or re-encryption job in
-  this module; a fallback that starts without a key.
+- **Never:** a key or a decodable example key in the repo, logs or test output; deriving a key from
+  a password; a database, schema or re-encryption job in this module; a fallback that starts without
+  a key.
 
 ## Success criteria
 

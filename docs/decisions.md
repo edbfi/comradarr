@@ -162,7 +162,8 @@ app keeps its own copy; there is no shared package.
   - Every encryption uses a fresh random 12-byte nonce.
   - Associated data ties each value to its record and field, so a value copied to another row or
     field fails to decrypt.
-  - Every stored value carries its key ID, so the key can be rotated.
+  - Every stored value carries its key ID, so a value written under another key fails with its
+    own error (D24).
 - **`i18n`.** The translation groundwork (D21), in place before the first screen.
 - **`setup`.** If nobody has claimed the instance yet, the app prints a one-time bootstrap token to
   the console at startup, outside the structured logs (D12). Whoever types that token claims the
