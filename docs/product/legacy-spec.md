@@ -11,11 +11,12 @@
 > generated and audit-admin credentials of §11.5 and §15.1). The roles, permissions and provisioned
 > users of §3, §10.3 and §10.4, header sign-in, several OIDC providers, turning password sign-in off
 > (§10.1), the setup-claim cookie and token file (§9.1) and the wizard order of §9.4 are superseded
-> by D20, the English-only first release (§14.7) by D21, and the configuration snapshots of §12 are
-> left out (owner decision). D23 makes the version step of §7.3 a warning and drops Sonarr v3
-> (§7.3, §13): each upstream is supported at its latest stable release only. Sections are deleted
-> as approved `docs/SPEC-<id>.md` files cover them, and the file goes once nothing is left
-> (AGENTS.md, cleanup procedures).
+> by D20, the English-only first release (§14.7) by D21, the four-part encrypted layout (§11.2) and
+> the master key's file precedence, versions, rotation and denylist (§11.3) by D24, and the
+> configuration snapshots of §12 are left out (owner decision). D23 makes the version step of §7.3
+> a warning and drops Sonarr v3 (§7.3, §13): each upstream is supported at its latest stable release
+> only. Sections are deleted as approved `docs/SPEC-<id>.md` files cover them, and the file goes once
+> nothing is left (AGENTS.md, cleanup procedures).
 
 ## 0. Status: read this first
 
