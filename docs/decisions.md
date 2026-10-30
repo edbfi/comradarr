@@ -130,9 +130,9 @@ way. The `setup` spec pins the oldest PostgreSQL major version comradarr accepts
 - **At startup**, before serving or starting jobs, the migration step runs as that owner role (D5)
   and creates or updates the two other roles of D7: the app role and the audit-admin role. Their
   passwords are derived from the master key with HKDF (WebCrypto), so there are no more credentials
-  to store or hand out, and after a key rotation the migration step sets the new passwords. A
-  pre-flight check names any missing privilege before anything migrates. The owner connection
-  closes once migrations are done.
+  to store or hand out. There is no key rotation (D24); if the master key is ever replaced, the
+  migration step sets the new passwords. A pre-flight check names any missing privilege before
+  anything migrates. The owner connection closes once migrations are done.
 - **At runtime**, requests and jobs use the app role only, and the retention sweep connects as the
   audit-admin role on a short connection of its own. Each role logs in separately: switching roles
   on one connection (`SET ROLE`) would let an injected statement switch back.
@@ -305,24 +305,27 @@ late working.
 ### D24. The master key: its format, its checks, and when it's required
 
 `secrets` (D20) takes one master key, exactly 32 bytes in canonical standard base64, from
-`COMRADARR_SECRET_KEY` or `COMRADARR_SECRET_KEY_FILE`; setting both is an error. Startup refuses a
-key whose bytes have at most 4.0 bits of Shannon entropy per byte, step by one constant amount, or
-are all printable ASCII; there is no denylist. The key is imported only as HKDF input, and each use
-derives its own key under its own label: the AES-256-GCM key, a 16-byte key ID and, in `setup`, the
-role passwords (D17). A stored value is one text value, `v1.<key id>.<nonce>.<ciphertext and tag>`,
-with `NULL` for none, and decrypts only under the table, field, row and app it was written for.
-There is no rotation: the key ID D20 asks for makes a value written under another key fail with
-its own clear error, and a new key means entering the stored secrets again. `secrets` checks the key
-in SvelteKit's `init` hook from its first version, so every way of running the app, dev and CI
-included, needs one. The details are in [SPEC-secrets.md](SPEC-secrets.md). The design is the same
-in all five edbfi apps; only the variable prefix, the app name and the stored secrets differ.
+`COMRADARR_SECRET_KEY` or `COMRADARR_SECRET_KEY_FILE`; setting both is an error, and an empty
+variable counts as unset. Startup refuses a key whose bytes have at most 4.0 bits of Shannon entropy
+per byte, step by one constant amount, or are all printable ASCII; there is no denylist. The key is
+imported only as HKDF input, and each use derives its own key under its own label: the AES-256-GCM
+key, a 16-byte key ID and, in `setup`, the role passwords (D17). A stored value is one text value,
+`v1.<key id>.<nonce>.<ciphertext and tag>`, with `NULL` for none, and decrypts only under the table,
+field, row and app it was written for. There is no rotation: the key ID D20 asks for makes a value
+written under another key fail with its own clear error, and a new key means entering the stored
+secrets again. `secrets` checks the key in SvelteKit's `init` hook from its first version, so every
+way of running the app, dev and CI included, needs one. The details are in
+[SPEC-secrets.md](SPEC-secrets.md). The design is the same in all five edbfi apps; only the variable
+prefix, the app name and the stored secrets differ.
 
 Why: closes the open question of the capability map, whether the legacy weak-key checks (legacy
 §11.3) join every app's key check, with safety first (owner decision, after a council of three
 models and a review). Each kept check catches a real mistake (a padded or doubled short secret, a
 counter, a passphrase), and together they refuse a random key about once in 62 billion. A denylist
 adds upkeep without safety once no key is ever written in the repo. One encoding and an error when
-both variables are set leave nothing ambiguous at startup. Deriving every key through HKDF keeps one
+both variables are set leave nothing ambiguous at startup. An empty variable can't hold a key or a
+path, and Compose writes one for every `${VAR}` that isn't defined, so counting it as set would only
+break the usual secret-file setup (owner decision). Deriving every key through HKDF keeps one
 key out of two primitives now that D17 also derives role passwords from it. One self-describing
 column can't come apart. Rotation is left out because the apps are rewritten from scratch with no
 stored data to carry over, and a key change is rare enough to handle by entering a few secrets
