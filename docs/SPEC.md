@@ -142,6 +142,11 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   step, and the token is printed only to the console (D20).
 - PostgreSQL inside the app image, its supervised processes and a built-in backup command (legacy
   §2.2, §15.2, §15.4; D4, D17).
+- **A container image's first start** (deferred; comradarr has no image repository yet). If it
+  gets one, its setup script never generates a master key: PostgreSQL is a separate service the
+  image can't inspect, so a first install can't be told from an existing one, and a new key would
+  derive the wrong role passwords (D17). The operator always sets `COMRADARR_SECRET_KEY` or
+  `COMRADARR_SECRET_KEY_FILE`. Building images through GitHub is a later goal.
 - Connecting Weblate and hiding incomplete languages (legacy §14.7; D21): later work. The message
   files are ready for it.
 - What the legacy design deferred on purpose (legacy §17.3): a hash-chained audit, the key-rotation
