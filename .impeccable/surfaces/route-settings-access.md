@@ -23,11 +23,11 @@ Use the shared [design system](../../DESIGN.md). Match hierarchy, density and pa
 
 ## Required content
 
-'Public access'. Observed https://rotate.example, Proposed https://rotate.example. Steps Observed / Proposed / Testing / Verified. 'Test address' and disabled 'Save address' until Verified. Preferences Appearance Dark / Light / System, Language English, Timezone Europe/Berlin. 'Save preferences'. Sessions Current browser, Revoke other sessions.
+'Public access'. Observed https://rotate.example, Proposed https://rotate.example. Steps Observed / Proposed / Testing / Verified. 'Test address'. The address is only checked, never saved: when it doesn't match, the result suggests adding the proxy line `proxy_set_header Host $http_host`, or setting `ORIGIN=<address>` (or fixing or removing a wrong `ORIGIN`) and restarting. Preferences Appearance Dark / Light / System, Language English, Timezone Europe/Berlin. 'Save preferences'. Sessions Current browser, Revoke other sessions.
 
 ## Acceptance criteria
 
-Show testing example as one state only; save disabled during Testing. No save success before proven verification. Stored connector keys never shown.
+Show testing example as one state only. Verified reports the check's result, not a saved value. Stored connector keys never shown.
 
 - Preserve audience boundaries from [product context](../../PRODUCT.md).
 - Use canonical data in [demo fixtures](../../tests/fixtures/demo-fixtures.json); do not infer calculations from raster text.
@@ -41,6 +41,7 @@ Show testing example as one state only; save disabled during Testing. No save su
 Use the images for composition and visual character. Use DESIGN.md, PRODUCT.md, this brief's acceptance criteria and the demo fixtures for exact values and behavior. Body copy, chart axes, tiny icons and font glyphs remain illustrative raster renderings. Rebuild them as native accessible UI and verify them against the specification. A PNG cannot verify focus order, screen-reader announcements, permission checks or real responsiveness.
 
 - Address verification proves the current browser configuration. No internet accessibility requirement; private LAN deployments remain supported.
+- Public access saves no address: don't copy the raster's 'Save address' button, its 'Validate new address' and 'Ready to save' step captions or the 'before saving changes' subtitle.
 
 ## Handoff prompt
 
