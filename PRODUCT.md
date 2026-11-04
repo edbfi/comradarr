@@ -87,3 +87,5 @@ What doesn't exist, and must not be fabricated:
 ## Accessibility and inclusion
 
 Keyboard access throughout, visible focus, labelled inputs, text plus icon for status, 44px touch targets, readable text at 200% zoom, and reduced-motion alternatives. Target WCAG AA text contrast. Never use color alone to communicate a decision. Bundle fonts locally in the implementation.
+
+The legacy app's practices stay: semantic elements first and ARIA only where they fall short (landmarks, live regions for live updates, help text linked to its field); errors announced; a unique title on every page; icon-only controls named for screen readers; no keyboard traps; contrast checked in every theme; and a manual screen-reader pass on major changes.

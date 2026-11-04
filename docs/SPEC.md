@@ -9,7 +9,7 @@
 comradarr keeps a perpetual search rotation running over an operator's Sonarr and Radarr libraries:
 every item keeps getting searched again, within the indexer budget it inherits (read from Prowlarr
 where present). It only sends search commands; it never downloads
-([PRODUCT.md](../PRODUCT.md), [legacy spec](product/legacy-spec.md)).
+([PRODUCT.md](../PRODUCT.md)).
 
 **This spec covers only the ground floor:** an empty, production-shaped SvelteKit app that builds,
 type-checks, tests, lints and serves on Bun, styled from the design tokens, with the edbfi Bun web
@@ -22,8 +22,7 @@ job is to make the first module spec cheap to build: every later PR adds behavio
 change. Each module gets its own `docs/SPEC-<id>.md`, which the owner approves just before it is
 built.
 Sources: [PRODUCT.md](../PRODUCT.md), [decisions.md](decisions.md), the
-[legacy spec](product/legacy-spec.md), the [surface briefs](../.impeccable/surfaces/) and the
-[Module notes](#module-notes) below.
+[surface briefs](../.impeccable/surfaces/) and the [Module notes](#module-notes) below.
 
 **Every module keeps to [Code structure](../AGENTS.md#code-structure).** Its spec names the files it
 adds in that layout, and review checks them. In short:
@@ -51,15 +50,15 @@ components or services, and dates and numbers formatted for the viewer's locale.
 | 11 | `sync` | The incremental, deep and full syncs with fingerprints, diffs, mappers and tiers computed only here, mirror and schedule written in one transaction, the coordinator job, and syncing by hand | `connectors` | "Sync now" and sync progress on `/connectors` |
 | 12 | `budgets` | The budget interface and the default budget: per connector a daily command cap spread through the day, a concurrency limit and a minimum interval, the compound limit, the read-only budget with the reason for its current limit, and editing the pacing | `connectors` | the pacing section of `/settings/rotation`; the budget block on `/connectors` |
 | 13 | `rotation` | The rotation loop in (tier, last searched) order, the Sonarr and Radarr planners with their cover lists, dispatch that moves every covered item to the back at once, command tracking with re-polling after a restart, pausing and resuming the rotation, the daily-allowance state, and the heartbeat beside the wordmark | `sync`, `budgets` | `/rotation`; the heartbeat in the app shell |
-| 14 | `content` | The content browser for 500,000 rows: filters, sorting and search kept in the URL, keyset pages and virtual scrolling (legacy §14.2, §16); item detail with the commands that covered it; "Search now" as a priority search ahead of the rotation (legacy §4.6), and pausing an item | `rotation` | `/content`, `/content/[id]` |
+| 14 | `content` | The content browser for 500,000 rows: filters, sorting and search kept in the URL, keyset pages and virtual scrolling; item detail with the commands that covered it; "Search now" as a priority search ahead of the rotation, and pausing an item | `rotation` | `/content`, `/content/[id]` |
 | 15 | `prowlarr-provider` | The Prowlarr v1 API client: indexers with their limits, usage statistics, status, and the applications and tags that map indexers to connectors, read-only. Adds Prowlarr as a connector type | `connectors` | the Prowlarr type on `/connectors` |
 | 16 | `indexer-budget` | The budget inherited from Prowlarr (PRODUCT.md): per connector the most restrictive serving indexer's limit minus the safety reserve (20% by default, which the owner can change) and minus its usage, hourly and daily limits normalised, disabled indexers left out, connector URLs matched to Prowlarr's applications, the cached reads, the Prowlarr health monitor, and the local cap kept at or below the inherited budget | `budgets`, `prowlarr-provider` | the inherited budget on `/connectors` and `/settings/rotation` |
 | 17 | `dashboard` | The rotation overview from one composed page payload, live-updated: rotation status, items and their tiers, items covered and commands today, the throughput chart, the budget with its reserve shown apart, connector health and indexer warnings | `rotation`, `indexer-budget` | `/dashboard` |
-| 18 | `notifications` | Channels (the multi-service relay, the webhook and the guided email form), each tested before it is saved; the routing matrix with its default profile; templates in the tiny template language, with the built-ins translated; delivery with its bounded retries, the 60-second coalescing and the kill switch (legacy §8.2) | `events`, `connectors` | the Notifications page (no brief yet); the routing section of `/settings/rotation` |
-| 19 | `audit-log` | The audit log page: newest first, filters, the detail drawer with redacted context and the export, plus the retention setting and the batched, audited sweep under the audit-admin role (legacy §11.6, §17.2) | `sign-in` | `/audit` |
-| 20 | `preferences` | Theme (light, dark or system, never flashing the wrong one, legacy §14.5), language, time zone and the install name | `sign-in` | the Preferences section of `/settings/access` |
-| 21 | `api-keys` | The owner's API keys (legacy §10.7): a recognisable prefix, shown once, stored as a hash, an optional expiry that is enforced, an optional narrower scope from a fixed list of actions, last used and first use, and revoking. They reach only the JSON API. Also publishes the OpenAPI document behind sign-in (legacy §9.5) | `sign-in` | the API keys section of the settings (no brief yet) |
-| 22 | `metrics` | The opt-in metrics endpoint with its allowlist inside the app, answering "not found" while off, and the opt-in trace export to the operator's collector, with connector names as labels but never identity, addresses or user agents (legacy §15.5) | `rotation` | the observability section of the settings (no brief yet) |
+| 18 | `notifications` | Channels (the multi-service relay, the webhook and the guided email form), each tested before it is saved; the routing matrix with its default profile; templates in the tiny template language, with the built-ins translated; delivery with its bounded retries, the 60-second coalescing and the kill switch | `events`, `connectors` | the Notifications page (no brief yet); the routing section of `/settings/rotation` |
+| 19 | `audit-log` | The audit log page: newest first, filters, the detail drawer with redacted context and the export, plus the retention setting and the batched, audited sweep under the audit-admin role | `sign-in` | `/audit` |
+| 20 | `preferences` | Theme (light, dark or system, never flashing the wrong one), language, time zone and the install name | `sign-in` | the Preferences section of `/settings/access` |
+| 21 | `api-keys` | The owner's API keys: a recognisable prefix, shown once, stored as a hash, an optional expiry that is enforced, an optional narrower scope from a fixed list of actions, last used and first use, and revoking. They reach only the JSON API. Also publishes the OpenAPI document behind sign-in | `sign-in` | the API keys section of the settings (no brief yet) |
+| 22 | `metrics` | The opt-in metrics endpoint with its allowlist inside the app, answering "not found" while off, and the opt-in trace export to the operator's collector, with connector names as labels but never identity, addresses or user agents | `rotation` | the observability section of the settings (no brief yet) |
 | 23 | `oidc-sign-in` | Connecting one OpenID Connect provider (Authentik, Authelia, Pocket ID, Tinyauth and others) by its issuer, client id and secret, and linking the owner's account to it, after which it signs them in as the owner, and offering to skip `two-factor` when the provider's `amr` claim reports its own second factor (D20) | `two-factor` | its section of `/settings/access`; its button on `/login` |
 
 Build order: `secrets` → `i18n` → `setup` → `sign-in` → `two-factor` → `http-boundary` → `events` →
@@ -68,7 +67,8 @@ Build order: `secrets` → `i18n` → `setup` → `sign-in` → `two-factor` →
 `preferences`, `api-keys`, `metrics`, `oidc-sign-in`. A comma means either order works. The first
 five are the opening every edbfi app shares (D20). The first provider built adds the provider
 contract and the SSRF-safe outbound HTTP with its URL classification and re-resolution (D9;
-Module notes, `connectors`). `rotation` is the first time comradarr does its job, on the conservative default budget,
+Module notes, `connectors`). `rotation` is the first time comradarr does its job, on the
+conservative default budget,
 so everything before it is the shortest path there; the budget inherited from Prowlarr follows.
 
 First-run setup grows step by step: `setup` claims the instance and creates the owner account,
@@ -115,8 +115,8 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   trip).
 - `setup`: D15 (Drizzle versions for Bun SQL), D16 (with the roles of D17), the oldest PostgreSQL
   version (D17) and the logging library half of D14; and how the inline `style` attributes that Ark
-  UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup and restore test of D18 goes with
-  the Compose example.
+  UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup
+  and restore test of D18 goes with the Compose example.
 - `sign-in`: how long an owner session lasts.
 - `sign-in`: the password rules: the minimum length, whether a list of common passwords is
   refused, and how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
@@ -127,19 +127,20 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 - `indexer-budget`: whether a disabled indexer leaves the budget at once or after a debounce; and
   how a connector is matched to its Prowlarr application when one names a container and the other
   an IP address (normalising both, or letting the owner choose).
-- `content`: whether used priority searches are deleted or marked (legacy §17.2).
+- `content`: whether used priority searches are deleted or marked.
 - `notifications`: what delivers the multi-service relay (a new dependency, so the owner approves
-  it) and whether email stays a guided relay form (legacy §17.2).
+  it) and whether email stays a guided relay form.
 - `metrics`: the trace export library (a new dependency, so the owner approves it).
 - D13: the first JSON endpoint that needs a generated client decides it, at the latest `api-keys`,
   which publishes the OpenAPI document. D19 stays open as an accepted limit.
 
 ### Left out on purpose
 
-- Any role beyond the one owner, the permission matrix and users created by a provider (D20). API key scopes keep a fixed list of actions.
+- Any role beyond the one owner, the permission matrix and users created by a provider (D20). API
+  key scopes keep a fixed list of actions.
 - Signing in through a reverse proxy's headers (D20): `oidc-sign-in` covers the same
   identity providers.
-- More than one OIDC provider, and linking by email (legacy §10.4): D20 links one provider by
+- More than one OIDC provider, and linking by email: D20 links one provider by
   issuer and subject.
 - Turning password sign-in off (owner decision; D20: the password keeps working).
 - Configuration snapshots (owner decision): backup goes through PostgreSQL and the
@@ -153,18 +154,18 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   image can't inspect, so a first install can't be told from an existing one, and a new key would
   derive the wrong role passwords (D17). The operator always sets `COMRADARR_SECRET_KEY` or
   `COMRADARR_SECRET_KEY_FILE`. Building images through GitHub is a later goal.
-- Connecting Weblate and hiding incomplete languages (legacy §14.7; D21): later work. The message
+- Connecting Weblate and hiding incomplete languages (D21): later work. The message
   files are ready for it.
-- What the legacy design deferred on purpose (legacy §17.3): a hash-chained audit, the key-rotation
+- What the legacy app's design deferred on purpose: a hash-chained audit, the key-rotation
   worker, a command palette, per-connector hostile-response thresholds and pre-upgrade dumps.
 - Downloading, managing files, reading download queues, querying indexers and artwork (PRODUCT.md,
-  principle 3; legacy §1.4).
+  principle 3).
 
 ### Surfaces with no brief yet
 
 First-run setup's claim and account, two-factor and Verify access steps, the two-factor and OIDC
 sections and password change on `/settings/access`, the Notifications page, and the API keys and
-observability settings are needed (all are in the legacy design or in PRODUCT.md's sidebar) but have
+observability settings are needed (all are in the Module notes or in PRODUCT.md's sidebar) but have
 no brief. The `/setup` brief's step list changes to the order above. Each gets its brief, or its
 brief's change, before its module is specced. The `/login` brief gains `http-boundary`'s address
 hint (`sign-in`) the same way, and the `/settings/access` brief's Public access gains proxy trust,
@@ -428,6 +429,10 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   request id to look up in the logs. A page that fails to load shows an error page; an action that
   fails shows inline, and the page stays usable. An empty state says what comes next, such as adding
   the first connector, or that the first sync is running.
+- **The app shell** (comradarr): PRODUCT.md's sidebar, with the rotation heartbeat beside the
+  wordmark (`rotation`). Pages render on the server first, and forms work without scripts, enhanced
+  with pending states and optimistic updates followed by a refresh. Filters, sorting, search and
+  paging stay in the URL, so a view can be bookmarked and shared.
 
 #### http-boundary
 
@@ -543,6 +548,10 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   as calls succeed (`sonarr-provider`).
 - **Pausing** a connector stops its dispatches and keeps everything; pausing and resuming are
   audited.
+- **The detail** shows the sync status, the last error, recent commands, the inherited indexer
+  limits and budget (read-only, `indexer-budget`) and the pacing with its hints (`budgets`), with
+  editing, deleting, pausing, syncing and refreshing the indexer data. The list marks a connector
+  that skips TLS verification with a warning badge.
 - **URLs and addresses** (the outbound HTTP the first provider builds, D9). A URL is `https://` or
   `http://` with a host, and is refused with credentials or a fragment, a sign of a pasted browser
   address. `http://` is allowed only for a local address (loopback, private LAN, link-local, IPv6
@@ -554,12 +563,12 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   three modes the owner chooses: default allows loopback, private ranges (home networks and
   container bridges), unique-local IPv6, carrier-grade NAT and public addresses, and refuses
   link-local, where cloud metadata services live; strict allows only public addresses, for instances
-  in the cloud; permissive also allows link-local and warns at every start. A host whose addresses
-  fall on both sides is refused. Before every call the host is resolved and classified again, the
-  connection goes to a classified address and the connected peer is checked, which defeats DNS
-  rebinding; a failure is its own error ("resolved to a disallowed address"). Whether an address is
-  local, for `http://`, is judged by these resolved addresses, never by the name. The same rules
-  cover notification destinations.
+  in the cloud; permissive also allows link-local, warns when chosen and at every start. A host
+  whose addresses fall on both sides is refused. Before every call the host is resolved and
+  classified again, the connection goes to a classified address and the connected peer is checked,
+  which defeats DNS rebinding; a failure is its own error ("resolved to a disallowed address").
+  Whether an address is local, for `http://`, is judged by these resolved addresses, never by the
+  name. The same rules cover notification destinations.
 - **TLS** verification is always on and can't be turned off for all connectors; a connector may skip
   verification, shown with a warning badge, or use its own CA bundle.
 
@@ -664,6 +673,8 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   or timed-out command is just resolved: there is no retry, and its items come round again when they
   are stalest. Commands in flight at a crash are polled again after the restart.
 - **Pausing** the rotation, and pausing an item (`content`), are audited; routine ticks aren't.
+- **The heartbeat** beside the wordmark beats only while rotation is dispatching; it is still when
+  rotation is idle or paused, before first run is complete and without connectors.
 
 #### indexer-budget
 
@@ -682,6 +693,134 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   failures), a failure rate over 30% (trouble before a disable; rotation may slow down) and an
   indexer over 80% of its limit (information, shown on the dashboard). A connector whose indexers
   are all disabled is skipped without an error and resumes by itself.
+
+#### content
+
+- **The browser** holds up to 500,000 rows: filters by connector, type, tier, whether an item has a
+  file and whether it is paused; sorting; a search that waits about 300 ms after typing; and per row
+  the tier, last searched, search count and file status. Pages are keyset pages (constant cost at
+  any depth) and rows are virtualised; filters, sorting, search and the page stay in the URL. A
+  browser this size has never been built, so it is prototyped early in the module.
+- **An item's detail** shows its mirror fields, its schedule state and the recent commands that
+  covered it, with "Search now" and pausing.
+- **Search now** is a priority search: one per item (connector, type and upstream id), so a double
+  click can't make two. Rotation dispatches it before any other item on its next tick, limited only
+  by the concurrency limit, not the daily cap, and afterwards the item's last-searched time updates
+  as usual, so it rejoins the rotation. Its completion is an event.
+- **Pausing an item** takes it out of the rotation without deleting it. Searching and pausing are
+  audited.
+
+#### notifications
+
+- **A consumer, never a source:** `notifications` takes events from `events` and sends them out, so
+  security and health events reach the owner when no tab is open.
+- **Channels:** a multi-service relay, one destination URL that embeds the destination's token
+  (several destinations mean several channels); a webhook, with its URL, POST or PUT, optional
+  headers (for a bearer token) and a body template rendered from the event; and email, a guided form
+  (host, port, credentials and implicit TLS or STARTTLS, never plain text) that builds a relay mail
+  URL and is sent like any relay channel. A channel has a name, its kind, an enabled flag, its
+  encrypted settings (`secrets`), its TLS overrides, and when it was last tested with the result
+  (never, ok or failed).
+- **Hardening:** destinations follow `connectors`' address rules, `http://` and its opt-in included,
+  are resolved and classified again at every send, and take the same TLS overrides; webhooks never
+  follow redirects. A send refused by the address rules is permanent, never retried, and logged.
+- **Tested before saved:** saving a channel sends a real test message, and only a success saves it
+  and records the test. A failure gives the specific error (a TLS handshake, a 404, a URL that
+  doesn't parse, an unreachable host) and keeps the previous settings, so a channel is never saved
+  broken. Stored secrets (a token in the URL, a webhook header) are reused, for a test or a save,
+  only while the destination is unchanged: a changed destination needs them typed again.
+- **Routing:** one enabled pair of event type and channel is one notification; several pairs fan
+  out; no pair means off, with no separate mute. The matrix groups event types (security,
+  operational health, started by the owner) against the channels, with one toggle per cell. Deleting
+  a channel deletes its routes.
+- **The default profile** is applied once, when the first channel is created; later channels start
+  with everything off, so an event the owner silenced isn't switched back on. On: security (a new
+  session; a password change; an API key created or revoked; five or more failed sign-ins within
+  five minutes; OIDC failures; a failure to write the audit trail; recovery used), operational
+  health (a connector's reachability changing; an indexer disabled or re-enabled, coalesced; a sync
+  failing three or more times in a row; 80% of a daily cap used) and a priority search finishing.
+  Off but available: tier changes, each sync's or rotation cycle's completion, and connectors added,
+  edited or deleted.
+- **Templates** use a tiny language: variables and one conditional block, which doesn't nest, for
+  optional fields; no loops, expressions, attribute access or computed values, so a template has
+  nothing to run and translators' placeholder checks understand it. The built-in templates are
+  messages, translated (D21); the owner's override for an event type and channel kind is stored as
+  written. A send uses the override, else the built-in in the owner's language, else English, never
+  a mix. The editor starts from the English default, lists the variables the event has, and warns
+  when a placeholder is dropped.
+- **Delivery** is fire-and-forget: sends run concurrently with their own timeouts and the bus never
+  waits. Each notification gets a first attempt (10 seconds) and three retries after 1, 5 and 30
+  seconds (15, 20 and 30 seconds each), and is then abandoned with a warning that names the event
+  type and the channel, never its settings. There is no delivery table and no dead-letter queue: the
+  log is the record, because durable delivery isn't a goal for one owner.
+- **Coalescing:** operational-health events within a rolling 60 seconds go out as one summary;
+  security events and the owner's own never wait. The window is a constant.
+- **The kill switch** is one global setting, on by default. Turned off, it stops every delivery and
+  keeps the channels and routes; every notifications page shows a banner while delivery is off, and
+  suppressed sends are still logged.
+- **Audited:** creating, editing and deleting channels, routes and template overrides; single
+  deliveries are logged only.
+
+#### audit-log
+
+- **The page** lists entries newest first, with filters by action, actor, date range and free text,
+  a detail drawer with the redacted context, and an export that streams the entries as plain text.
+- **Retention** keeps everything by default; an optional cap is applied by a scheduled sweep that
+  connects as the audit-admin role (D17), deletes in batches and is itself audited.
+
+#### preferences
+
+- **The theme** is light, dark or system, stored for the owner. With a stored choice the first
+  server-rendered page already has it; with "system", and before sign-in, a small preference cookie
+  written before the first paint does, so the page never flashes the wrong theme. Switching is
+  instant.
+
+#### api-keys
+
+- **A key** is a recognisable prefix, so secret scanners can spot a leaked one, then a random part
+  of 256 bits. Only a fast hash of the random part is stored, with the prefix and the last four
+  characters for display; a value without the prefix is ignored without a database lookup. A key
+  comes in its own header or as a bearer token.
+- **Creating** a key takes a name, an optional expiry and an optional narrower scope. The key is
+  shown exactly once, with a copy action and a warning that it won't be shown again, and never goes
+  into page data that survives navigation, storage, a URL, the logs or the audit trail.
+- **Using:** an expired key is refused when it is checked, and a key outside its scope gets a 403
+  naming the action. The last use is recorded, best effort, on every use, and the first use is
+  audited once, so the owner sees when an integration came online.
+- **Revoking** is immediate (the key and its scope are deleted), and audited with its prefix and
+  last four characters.
+- **The OpenAPI document** and any viewer for it need sign-in (otherwise a 401 with no body), are
+  rate-limited (`sign-in`), and use no assets from a CDN. Everything that exists is described: there
+  are no hidden endpoints, and development-only ones are switched by flags.
+
+#### metrics
+
+- **The metrics endpoint** is off by default, and while off it isn't registered and answers "not
+  found". When on, it serves the common text format to the addresses on its allowlist, kept inside
+  the app: empty denies everyone, loopback isn't allowed by itself, an address not on it gets a 403
+  with an empty body, and one on it needs no sign-in. It covers requests and their latency, sync
+  durations, dispatches, tracking latency, budget use, active sessions, pool saturation and the
+  process.
+- **Trace export** to the owner's collector is opt-in too. Both use connector names as labels, never
+  identity, addresses or user agents.
+
+#### oidc-sign-in
+
+- **Discovery and the signing keys** are fetched at startup and refreshed every 24 hours, and on a
+  signature failure (at most once a minute, with one retry); if a refresh fails, the last key set is
+  used.
+- **The flow** is the authorization code flow with PKCE, S256 only, never plain. Its state is a
+  signed, single-use value bound to the browser's sign-in attempt, the ID token's nonce must match,
+  and both expire after 10 minutes.
+- **The ID token:** its algorithm is read from the header before any key lookup, `none` and
+  symmetric algorithms are refused and only listed asymmetric ones accepted; issuer, audience,
+  expiry and issued-at (and not-before when present) are checked with 60 seconds of clock skew, and
+  the nonce must match.
+- **Sign-out** ends the local session and, when the provider advertises an end-session endpoint,
+  goes there to end the provider's session too.
+- **The provider's settings** are set in the app (row 23), the client secret encrypted (`secrets`),
+  and the issuer follows `connectors`' address rules, `http://` and its opt-in included. A failed
+  OIDC sign-in shows the owner a generic failure and logs the specific reason.
 
 ## Tech stack
 
@@ -788,7 +927,8 @@ export const GET: RequestHandler = () => healthResponse();
   against live instances from time to time to catch drift (which needs live instances to hand).
   Property tests cover the planner, the sync diff, keyset paging, the URL classifier and the tier
   rules. Integration tests run against a real PostgreSQL, the role privileges included (D16). Every
-  error type is provoked by at least one test, and coverage is watched, never a gate.
+  error type is provoked by at least one test, component tests run automated accessibility checks,
+  and coverage is watched, never a gate.
 
 ## CI and repo tooling
 
@@ -837,8 +977,8 @@ design doesn't call for anything different; choices 4 and 5 are comradarr's own.
    pairing and `check-peers` are settled early; the first `ui/` wrapper comes with the first surface
    that needs one.
 3. **Security headers and CSP.** `setup`'s Module notes make security headers and a strict
-   nonce-based CSP always on, with a report endpoint. They belong to the first module that serves real pages
-   (`setup`, whose claim page comes before `sign-in`), not the skeleton.
+   nonce-based CSP always on, with a report endpoint. They belong to the first module that serves
+   real pages (`setup`, whose claim page comes before `sign-in`), not the skeleton.
 4. **Where the icon lives.** SvelteKit serves static files from `static/`, so the icon is
    `static/comradarr-icon.svg` (it was in `public/`), which the README shows and `src/app.html` uses
    as the favicon.
