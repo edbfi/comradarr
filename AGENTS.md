@@ -290,13 +290,12 @@ so run `build` first, and it needs Chromium once per machine:
 `bunx --bun playwright install chromium`.
 
 **Boundaries.**
-- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)). The legacy spec
-  describes behaviour to keep, not the technology: its header names the superseded sections.
+- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)).
 - Never bring code over from `legacy-old/v1` or `feat/comradarr-implementation-plan`; rebuild from
   the spec.
 
 **Read next.**
-- Product: [PRODUCT.md](PRODUCT.md), [legacy spec](docs/product/legacy-spec.md).
+- Product: [PRODUCT.md](PRODUCT.md).
 - Design: [DESIGN.md](DESIGN.md), the [surface briefs](.impeccable/surfaces/) (one per route),
   [screens and references](docs/design/), [design tokens](panda.config.ts),
   [demo fixtures](tests/fixtures/demo-fixtures.json).

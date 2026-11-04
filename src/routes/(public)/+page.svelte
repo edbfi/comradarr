@@ -6,8 +6,8 @@ import { css } from "#styled-system/css";
 	<title>Comradarr</title>
 </svelte:head>
 
-<!-- Placeholder until a module gives / a surface. The legacy spec defines none: its setup gate
-     (§9.2) sends browsers to setup, and the dashboard is `/dashboard`. -->
+<!-- Placeholder until a module gives / a surface. No module defines one: the setup gate (`setup`)
+     sends browsers to setup, and the dashboard is `/dashboard`. -->
 <main
 	class={css({
 		maxWidth: "readingMax",
