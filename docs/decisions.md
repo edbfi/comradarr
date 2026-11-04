@@ -210,9 +210,9 @@ continues with the two-factor offer, then verifying access from the operator's o
 (`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until Verify
 access passes, the setup gate keeps sending every signed-in page back to it, as the legacy setup
 flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating
-the account (owner decision). `setup` keeps the origin the instance was claimed from as the first
-allowed origin, so the account request is still origin-checked. Because claiming and creating the
-owner is one step, the legacy setup-claim cookie goes, and the token is printed only to the console,
+the account (owner decision). The claim, which creates the account, is still cross-origin-checked
+like every other POST (`sign-in`'s check, which asks the browser), and it stores no address.
+Because claiming and creating the owner is one step, the legacy setup-claim cookie goes, and the token is printed only to the console,
 without the legacy token file (legacy spec §9.1). Every claim and recovery is audited (legacy spec
 §9.3, §10.8).
 
