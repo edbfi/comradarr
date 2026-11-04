@@ -212,9 +212,9 @@ access passes, the setup gate keeps sending every signed-in page back to it, as 
 flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating
 the account (owner decision). The claim, which creates the account, is still cross-origin-checked
 like every other POST (`sign-in`'s check, which asks the browser), and it stores no address.
-Because claiming and creating the owner is one step, the legacy setup-claim cookie goes, and the token is printed only to the console,
-without the legacy token file (legacy spec §9.1). Every claim and recovery is audited (legacy spec
-§9.3, §10.8).
+Because claiming and creating the owner is one step, the legacy setup-claim cookie goes, and the
+token is printed only to the console, without the legacy token file (legacy spec §9.1). Every
+claim and recovery is audited (legacy spec §9.3, §10.8).
 
 comradarr has no Plex and no users besides the owner, so the provider chain of legacy spec §10.1
 shrinks to the password, OIDC and two-factor: no header sign-in, one OIDC provider instead of
