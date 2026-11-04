@@ -131,6 +131,9 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 - `notifications`: what delivers the multi-service relay (a new dependency, so the owner approves
   it) and whether email stays a guided relay form.
 - `metrics`: the trace export library (a new dependency, so the owner approves it).
+- The WCAG target, the same in all five apps (a cross-app follow-up): today AA text contrast
+  (PRODUCT.md); the legacy app's design took full WCAG 2.2 AA as the baseline, under which a
+  shipped violation is a regression.
 - D13: the first JSON endpoint that needs a generated client decides it, at the latest `api-keys`,
   which publishes the OpenAPI document. D19 stays open as an accepted limit.
 
@@ -158,6 +161,8 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   files are ready for it.
 - What the legacy app's design deferred on purpose: a hash-chained audit, the key-rotation
   worker, a command palette, per-connector hostile-response thresholds and pre-upgrade dumps.
+- A message broker, a cache server, a separate worker process and a dead-letter queue (PRODUCT.md
+  principle 5; D4, D8).
 - Downloading, managing files, reading download queues, querying indexers and artwork (PRODUCT.md,
   principle 3).
 

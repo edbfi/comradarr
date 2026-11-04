@@ -214,7 +214,8 @@ it, as the legacy app's setup flag did. This replaces the legacy app's order, wh
 before creating the account (owner decision). The claim, which creates the account, is still
 cross-origin-checked like every other POST (`sign-in`'s check, which asks the browser), and it
 stores no address. Because claiming and creating the owner is one step, the legacy app's
-setup-claim cookie goes, and the token is printed only to the console, without its token file.
+setup-claim cookie goes, and the token is printed only to the console, without the legacy app's
+token file.
 Every claim and recovery is audited.
 
 comradarr has no Plex and no users besides the owner, so the legacy app's chain of sign-in providers
@@ -231,8 +232,8 @@ were the owner's call for every app, and so was letting a provider's own second 
 the app's, optionally; one standard OIDC flow covers the self-hosted identity providers without a
 client for each, and `amr` is the standard way to see the provider's factor. The legacy app's
 design already had most of this shape: the log-printed claim token, server-side sessions stored as
-hashes, and the encrypted field with its nonce, row binding and key version, which the shared
-`secrets` keeps. Its recovery mode showed that the shared opening had no way back in, and the owner
+hashes, and the encrypted field with its nonce and row binding, which the shared `secrets` keeps
+(with a key ID in place of its key version, D24). Its recovery mode showed that the shared opening had no way back in, and the owner
 asked for recovery in every app.
 
 ### D21. Every interface is translatable, in English and Danish
@@ -296,8 +297,8 @@ a real difference in the API shows up as an error, not as wrong data.
 
 In comradarr the services are Sonarr, Radarr and Prowlarr, each at its latest stable release: today
 Sonarr v4 through its v3 API, Radarr through its v3 API and Prowlarr through its v1 API. The version
-step of connector validation (its last step, `connectors`) warns instead of failing, the warning
-stays on the connector's detail, and the legacy app's support for Sonarr v3 goes.
+check, the last step of `connectors`' validation, warns instead of failing, and the warning stays
+on the connector's detail; the legacy app's support for Sonarr v3 goes.
 
 Why: the owner doesn't want a backlog of backwards compatibility in any app (owner decision). Code
 for old versions and for upstream bugs is seldom removed once it's in, and each workaround outlives
