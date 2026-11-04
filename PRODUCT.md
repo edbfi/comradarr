@@ -64,7 +64,7 @@ What exists:
 - `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
 - `static/comradarr-icon.svg`: the product icon, used as the favicon and in the README.
-- `LICENSE`: the GNU Affero General Public License, version 3.
+- `LICENSE`: the GNU Affero General Public License, version 3. Contributions are accepted under the same terms, and dependencies are checked for a compatible licence.
 
 What doesn't exist, and must not be fabricated:
 
@@ -82,10 +82,10 @@ What doesn't exist, and must not be fabricated:
 2. **Never finished, never a queue.** Every item stays in rotation and is ordered only by tier and staleness. Comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
 3. **Beside the stack, never inside it.** Comradarr reads libraries and sends search commands, nothing more. It doesn't download, manage files or query indexers, and new scope that crosses that line needs a deliberate decision.
 4. **Report what Comradarr actually did.** Commands sent, items covered, budget used and connector health are facts it owns; whether a better release was found belongs to Sonarr and Radarr. Errors say what went wrong and how to fix it, without blaming the operator.
-5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
+5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured, and no dependency that bundles an analytics client. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
 
 ## Accessibility and inclusion
 
 Keyboard access throughout, visible focus, labelled inputs, text plus icon for status, 44px touch targets, readable text at 200% zoom, and reduced-motion alternatives. Target WCAG AA text contrast. Never use color alone to communicate a decision. Bundle fonts locally in the implementation.
 
-The legacy app's practices stay: semantic elements first and ARIA only where they fall short (landmarks, live regions for live updates, help text linked to its field); errors announced; a unique title on every page; icon-only controls named for screen readers; no keyboard traps; contrast checked in every theme; and a manual screen-reader pass on major changes.
+Semantic elements come first, and ARIA only where they fall short (landmarks, live regions for live updates, help text linked to its field). Errors are announced, every page has a unique title, icon-only controls are named for screen readers, nothing traps the keyboard, contrast is checked in every theme, and major changes get a manual screen-reader pass.

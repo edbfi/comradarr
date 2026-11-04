@@ -141,7 +141,9 @@ way. The `setup` spec pins the oldest PostgreSQL major version comradarr accepts
 - **Backup** is PostgreSQL's own: a `pg_dump` of comradarr's database and its restore, documented
   with the Compose example. The master key is backed up separately and restored with the database
   (D18). comradarr ships no backup command. The migration step recreates the two roles after a
-  restore, so a dump without roles is enough.
+  restore, so a dump without roles is enough. Losing the database means a fresh install: the
+  connectors are added again and sync rebuilds the mirror; the audit history, rotation positions and
+  preferences are lost.
 
 Why: the owner chose this shape. It keeps PostgreSQL out of the app image (D4) and stays close to
 the legacy app's single setting to start: two secrets and a Compose example. The owner role is used
@@ -230,11 +232,11 @@ claim and has to know who its owner is. Encrypting in the app (D4: secrets are c
 the database) keeps stolen database files unreadable without the key. Two-factor and OIDC sign-in
 were the owner's call for every app, and so was letting a provider's own second factor stand in for
 the app's, optionally; one standard OIDC flow covers the self-hosted identity providers without a
-client for each, and `amr` is the standard way to see the provider's factor. The legacy app's
-design already had most of this shape: the log-printed claim token, server-side sessions stored as
-hashes, and the encrypted field with its nonce and row binding, which the shared `secrets` keeps
-(with a key ID in place of its key version, D24). Its recovery mode showed that the shared opening had no way back in, and the owner
-asked for recovery in every app.
+client for each, and `amr` is the standard way to see the provider's factor. The legacy app's design
+already had most of this shape: the log-printed claim token, server-side sessions stored as hashes,
+and the encrypted field with its nonce and row binding, which the shared `secrets` keeps (with a key
+ID in place of its key version, D24). Its recovery mode showed that the shared opening had no way
+back in, and the owner asked for recovery in every app.
 
 ### D21. Every interface is translatable, in English and Danish
 

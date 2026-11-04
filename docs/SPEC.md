@@ -39,7 +39,7 @@ components or services, and dates and numbers formatted for the viewer's locale.
 |---|---|---|---|---|
 | 1 | `secrets` | **Built.** Encrypts stored secrets (connector API keys, notification channel settings, two-factor secrets, the OIDC client secret) before they reach the database (D20), and the secret wrapper that shows only a redaction marker and opens at one named call | — | — |
 | 2 | `i18n` | The translation groundwork (D21) with Paraglide JS (D22): message files in English and Danish, choosing each request's language, the language switcher, formatting dates and numbers for the viewer's locale, and a check that every message exists in both languages | — | the language switcher in each shell |
-| 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the claim's per-address limit; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: claim and account (no brief yet); `/healthz` |
+| 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the claim's per-address limit; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: claim and account (no brief yet); `/healthz` |
 | 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits, the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts, and the sessions list with revoking | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
 | 5 | `two-factor` | Optional but strongly recommended (D20): authenticator codes, backup codes and the challenge after every way the owner signs in (except the optional OIDC skip, D20), with replay protection and a limit on failed attempts. Recovery turns it off. Adds the offer to first-run setup, right after the owner account is created and before any connection step, and the reminder in the app shell while it is off | `sign-in` | the two-factor offer in first-run setup; its section of `/settings/access` (no brief yet); the reminder in the app shell |
 | 6 | `http-boundary` | Verifying access from the operator's own browser: proxy trust by socket peer, observed, proposed, tested there and only then saved; and the address check, which only diagnoses: comparing the address the browser uses with the `Host` the app receives, `ORIGIN` when set and the forwarded address, classifying the forwarded headers and the source address, suggesting `ORIGIN=<address>` or the proxy line `proxy_set_header Host $http_host`, and the header recipes for common reverse proxies. The address check never blocks and saves nothing, and its suggestion also shows on the claim and owner sign-in pages, so someone without a session can recover. A mandatory first-run step after the two-factor offer (D20): until it passes, the setup gate sends every signed-in page back to it; the address check never stops it passing. The same tests run after setup | `sign-in` | the Verify access step of first-run setup (no brief yet); the Public access section of `/settings/access`; the address hint on the claim and owner sign-in pages |
@@ -63,13 +63,13 @@ components or services, and dates and numbers formatted for the viewer's locale.
 
 Build order: `secrets` → `i18n` → `setup` → `sign-in` → `two-factor` → `http-boundary` → `events` →
 `sonarr-provider`, `radarr-provider` → `connectors` → `sync`, `budgets` → `rotation` → `content`,
-`prowlarr-provider` → `indexer-budget` → `dashboard` → `notifications`, `audit-log`,
-`preferences`, `api-keys`, `metrics`, `oidc-sign-in`. A comma means either order works. The first
-five are the opening every edbfi app shares (D20). The first provider built adds the provider
-contract and the SSRF-safe outbound HTTP with its URL classification and re-resolution (D9;
-Module notes, `connectors`). `rotation` is the first time comradarr does its job, on the
-conservative default budget,
-so everything before it is the shortest path there; the budget inherited from Prowlarr follows.
+`prowlarr-provider` → `indexer-budget` → `dashboard` → `notifications`, `audit-log`, `preferences`,
+`api-keys`, `metrics`, `oidc-sign-in`. A comma means either order works. The first five are the
+opening every edbfi app shares (D20). The first provider built adds the provider contract and the
+SSRF-safe outbound HTTP with its URL classification and re-resolution (D9; Module notes,
+`connectors`). `rotation` is the first time comradarr does its job, on the conservative default
+budget, so everything before it is the shortest path there; the budget inherited from Prowlarr
+follows.
 
 First-run setup grows step by step: `setup` claims the instance and creates the owner account,
 `two-factor` offers itself, `http-boundary` verifies access, and `connectors` adds the first
@@ -90,7 +90,7 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 | `setup` | `db/` (client, migrations, the roles of D17, settings, owner and audit schema), `config/`, `logging/` (with redaction), `services/setup/`, `services/audit/record.ts`, `services/health.ts`, `security/bootstrap-token.ts`, `security/headers.ts`, `lib/shared/errors/` (the error format); `routes/setup/`, `routes/healthz/`, the CSP report endpoint under `routes/api/`, and the setup gate and the headers in `hooks.server.ts` |
 | `sign-in` | `services/sign-in/` (sessions and their storage, the limit counters, recovery), `db/` session and rate-limit schema, `security/` (session-token and password hashing, the cross-origin check), `vite.config.ts` (SvelteKit's own form check off); the sign-in at the claim in `routes/setup/`, `routes/login/`, `routes/(app)/` layout, the Sessions and Password sections of `routes/(app)/settings/access/`, `lib/components/layout/` |
 | `two-factor` | `services/two-factor/`, the owner schema's two-factor fields in `db/`; the offer in `routes/setup/`, the challenge page beside `routes/login/`, its section of `routes/(app)/settings/access/`, and the reminder in `lib/components/layout/` |
-| `http-boundary` | `services/http-boundary/` (observed values, proposals, live tests, the address check), `security/` (client address, host check, CORS), the boundary settings in `db/`; its step in `routes/setup/`, the address hint on the claim in `routes/setup/` and on `routes/login/`, the Public access section of `routes/(app)/settings/access/`, and the resolution in `hooks.server.ts` |
+| `http-boundary` | `services/http-boundary/` (observed values, proposals, live tests, the address check), `security/` (the client address), the boundary settings in `db/`; its step in `routes/setup/`, the address hint on the claim in `routes/setup/` and on `routes/login/`, the Public access section of `routes/(app)/settings/access/`, and the resolution in `hooks.server.ts` |
 | `events` | `services/events/` (the bus); the stream under `routes/api/`; the listener in `lib/components/layout/` |
 | `sonarr-provider` | `providers/sonarr/`, `providers/connector.ts` (the contract, if first), `http/` (if first) |
 | `radarr-provider` | `providers/radarr/`, `providers/connector.ts` and `http/` (if first) |
@@ -129,7 +129,8 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   an IP address (normalising both, or letting the owner choose).
 - `content`: whether used priority searches are deleted or marked.
 - `notifications`: what delivers the multi-service relay (a new dependency, so the owner approves
-  it) and whether email stays a guided relay form.
+  it, and one whose connections the address rules can check) and whether email stays a guided relay
+  form.
 - `metrics`: the trace export library (a new dependency, so the owner approves it).
 - The WCAG target, the same in all five apps (a cross-app follow-up): today AA text contrast
   (PRODUCT.md); the legacy app's design took full WCAG 2.2 AA as the baseline, under which a
@@ -152,11 +153,12 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
   and the token is printed only to the console (D20).
 - PostgreSQL inside the app image, its supervised processes and a built-in backup command (D4,
   D17).
-- **A container image's first start** (deferred; comradarr has no image repository yet). If it
-  gets one, its setup script never generates a master key: PostgreSQL is a separate service the
-  image can't inspect, so a first install can't be told from an existing one, and a new key would
-  derive the wrong role passwords (D17). The operator always sets `COMRADARR_SECRET_KEY` or
-  `COMRADARR_SECRET_KEY_FILE`. Building images through GitHub is a later goal.
+- **A container image's first start** (deferred; comradarr has no image repository yet). If it gets
+  one, its setup script never generates a master key: PostgreSQL is a separate service the image
+  can't inspect, so a first install can't be told from an existing one, and a new key would derive
+  the wrong role passwords (D17). The operator always sets `COMRADARR_SECRET_KEY` or
+  `COMRADARR_SECRET_KEY_FILE`. Building images through GitHub is a later goal; that work also
+  settles the image's non-root user, tags, architectures and bill of materials.
 - Connecting Weblate and hiding incomplete languages (D21): later work. The message
   files are ready for it.
 - What the legacy app's design deferred on purpose: a hash-chained audit, the key-rotation
@@ -169,12 +171,13 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 ### Surfaces with no brief yet
 
 First-run setup's claim and account, two-factor and Verify access steps, the two-factor and OIDC
-sections and password change on `/settings/access`, the Notifications page, and the API keys and
-observability settings are needed (all are in the Module notes or in PRODUCT.md's sidebar) but have
-no brief. The `/setup` brief's step list changes to the order above. Each gets its brief, or its
-brief's change, before its module is specced. The `/login` brief gains `http-boundary`'s address
-hint (`sign-in`) the same way, and the `/settings/access` brief's Public access gains proxy trust,
-below the address check, with the same Observed, Proposed, Testing and Verified states.
+sections and password change on `/settings/access`, the connection policy on `/connectors`, the
+Notifications page, and the API keys and observability settings are needed (all are in the Module
+notes or in PRODUCT.md's sidebar) but have no brief. The `/setup` brief's step list changes to the
+order above. Each gets its brief, or its brief's change, before its module is specced. The `/login`
+brief gains `http-boundary`'s address hint (`sign-in`) the same way, and the `/settings/access`
+brief's Public access gains proxy trust, below the address check, with the same Observed, Proposed,
+Testing and Verified states.
 
 ### Module notes
 
@@ -204,9 +207,10 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   change to setup state, creating the owner included, writes it as not complete, so an interrupted
   first run is still gated after a restart, and nothing is inferred from an owner account existing.
   Until first run is complete, JSON callers get a 503 "setup incomplete", never a 401, and the only
-  routes open without a session are setup's own, the health check, the CSP report endpoint and the
-  static assets setup needs; the OpenAPI document isn't one of them. Until Verify access passes,
-  every signed-in page goes back to it (`http-boundary`, D20).
+  routes open without a session are setup's own, owner sign-in with its two-factor challenge,
+  recovery, the health check, the CSP report endpoint and the static assets setup needs; the OpenAPI
+  document isn't one of them. Until Verify access passes, every signed-in page goes back to it
+  (`http-boundary`, D20).
 - **The bootstrap token** (D20) is 12 random lowercase letters and digits, shown as
   `xxxx-xxxx-xxxx`, held only in memory (never logged or stored) and compared in constant time. It
   is printed with the setup URL and is valid for 15 minutes, after which a new one is printed. Claim
@@ -219,16 +223,18 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
 - **The claim** is a POST, cross-origin-checked like any other (`sign-in`), and it stores no
   address. It needs a valid bootstrap token and the browser's address (`sign-in`). Using up the
   token and creating the owner are one atomic step, and the owner session it starts follows
-  `sign-in`'s cookies. (comradarr) Every claim attempt is audited with its outcome (granted, wrong
-  token, expired, rate-limited), and setup's endpoints never log request bodies.
+  `sign-in`'s cookies. (comradarr) The account form shows how strong the password is. Every claim
+  attempt is audited with its outcome (granted, wrong token, expired, rate-limited), and setup's
+  endpoints never log request bodies.
 - **Runtime settings** (comradarr). The environment holds only what must exist before the start: the
   master key and the database URL (D17), the log level and format (structured lines by default,
   console lines for development), the content security policy's report-only mode (for development,
-  with a warning at every start), recovery (D20) and `ORIGIN`. Every other setting is stored in
-  PostgreSQL, changed in the app, audited and in effect at once, and a network setting is tested
-  before it is saved (`http-boundary`). There are no configuration files. Plain settings and secrets
-  are stored apart: a secret is encrypted in its own field (`secrets`), so reading plain settings
-  never decrypts anything.
+  with a warning at every start), recovery (D20), `ORIGIN`, the server's address and port (`HOST`,
+  `PORT`) and the shutdown drain time (below). Every other setting is stored in PostgreSQL, changed
+  in the app, audited and in effect at once, and a network setting is tested before it is saved
+  (`http-boundary`). There are no configuration files. Plain settings and secrets are stored apart:
+  a secret is encrypted in its own field (`secrets`), so reading plain settings never decrypts
+  anything.
 - **Database** (comradarr). Every query is parameterised; no SQL is built from strings.
 - **Logging.** Four levels; debug entries are dropped unless debug logging is on. Each entry has a
   level, a message, a source, structured metadata and a millisecond timestamp, and goes to standard
@@ -245,21 +251,21 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   search. A loop logs one summary per tick, and a repeated error is logged once when it starts, then
   rarely, then once when it clears. Request and response bodies are never logged, and an exception
   is logged as its type, message, relevant frame and fingerprint, never its local variables. Who
-  changed what goes to the audit trail, not the log.
+  changed what, and any user's identity, go to the audit trail, not the log.
 - **The audit trail** (comradarr). One service writes every entry, from the first claim attempt on.
   An entry has its time, an action code from one documented list that only grows, the actor (the
   owner, or the client address when nobody is signed in), a context of a fixed shape per action with
   every secret redacted, the client address, the user agent and the request id, which links it to
-  the request's log lines. Entries are read newest first, overall and per action. It records the
-  bootstrap token being printed; every claim attempt and its outcome; creating the owner; completing
-  first run; every sign-in attempt with its method; sign-out; ending sessions; password changes;
-  recovery; creating, first using and revoking API keys; adding, editing, deleting, pausing and
-  resuming connectors (the URL and type, and only that the key changed, never the key);
-  `http-boundary` changes with old and new values; OIDC settings; notification channels, routes and
-  templates; settings and secret changes; and syncs and searches started by hand. Routine sync and
-  rotation ticks, health probes, single dispatches and single notification deliveries go to the log
-  instead; an action is recorded in exactly one of the two. Startup checks that the database knows
-  every action code.
+  the request's log lines. Entries are indexed and read newest first, overall and by action. It
+  records the bootstrap token being printed; every claim attempt and its outcome; creating the
+  owner; completing first run; every sign-in attempt with its method; sign-out; ending sessions;
+  password changes; recovery; creating, first using and revoking API keys; adding, editing,
+  deleting, pausing and resuming connectors (the URL and type, and only that the key changed, never
+  the key); `http-boundary` changes with old and new values; OIDC settings; notification channels,
+  routes and templates; settings and secret changes; syncs and searches started by hand; and pausing
+  and resuming the rotation or an item. Routine sync and rotation ticks, health probes, single
+  dispatches and single notification deliveries go to the log instead; an action is recorded in
+  exactly one of the two. Startup checks that the database knows every action code.
 - **Security headers,** on every response, early returns included: framing denied, no MIME sniffing,
   a referrer policy of `same-origin` or `strict-origin-when-cross-origin`, never `no-referrer`
   (which makes browsers send `Origin: null` on the app's own form posts), a permissions policy
@@ -268,12 +274,13 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   when the browser sent `Sec-Fetch-Site` to a host that isn't loopback, since browsers send it only
   to HTTPS and loopback addresses), and a nonce-based content security policy: scripts from the app
   only; images from the app and inline data; fonts from the app (DESIGN.md bundles them);
-  connections to the app only; no framing; the app only as base and form target. (comradarr) Strict
-  transport security covers subdomains and is never preloaded, which is the operator's choice.
-  Opener and resource policies are same-origin, and no server-version or powered-by header is sent.
-  The policy's default is the app only, styles too come from the app with the nonce, plugins are
-  refused, `unsafe-inline` and `unsafe-eval` are never allowed (which limits the dependencies the
-  app can use), and `upgrade-insecure-requests` isn't sent, because it would break a plain-HTTP
+  connections to the app only; no framing; the app only as base and form target. (comradarr) No
+  setting turns them off or changes them. Strict transport security covers subdomains and doesn't
+  ask for preloading, which is the operator's decision. Opener and resource policies are
+  same-origin, and no server-version or powered-by header is sent. The policy's default is the app
+  only, styles too come from the app, scripts and styles carry a fresh nonce per request, plugins
+  are refused, `unsafe-inline` and `unsafe-eval` are never allowed (which limits the dependencies
+  the app can use), and `upgrade-insecure-requests` isn't sent, because it would break a plain-HTTP
   install at home.
 - **The CSP report endpoint** (comradarr) needs no session and works before setup. It takes only the
   report content type, up to a size cap, is rate-limited per address, logs each violation with
@@ -294,11 +301,12 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   printed next if the instance is unclaimed; jobs do nothing until first run is complete. Migrations
   only go forward: a failed one stops startup with a clear message and a non-zero exit, a pending
   one logs a reminder to back up first, and going back means restoring that backup and running the
-  previous version, never running an older version on a migrated database. A job catches every error
-  in a tick, logs it with its context and carries on; a lasting failure shows as a deduplicated
-  error and a health badge, not as restarts. Everything that matters is in the database, so a crash
-  loses nothing: sync resumes from its timestamps and fingerprints, rotation from the last-searched
-  times, and commands in flight are polled again.
+  previous version, never running an older version on a migrated database. Shutdown closes outbound
+  connections and the database after stopping the jobs and draining. A job catches every error in a
+  tick, logs it with its context and carries on; a lasting failure shows as a deduplicated error and
+  a health badge, not as restarts. Everything that matters is in the database, so a crash loses
+  nothing: sync resumes from its timestamps and fingerprints, rotation from the last-searched times,
+  and commands in flight are polled again.
 - **Trust:** anyone who can read the server console can claim a fresh install. (comradarr)
   Restarting the app needs the same trust, so a restart printing a new token adds nothing.
 
@@ -308,7 +316,7 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   check, rate limits, sign-in, the setup gate, then the owner check. Security headers go on every
   response, an early return from any stage included. (comradarr) The client address is resolved
   once, before the first stage (`http-boundary`), and every stage, the audit trail and the logs read
-  the same one.
+  the same one; the limits on API keys apply once `sign-in` has checked the key.
 - **SvelteKit's own form check is off:** `sveltekit({ csrf: { trustedOrigins: ['*'] } })` in
   `vite.config.ts` (SvelteKit 3 takes its options in the `sveltekit()` call, with no `kit:`
   wrapper). Remote functions stay off. A config test asserts both, so SvelteKit's only remaining
@@ -376,20 +384,20 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   (`bun ./build`) checks that a cross-site form POST is refused and that a same-origin POST carrying
   no `Sec-Fetch-*` headers passes, both on `localhost` and on a plain-HTTP host name that isn't
   loopback (such as Chromium's `--host-resolver-rules="MAP app.test 127.0.0.1"`).
-- **Cookies:** session cookies are named after the app (comradarr: `comradarr_session` for the
-  owner session), because cookies ignore ports and apps on one address would otherwise sign each
-  other out. They are host-only, `HttpOnly` and `SameSite=Lax`. Every cookie is `Secure` exactly
-  when the browser's address is `https`, so a plain-HTTP install at home still works. Every cookie
-  write and deletion sets `secure` explicitly (SvelteKit's default is `Secure` on every host but
-  `localhost`), and a deletion whose scheme isn't known uses `secure: false`, which works over HTTP
-  and HTTPS.
+- **Cookies:** session cookies are named after the app (comradarr: `comradarr_session` for the owner
+  session), because cookies ignore ports and apps on one address would otherwise sign each other
+  out. They are host-only, `HttpOnly` and `SameSite=Lax` (comradarr: with the path `/`). Every
+  cookie is `Secure` exactly when the browser's address is `https`, so a plain-HTTP install at home
+  still works. Every cookie write and deletion sets `secure` explicitly (SvelteKit's default is
+  `Secure` on every host but `localhost`), and a deletion whose scheme isn't known uses `secure:
+  false`, which works over HTTP and HTTPS.
 - **A wrong address never locks the owner out.** No stored address can stop password sign-in: a
   wrong `ORIGIN` is fixed or removed, then the app restarts. The OIDC callback address is stored,
   so OIDC may need registering again after a move, but password sign-in always remains (D20).
 - **Signed-in pages** (comradarr) send someone who isn't signed in to owner sign-in, with a "session
-  expired" notice when their session ended, and JSON callers get a 401. A 403 means the caller is
-  known but not allowed, such as an API key without the action or a refused cross-origin request, so
-  the two never mix.
+  expired" notice when their session ended, and JSON callers get a 401. A 403 means the request is
+  refused for any other reason, such as an API key without the action or a refused cross-origin
+  request, so the two never mix.
 - **Password sign-in** (comradarr). The password hash is Argon2id, memory-hard and slow, with its
   parameters fixed in the code (never a setting) and stored in each hash; a successful sign-in
   re-hashes an outdated hash. An unknown username is checked against a fixed placeholder hash, so it
@@ -397,22 +405,24 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   attempt is audited with its method and outcome (success, unknown user or wrong password). A
   successful sign-in always issues a new session token. Every comparison of a secret is
   constant-time. The legacy app refused passwords below a minimum length and from a list of common
-  ones; the password rules below settle both.
+  ones; the open `sign-in` decision on the password rules settles both.
 - **Password change** (comradarr) needs the current password, and in one transaction stores the new
   hash, replaces the current session and ends every other one.
 - **Sessions** (comradarr). A session token has at least 256 bits of randomness, and only a fast
-  hash of it is stored and looked up. A session ends at its idle or its absolute lifetime, whichever
-  comes first (the legacy app's defaults were 7 and 30 days, changeable; the lengths are the open
-  decision below). Each request updates its last-seen time in the background, best effort, never
-  failing the request. The owner may have any number of sessions. The sessions list shows each one's
-  start, last use, address, user agent and sign-in method, marks this browser's, and offers revoking
-  one and "revoke all other sessions"; the address and user agent are only shown, never used to
-  decide access. A session revoked elsewhere disappears live (`events`). Sign-out and revoking
-  delete the session, with nothing kept that could be replayed, and each is audited. Any failure to
-  check a session, other than a clear "not signed in", counts as not signed in. The session cookie
-  has no expiry in the browser: the stored session decides how long it lasts.
+  cryptographic hash of it is stored and looked up, unique per session. A session ends at its idle
+  or its absolute lifetime, whichever comes first. Both lifetimes can be changed (the legacy app's
+  defaults were 7 and 30 days, changeable; the lengths are an open `sign-in` decision). Each request
+  updates its last-seen time in the background, best effort, never failing the request. The owner
+  may have any number of sessions. The sessions list shows each one's start, last use, address, user
+  agent and sign-in method, marks this browser's, and offers revoking one and "revoke all other
+  sessions"; the address and user agent are only shown, never used to decide access. A session
+  revoked elsewhere disappears live (`events`). Sign-out and revoking delete the session, with
+  nothing kept that could be replayed, and each is audited. Any failure to check a session, other
+  than a clear "not signed in", counts as not signed in. The session cookie has no expiry in the
+  browser: the stored session decides how long it lasts.
 - **Rate limits** apply per client address (comradarr: as `http-boundary` resolves it). A refusal is
-  a 429 with `Retry-After`, as a form error, a JSON error or a branded page, whichever the caller
+  a 429 with `Retry-After` (comradarr: without the shared remaining and reset headers, which the
+  legacy app never had), as a form error, a JSON error or a branded page, whichever the caller
   expects. (comradarr) Tight on signing in and loose elsewhere, because throttling the owner's own
   pages helps nobody:
   - signing in: 10 attempts a minute and 50 an hour per address, and per username a delay before
@@ -427,44 +437,50 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
     changeable), so a leaked key is contained;
   - signed-in pages and the OIDC callback aren't limited.
 
-  Counters live in memory and in PostgreSQL, so a restart doesn't reset an attacker's limits.
-- **Errors** (comradarr). A validation error sits on its field; an expired session goes to sign-in
-  with a "session expired" notice; a connector error names the connector and offers retry or
-  reconfigure, as the error says; any other unexpected error shows a generic message with the
-  request id to look up in the logs. A page that fails to load shows an error page; an action that
-  fails shows inline, and the page stays usable. An empty state says what comes next, such as adding
-  the first connector, or that the first sync is running.
+  Counters are keyed by scope and key and keep the count, the window's start, the backoff state and
+  the last failure. They live in memory and in PostgreSQL, so a restart doesn't reset an attacker's
+  limits.
+- **Errors** (comradarr). A validation error sits on its field; a connector error names the
+  connector and offers retry or reconfigure, as the error says; any other unexpected error shows a
+  generic message with the request id to look up in the logs. A page that fails to load shows an
+  error page; an action that fails shows inline, and the page stays usable. An empty state says what
+  comes next, such as adding the first connector, or that the first sync is running.
 - **The app shell** (comradarr): PRODUCT.md's sidebar, with the rotation heartbeat beside the
   wordmark (`rotation`). Pages render on the server first, and forms work without scripts, enhanced
   with pending states and optimistic updates followed by a refresh. Filters, sorting, search and
-  paging stay in the URL, so a view can be bookmarked and shared.
+  paging stay in the URL, so a view can be bookmarked and shared. Each page's data comes as one
+  payload, composed with concurrent queries, and pages should feel instant on local hardware (a
+  target, never measured).
 
 #### http-boundary
 
-- **Proxy trust** decides whether forwarded headers say who the client is. Until it is saved,
-  nothing is trusted and the client address is the connection's. Trust is decided by the
-  connection's address alone, never by a header or anything the form sends. When the connection
-  comes from a trusted proxy, the client address is the rightmost address in the forwarded chain
-  that isn't itself a trusted proxy, so chained proxies work; an empty or malformed chain falls back
-  to the connection's address with a warning, and a chain with anything but addresses is refused
-  whole. Resolved once per request, the client address is what every stage reads: rate limits, the
-  audit trail, the logs and the address check.
+- **Proxy trust** decides whether forwarded headers say who the client is. Proxy trust is a list of
+  addresses and ranges. Until it is saved, nothing is trusted and the client address is the
+  connection's. Trust is decided by the connection's address alone, never by a header or anything
+  the form sends. When the connection comes from a trusted proxy, the client address is found by
+  walking the forwarded chain from the right past trusted proxies to the first address that isn't
+  one, so chained proxies work and entries further left, which the client wrote, are never read. An
+  empty or malformed chain falls back to the connection's address with a warning, and so does an
+  entry the walk reaches that isn't an address. Resolved once per request, the client address is
+  what every stage reads: rate limits, the audit trail, the logs and the address check.
 - **Proposing and testing.** The Verify access step records what it saw on its own request: the
   connection's address, the `Host` header, the forwarded chain, forwarded protocol and host, and a
   `Forwarded` header. A request from an internal address with forwarded headers means a reverse
   proxy, so the step proposes trusting that address, explained in plain words (otherwise every
-  request seems to come from the proxy, in the audit trail and the rate limits). The owner confirms,
-  widens it to a range (for container networks) or declines. A second request then shows the client
+  request seems to come from the proxy, in the audit trail and the rate limits). The owner confirms
+  it, edits it (a range, for container networks) or declines. A second request then shows the client
   address as it would now be resolved, for the owner to confirm, and the audit entry records it.
 - **Saving.** A change is saved only after its test passes from the owner's own browser; a failed
-  test keeps the previous value, so a bad paste can't lock the owner out. Saving proxy trust asks
-  the owner to type the exact address or range being trusted. The step passes once proxy trust is
-  saved or declined; the same test runs again after setup, and every change is audited with its old
-  and new values.
+  test says what failed, offers a retry and keeps the previous value, so a bad paste can't lock the
+  owner out. Security-critical confirmations are typed, not clicked: saving proxy trust asks the
+  owner to type the exact address or range being trusted. The step passes once proxy trust is saved
+  or declined, or the step saw no proxy; the same test runs again after setup, and every change is
+  audited with its old and new values.
 - **No host list and no CORS.** The app keeps no list of allowed hosts and sends no CORS headers:
   the cross-origin check (`sign-in`) refuses cross-origin writes, no other site's page can read the
   app's responses, and the API keys' callers aren't browsers. The address check reports a `Host` it
-  doesn't expect.
+  doesn't expect. DNS rebinding, which a host list would also stop, is the accepted residual risk
+  under `sign-in`.
 - **The address check** only diagnoses: it runs by itself, never blocks and saves nothing. It
   compares the address the browser uses, the `Host` header the app receives, `ORIGIN` when it is
   set, and the address a trusted proxy forwards (proxy trust). It classifies the forwarded headers
@@ -501,7 +517,8 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
 #### sonarr-provider
 
 The first provider builds these for every provider; `radarr-provider` and `prowlarr-provider` reuse
-them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/sonarr.md).
+them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](research/sonarr.md) and
+[docs/research/radarr.md](research/radarr.md).
 - **Keys and logs.** The API key goes only in its header, never in a query string. Logged URLs lose
   their query strings and sensitive headers are redacted. An error from an outbound call loses the
   raw request and response before it travels on.
@@ -509,9 +526,9 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   bounded timeouts (seconds to tens of seconds), a whole request, its body included, has a ceiling
   of about a minute, and a body that stops arriving times out between chunks.
 - **Retries.** Transient failures (server errors, timeouts, connection, DNS and TLS handshake
-  failures) are retried with growing delays up to a bound, honouring the upstream's `Retry-After`.
-  Client errors, authentication failures and responses that fail validation are permanent and fail
-  at once. The error says which, so the page can offer "retry" or "reconfigure".
+  failures) are retried with exponential backoff up to a bound, honouring the upstream's
+  `Retry-After`. Client errors, authentication failures and responses that fail validation are
+  permanent and fail at once. The error says which, so the page can offer "retry" or "reconfigure".
 - **Responses.** A response body has a real byte cap (256 MB by default, changeable per connector)
   whatever its declared length, and is read whole before any parsing, so a partial parse can never
   trigger an action. Decompression is capped at about 100 to 1. A response that isn't JSON, such as
@@ -522,8 +539,9 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 - **Validation.** Every string and list from upstream has a maximum size, numbers have plausible
   ranges and nothing is coerced (a number field takes only numbers). Library responses (series,
   episodes, movies) accept unknown fields, so upstream additions don't break comradarr; control
-  responses (system status, command status, indexer settings) refuse them. A validation error names
-  the field and the rule, never the value.
+  responses (system status, command status, indexer settings) require every field comradarr reads
+  and ignore the rest, so a newer release still connects (D23). A validation error names the field
+  and the rule, never the value.
 - **Hostile responses.** Each connector counts hostile responses in a row: oversized, malformed, of
   the wrong type or failing validation. Five make it degraded and twenty unhealthy (`connectors`);
   every success counts one down, and zero is healthy again. A server error counts as transport, not
@@ -541,13 +559,16 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 - **Adding and editing** run the checks cheapest first and stop at the first failure, with a message
   for it: the fields (the URL's form, the key's format, the name); the URL's address (below); one
   authenticated call to the instance's system status; the response's shape (a failure means "this is
-  not a Sonarr", Radarr or Prowlarr); and the version, which only warns (D23). Only then is the
+  not a Sonarr", Radarr or Prowlarr); and the version, which only warns (D23). There is no
+  API-version negotiation: an incompatible upstream API gets a new client. Only then is the
   connector saved, its key encrypted, and audited. Editing the URL or the key runs every check
   again, so a connector is never pointed at an address nobody checked. The stored key is used, for a
   test or a save, only while the URL is unchanged: a changed URL needs the key typed again.
 - **The stored key** enters only through adding or editing, whose request bodies are never logged.
-  It is opened only by the cipher and when the request header is set, it shows only as a receipt
-  with its last four characters, and a forgotten key is replaced, never shown.
+  It is opened only by the cipher and at the moment it goes into an outbound request's header, it
+  shows only as a receipt with its last four characters, and a forgotten key is replaced, never
+  shown. A stored key that fails to decrypt is an error the owner sees on the connector, never a
+  silent empty value.
 - **Health** is worked out in memory: healthy, degraded (fewer dispatches), unhealthy (no
   dispatches, while health checks go on) and unreachable (transport failures). It recovers by itself
   as calls succeed (`sonarr-provider`).
@@ -555,27 +576,27 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   audited.
 - **The detail** shows the sync status, the last error, recent commands, the inherited indexer
   limits and budget (read-only, `indexer-budget`) and the pacing with its hints (`budgets`), with
-  editing, deleting, pausing, syncing and refreshing the indexer data. The list marks a connector
-  that skips TLS verification with a warning badge.
+  editing, deleting, pausing, syncing and refreshing the indexer data.
 - **URLs and addresses** (the outbound HTTP the first provider builds, D9). A URL is `https://` or
   `http://` with a host, and is refused with credentials or a fragment, a sign of a pasted browser
   address. `http://` is allowed only for a local address (loopback, private LAN, link-local, IPv6
-  unique-local and `100.64.0.0/10`, the range Tailscale and other VPNs use) and only once the owner
-  ticks the opt-in for that URL; `https://` is allowed for any address the policy allows (owner
-  rule, 2026-11-04). The host is resolved and every address it resolves to is classified,
-  IPv4-mapped forms unmapped, international names normalised and a trailing dot dropped. Always
-  refused: multicast, unspecified, broadcast, documentation and benchmarking ranges. The policy has
-  three modes the owner chooses: default allows loopback, private ranges (home networks and
-  container bridges), unique-local IPv6, carrier-grade NAT and public addresses, and refuses
-  link-local, where cloud metadata services live; strict allows only public addresses, for instances
-  in the cloud; permissive also allows link-local, warns when chosen and at every start. A host
-  whose addresses fall on both sides is refused. Before every call the host is resolved and
-  classified again, the connection goes to a classified address and the connected peer is checked,
-  which defeats DNS rebinding; a failure is its own error ("resolved to a disallowed address").
-  Whether an address is local, for `http://`, is judged by these resolved addresses, never by the
-  name. The same rules cover notification destinations.
-- **TLS** verification is always on and can't be turned off for all connectors; a connector may skip
-  verification, shown with a warning badge, or use its own CA bundle.
+  unique-local and `100.64.0.0/10`, the range Tailscale and other VPNs use) only once the owner
+  ticks the opt-in for that URL, and only where the policy below allows the address; `https://` is
+  allowed for any address the policy allows (owner rule, 2026-11-04). The host is resolved and every
+  address it resolves to is classified, IPv4-mapped and IPv4-compatible IPv6 forms unmapped,
+  international names normalised and a trailing dot dropped. Always refused: multicast, unspecified,
+  broadcast, documentation and benchmarking ranges. The policy has three modes the owner chooses:
+  default allows loopback, private ranges (home networks and container bridges), unique-local IPv6,
+  carrier-grade NAT and public addresses, and refuses link-local, where cloud metadata services
+  live; strict allows only public addresses, for instances in the cloud; permissive also allows
+  link-local, warns when chosen and at every start. A host whose addresses fall on both sides is
+  refused. Before every call the host is resolved and classified again, the connection goes to a
+  classified address and the connected peer is checked, which defeats DNS rebinding; a failure is
+  its own error ("resolved to a disallowed address"). Whether an address is local, for `http://`, is
+  judged by these resolved addresses, never by the name. The same rules cover notification
+  destinations.
+- **TLS** verification is on by default and can't be turned off for all connectors at once; a
+  connector may skip verification, shown with a warning badge on the list, or use its own CA bundle.
 
 #### sync
 
@@ -586,11 +607,13 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   counts and size on disk; an episode its series, season and episode numbers, title, whether it has
   a file, monitored flag, air date, file id, size and quality; a movie its title, catalogue id,
   status, monitored flag, whether it has a file, quality profile, path, size and year. Counts are
-  worked out from the item lists, never taken from the upstream's totals. Nothing else is kept: no
-  overview text, artwork, genres or ratings.
+  worked out from the item lists, never taken from the upstream's totals. Episodes are indexed by
+  connector, series and season for planning. Nothing else is kept: no overview text, artwork, genres
+  or ratings.
 - **The schedule** has one row per searchable episode or movie, keyed by connector, type and
   upstream id, with its series and season copied in so planning needs no joins, its last-searched
-  time (empty for never, which sorts first), its search count, its tier and its paused flag.
+  time (empty for never, which sorts first), its lifetime search count, its tier and its paused
+  flag.
 - **Tiers** (lower rotates faster): 0 Missing, no file, even in an ended series; 1 Recent, a file
   and aired or released within 90 days (episodes) or 180 days (movies); 2 Monitored, a file and a
   continuing series or a recent movie; 3 Completed, a file and an ended series or an old movie,
@@ -613,10 +636,10 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   only save calls: changes that cancel out escape them, and deep and full syncs catch those.
 - **Applying.** Additions, removals and changed fields are written in bulk, and the schedule changes
   in the same transaction, so the mirror and the schedule never disagree. A change in whether an
-  item has a file can change its tier, such as Missing to Monitored. Episodes with files in an ended
-  series become Completed; missing ones stay Missing.
+  item has a file can change its tier, such as Missing to Recent or Monitored. Episodes with files
+  in an ended series become Completed; missing ones stay Missing.
 - **Checks before storing** that the API's types can't make: a date outside 1900–2100 becomes empty
-  and is logged, cut short; ids must be positive and season and episode numbers sane.
+  and is logged with the value cut short; ids must be positive and season and episode numbers sane.
 - **The coordinator** ticks every 30 seconds and runs, per active connector, the most important mode
   that is due: full when due or never run, otherwise deep, otherwise incremental. One sync at a time
   per connector, several connectors at once, and a Sonarr sync fetches about five series' episodes
@@ -634,7 +657,7 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 - **One interface** with two sources, the default here and the inherited one (`indexer-budget`): how
   many commands may go to this connector now, a report of a dispatch, and the health of its
   indexers. Rotation doesn't know which source is in use. The source is chosen at startup and again
-  when connectors change.
+  when connectors change. The budget is worked out on every tick and never stored.
 - **The default budget** per connector: a daily cap (100 by default), at most 2 commands in flight
   and at least 30 seconds between commands. The cap is spread through the day (at 100, about one
   command every 14 minutes), never spent in a burst. Each is editable per connector with a hint;
@@ -646,13 +669,13 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 
 #### rotation
 
-- **The loop** ticks every 15 to 30 seconds (a setting). For each active, healthy connector it asks
-  the budget how many commands may go, takes pending priority searches first (`content`), then that
-  many of the stalest unpaused items in tier and last-searched order, plans them, dispatches the
-  commands, records them and updates the schedule. It does nothing before first run is complete and
-  idles when the budget is spent, the connector is unhealthy or paused, or there's nothing to do. It
-  logs one summary per tick, and dispatching, tracking and idling are events. Rotation starts on a
-  connector only once its schedule is filled.
+- **The loop** ticks every 15 to 30 seconds (a setting). For each active connector that isn't
+  unhealthy it asks the budget how many commands may go, takes pending priority searches first
+  (`content`), then that many of the stalest unpaused items in tier and last-searched order, plans
+  them, dispatches the commands, records them and updates the schedule. It does nothing before first
+  run is complete and idles when the budget is spent, the connector is unhealthy or paused, or
+  there's nothing to do. It logs one summary per tick, and dispatching, tracking and idling are
+  events. Rotation starts on a connector only once its schedule is filled.
 - **Order.** The next items come from one indexed query in (tier, last searched) order over unpaused
   rows, never-searched first, whose cost doesn't grow with the library (the legacy app aimed at
   under a millisecond at 500,000 rows).
@@ -677,7 +700,8 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   command may trigger a sync of the items it covered, to see a new file and change tiers. A failed
   or timed-out command is just resolved: there is no retry, and its items come round again when they
   are stalest. Commands in flight at a crash are polled again after the restart.
-- **Pausing** the rotation, and pausing an item (`content`), are audited; routine ticks aren't.
+- **Pausing and resuming** the rotation, and pausing or resuming an item (`content`), are audited;
+  routine ticks aren't.
 - **The heartbeat** beside the wordmark beats only while rotation is dispatching; it is still when
   rotation is idle or paused, before first run is complete and without connectors.
 
@@ -691,7 +715,8 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 - **The inherited budget** per connector is the smallest, over the indexers serving it, of the
   indexer's limit minus the safety reserve minus its usage so far. Hourly and daily limits become a
   rate per interval, keeping the burst limits of hourly-limited indexers. Disabled indexers are left
-  out. While Prowlarr can't be read, the default budget applies.
+  out. The connector's own daily cap, concurrency limit and minimum interval (`budgets`) still bound
+  what may go now. While Prowlarr can't be read, the default budget applies.
 - **On the connector's detail,** read-only: the indexers found through Prowlarr, their limits and
   usage, and the budget with the reason for its current limit.
 - **The health monitor** polls Prowlarr and raises events for an indexer disabled (how long, and its
@@ -708,32 +733,37 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   browser this size has never been built, so it is prototyped early in the module.
 - **An item's detail** shows its mirror fields, its schedule state and the recent commands that
   covered it, with "Search now" and pausing.
-- **Search now** is a priority search: one per item (connector, type and upstream id), so a double
-  click can't make two. Rotation dispatches it before any other item on its next tick, limited only
-  by the concurrency limit, not the daily cap, and afterwards the item's last-searched time updates
-  as usual, so it rejoins the rotation. Its completion is an event.
-- **Pausing an item** takes it out of the rotation without deleting it. Searching and pausing are
-  audited.
+- **Search now** is a priority search: one pending search per item (connector, type and upstream
+  id), so a double click can't make two. Rotation dispatches it before any other item on its next
+  tick, within the budget like any command (while the budget is spent it waits, PRODUCT.md principle
+  1), and at dispatch the item's last-searched time updates as usual, so it rejoins the rotation.
+  Its completion is an event.
+- **Pausing an item** (in the browser or on its detail) takes it out of the rotation without
+  deleting it, and resuming puts it back. Searching, pausing and resuming are audited.
 
 #### notifications
 
-- **A consumer, never a source:** `notifications` takes events from `events` and sends them out, so
-  security and health events reach the owner when no tab is open.
+- **A consumer, never a source:** `notifications` takes events from `events` and sends them out
+  (Discord, Slack, email, Telegram, ntfy, Gotify, Matrix, webhooks and many more), so security and
+  health events reach the owner when no tab is open.
 - **Channels:** a multi-service relay, one destination URL that embeds the destination's token
   (several destinations mean several channels); a webhook, with its URL, POST or PUT, optional
   headers (for a bearer token) and a body template rendered from the event; and email, a guided form
-  (host, port, credentials and implicit TLS or STARTTLS, never plain text) that builds a relay mail
+  (host, port, credentials and implicit TLS or STARTTLS, never unencrypted) that builds a relay mail
   URL and is sent like any relay channel. A channel has a name, its kind, an enabled flag, its
   encrypted settings (`secrets`), its TLS overrides, and when it was last tested with the result
   (never, ok or failed).
-- **Hardening:** destinations follow `connectors`' address rules, `http://` and its opt-in included,
-  are resolved and classified again at every send, and take the same TLS overrides; webhooks never
-  follow redirects. A send refused by the address rules is permanent, never retried, and logged.
+- **Hardening:** every host a destination reaches follows `connectors`' address rules, `http://` and
+  its opt-in included (only a webhook URL also takes their URL form; a relay URL keeps its scheme
+  and its token), and is resolved and classified again at every send, and take the same TLS
+  overrides; webhooks never follow redirects. A send refused by the address rules is permanent,
+  never retried, and logged.
 - **Tested before saved:** saving a channel sends a real test message, and only a success saves it
-  and records the test. A failure gives the specific error (a TLS handshake, a 404, a URL that
-  doesn't parse, an unreachable host) and keeps the previous settings, so a channel is never saved
-  broken. Stored secrets (a token in the URL, a webhook header) are reused, for a test or a save,
-  only while the destination is unchanged: a changed destination needs them typed again.
+  and records the test; a saved channel can also be tested by hand, which updates its last test. A
+  failure gives the specific error (a TLS handshake, a 404, a URL that doesn't parse, an unreachable
+  host) and keeps the previous settings, so a channel is never saved broken. Stored secrets (a token
+  in the URL, a webhook header, email credentials) are reused, for a test or a save, only while the
+  destination is unchanged: a changed destination needs them typed again.
 - **Routing:** one enabled pair of event type and channel is one notification; several pairs fan
   out; no pair means off, with no separate mute. The matrix groups event types (security,
   operational health, started by the owner) against the channels, with one toggle per cell. Deleting
@@ -746,23 +776,23 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   failing three or more times in a row; 80% of a daily cap used) and a priority search finishing.
   Off but available: tier changes, each sync's or rotation cycle's completion, and connectors added,
   edited or deleted.
-- **Templates** use a tiny language: variables and one conditional block, which doesn't nest, for
+- **Templates** use a tiny language: variables and conditional blocks, which don't nest, for
   optional fields; no loops, expressions, attribute access or computed values, so a template has
   nothing to run and translators' placeholder checks understand it. The built-in templates are
-  messages, translated (D21); the owner's override for an event type and channel kind is stored as
-  written. A send uses the override, else the built-in in the owner's language, else English, never
-  a mix. The editor starts from the English default, lists the variables the event has, and warns
-  when a placeholder is dropped.
+  messages, translated (D21); the owner's override (a subject and a body) for an event type and
+  channel kind is stored as written. A send uses the override, else the built-in in the owner's
+  language, else English, never a mix. The editor starts from the English default, lists the
+  variables the event has, and warns when a placeholder is dropped.
 - **Delivery** is fire-and-forget: sends run concurrently with their own timeouts and the bus never
-  waits. Each notification gets a first attempt (10 seconds) and three retries after 1, 5 and 30
-  seconds (15, 20 and 30 seconds each), and is then abandoned with a warning that names the event
-  type and the channel, never its settings. There is no delivery table and no dead-letter queue: the
-  log is the record, because durable delivery isn't a goal for one owner.
+  waits. Each notification gets a first attempt with a 10-second timeout and three retries after 1,
+  5 and 30 seconds, with timeouts of 15, 20 and 30 seconds, and is then abandoned with a warning
+  that names the event type and the channel, never its settings. There is no delivery table and no
+  dead-letter queue: the log is the record, because durable delivery isn't a goal for one owner.
 - **Coalescing:** operational-health events within a rolling 60 seconds go out as one summary;
-  security events and the owner's own never wait. The window is a constant.
-- **The kill switch** is one global setting, on by default. Turned off, it stops every delivery and
-  keeps the channels and routes; every notifications page shows a banner while delivery is off, and
-  suppressed sends are still logged.
+  security events and those the owner started never coalesce. The window is a constant.
+- **The kill switch** is one global setting that turns all delivery off (delivery is on by default)
+  and keeps the channels and routes; every notifications page shows a banner while delivery is off,
+  and suppressed sends are still logged.
 - **Audited:** creating, editing and deleting channels, routes and template overrides; single
   deliveries are logged only.
 
@@ -770,15 +800,16 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
 
 - **The page** lists entries newest first, with filters by action, actor, date range and free text,
   a detail drawer with the redacted context, and an export that streams the entries as plain text.
-- **Retention** keeps everything by default; an optional cap is applied by a scheduled sweep that
-  connects as the audit-admin role (D17), deletes in batches and is itself audited.
+- **Retention** keeps everything by default; an optional cap, in days or in entries, is applied by a
+  scheduled sweep that connects as the audit-admin role (D17), deletes in batches and is itself
+  audited.
 
 #### preferences
 
 - **The theme** is light, dark or system, stored for the owner. With a stored choice the first
   server-rendered page already has it; with "system", and before sign-in, a small preference cookie
-  written before the first paint does, so the page never flashes the wrong theme. Switching is
-  instant.
+  that scripts can read, written before the first paint does, so the page never flashes the wrong
+  theme. Switching is instant.
 
 #### api-keys
 
@@ -786,14 +817,15 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   of 256 bits. Only a fast hash of the random part is stored, with the prefix and the last four
   characters for display; a value without the prefix is ignored without a database lookup. A key
   comes in its own header or as a bearer token.
-- **Creating** a key takes a name, an optional expiry and an optional narrower scope. The key is
-  shown exactly once, with a copy action and a warning that it won't be shown again, and never goes
-  into page data that survives navigation, storage, a URL, the logs or the audit trail.
+- **Creating** a key takes a name, an optional expiry and an optional narrower scope, and records
+  when it was created. The key is shown exactly once, with a copy action and a warning that it won't
+  be shown again, and never goes into page data that survives navigation, storage, a URL, the logs
+  or the audit trail; closing the dialog discards it.
 - **Using:** an expired key is refused when it is checked, and a key outside its scope gets a 403
   naming the action. The last use is recorded, best effort, on every use, and the first use is
   audited once, so the owner sees when an integration came online.
-- **Revoking** is immediate (the key and its scope are deleted), and audited with its prefix and
-  last four characters.
+- **Revoking** asks for confirmation and is immediate (the key and its scope are deleted), and
+  audited with its prefix and last four characters.
 - **The OpenAPI document** and any viewer for it need sign-in (otherwise a 401 with no body), are
   rate-limited (`sign-in`), and use no assets from a CDN. Everything that exists is described: there
   are no hidden endpoints, and development-only ones are switched by flags.
@@ -821,11 +853,17 @@ them. The facts about Sonarr itself are in [docs/research/sonarr.md](research/so
   symmetric algorithms are refused and only listed asymmetric ones accepted; issuer, audience,
   expiry and issued-at (and not-before when present) are checked with 60 seconds of clock skew, and
   the nonce must match.
-- **Sign-out** ends the local session and, when the provider advertises an end-session endpoint,
-  goes there to end the provider's session too.
-- **The provider's settings** are set in the app (row 23), the client secret encrypted (`secrets`),
-  and the issuer follows `connectors`' address rules, `http://` and its opt-in included. A failed
-  OIDC sign-in shows the owner a generic failure and logs the specific reason.
+- **Sign-out** ends the local session and, when that session came from OIDC and the provider
+  advertises an end-session endpoint, goes there to end the provider's session too.
+- **The provider's settings** are set and edited in the app (row 23) and tested through discovery
+  before they are saved; the client secret is encrypted (`secrets`), never shown again and
+  replaceable. Every call the app makes to the provider (discovery, the signing keys and the token
+  exchange, at the issuer or wherever discovery points) follows `connectors`' address rules,
+  `http://` and its opt-in included, and never follows a redirect; an endpoint never drops from
+  `https://` to `http://`, and the browser is sent only to `https://` endpoints, or `http://` ones
+  under the same opt-in. The stored client secret is used, for a test or a save, only while the
+  issuer is unchanged: a changed issuer needs the secret typed again. A failed OIDC sign-in shows
+  the owner a generic failure and logs the specific reason.
 
 ## Tech stack
 
