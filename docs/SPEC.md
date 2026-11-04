@@ -235,7 +235,8 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   (`http-boundary`). There are no configuration files. Plain settings and secrets are stored apart:
   a secret is encrypted in its own field (`secrets`), so reading plain settings never decrypts
   anything.
-- **Database** (comradarr). Every query is parameterised; no SQL is built from strings.
+- **Database** (comradarr). Every query is parameterised, and an automated check (a lint rule or a
+  test, which `setup`'s spec chooses) rejects SQL built from strings.
 - **Logging.** Four levels; debug entries are dropped unless debug logging is on. Each entry has a
   level, a message, a source, structured metadata and a millisecond timestamp, and goes to standard
   output (D12). Redaction runs before an entry is written anywhere: credentials in URLs, token-like
@@ -776,8 +777,8 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   failing three or more times in a row; 80% of a daily cap used) and a priority search finishing.
   Off but available: tier changes, each sync's or rotation cycle's completion, and connectors added,
   edited or deleted.
-- **Templates** use a tiny language: variables and conditional blocks, which don't nest, for
-  optional fields; no loops, expressions, attribute access or computed values, so a template has
+- **Templates** use a tiny language: variables and a single conditional block, which doesn't nest,
+  for optional fields; no loops, expressions, attribute access or computed values, so a template has
   nothing to run and translators' placeholder checks understand it. The built-in templates are
   messages, translated (D21); the owner's override (a subject and a body) for an event type and
   channel kind is stored as written. A send uses the override, else the built-in in the owner's
