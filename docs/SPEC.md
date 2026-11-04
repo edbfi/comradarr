@@ -43,7 +43,7 @@ components or services, and dates and numbers formatted for the viewer's locale.
 | 3 | `setup` | Startup checks, database and migrations, runtime settings (legacy §15.1), structured logging with redaction (legacy §15.5), security headers and the nonce-based CSP (ground-floor choice 3), the setup gate (legacy §9.2), the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format (legacy §14.6); the CSP's report endpoint (legacy §9.5); the claim's per-address limit (legacy §9.3); the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt (legacy §9.3, §11.6); and the legacy §15.5 health in place of `/healthz` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: claim and account (no brief yet); `/healthz` |
 | 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits, the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts (legacy §10.5), and the sessions list with revoking (legacy §10.6) | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
 | 5 | `two-factor` | Optional but strongly recommended (D20): authenticator codes, backup codes and the challenge after every way the owner signs in (except the optional OIDC skip, D20), with replay protection and a limit on failed attempts. Recovery turns it off. Adds the offer to first-run setup, right after the owner account is created and before any connection step, and the reminder in the app shell while it is off | `sign-in` | the two-factor offer in first-run setup; its section of `/settings/access` (no brief yet); the reminder in the app shell |
-| 6 | `http-boundary` | Verifying access from the operator's own browser (legacy §9.4 phase 2, §9.5): proxy trust by socket peer, the allowed hosts, host validation and CORS, each observed, proposed, tested there and only then saved; and the address check, which only diagnoses: comparing the address the browser uses with the `Host` the app receives, `ORIGIN` when set and the forwarded address, classifying the forwarded headers and the source address, suggesting `ORIGIN=<address>` or the proxy line `proxy_set_header Host $http_host`, and the header recipes for common reverse proxies. The address check never blocks and saves nothing, and its suggestion also shows on the claim and owner sign-in pages, so someone without a session can recover. A mandatory first-run step after the two-factor offer (D20): until it passes, the setup gate sends every signed-in page back to it (legacy §9.2); the address check's warnings never stop it passing. The same tests run after setup | `sign-in` | the Verify access step of first-run setup (no brief yet); the Public access section of `/settings/access`; the address hint on the claim and owner sign-in pages |
+| 6 | `http-boundary` | Verifying access from the operator's own browser (legacy §9.4 phase 2, §9.5): proxy trust by socket peer, the allowed hosts, host validation and CORS, each observed, proposed, tested there and only then saved; and the address check, which only diagnoses: comparing the address the browser uses with the `Host` the app receives, `ORIGIN` when set and the forwarded address, classifying the forwarded headers and the source address, suggesting `ORIGIN=<address>` or the proxy line `proxy_set_header Host $http_host`, and the header recipes for common reverse proxies. The address check never blocks and saves nothing, and its suggestion also shows on the claim and owner sign-in pages, so someone without a session can recover. A mandatory first-run step after the two-factor offer (D20): until it passes, the setup gate sends every signed-in page back to it (legacy §9.2); the address check never stops it passing. The same tests run after setup | `sign-in` | the Verify access step of first-run setup (no brief yet); the Public access section of `/settings/access`; the address hint on the claim and owner sign-in pages |
 | 7 | `events` | The in-process event bus and the live stream to the browser (legacy §8.1): server-sent events behind the session cookie, a bounded queue per client, heartbeats, and pages that reload their data when an event arrives. No event carries a secret | `sign-in` | — |
 | 8 | `sonarr-provider` | The Sonarr v3 API client (legacy §7, §13): system status and the version check against the latest stable release (D23), series with season statistics, episodes, quality profiles, episode, season and series searches and command status, with the response limits, strict validation and hostile-response counting of legacy §7.1 | `setup` | — |
 | 9 | `radarr-provider` | The Radarr v3 API client (legacy §7, §13): system status and the version check against the latest stable release (D23), movies, quality profiles, the multi-movie search and command status, with the same limits and validation | `setup` | — |
@@ -167,8 +167,8 @@ First-run setup's claim and account, two-factor and Verify access steps, the two
 sections and password change on `/settings/access`, the Notifications page, and the API keys and
 observability settings are needed (all are in the legacy design or in PRODUCT.md's sidebar) but have
 no brief. The `/setup` brief's step list changes to the order above. Each gets its brief, or its
-brief's change, before its module is specced. The `/login` brief gains the address hint (`sign-in`)
-the same way.
+brief's change, before its module is specced. The `/login` brief gains `http-boundary`'s address
+hint (`sign-in`) the same way.
 
 ### Module notes
 
@@ -204,9 +204,9 @@ the rest of that bullet, and "(comradarr: …)" only its own parentheses.
 - **The cross-origin check** asks the browser, so the app doesn't need to know its own address and
   stores none. It runs first in `handle` for every method except GET, HEAD and OPTIONS, and for
   every content type (form, JSON, multipart, `text/plain`, empty). Internal `event.fetch`
-  subrequests (`event.isSubRequest`) skip it. (comradarr) It replaces legacy §9.5's CSRF origin
-  check and its exemptions: the claim and the CSP report endpoint are checked like any other POST,
-  and a request with an API key passes without browser headers only as a machine route (below).
+  subrequests (`event.isSubRequest`) skip it. (comradarr: it replaces legacy §9.5's CSRF origin
+  check and its exemptions; the claim and the CSP report endpoint are checked like any other POST,
+  and a request with an API key passes without browser headers only as a machine route, below.)
   - An `Origin` header, whenever it is present, must parse as one bare `http` or `https` origin;
     `null`, a malformed value or several values are refused. This applies on every branch below.
   - With `ORIGIN` set, a present `Origin` must equal `ORIGIN`, compared as parsed origins. Without
@@ -282,9 +282,10 @@ the rest of that bullet, and "(comradarr: …)" only its own parentheses.
   set, and the address a trusted proxy forwards (proxy trust). It classifies the forwarded headers
   (usable, missing, partial, invalid) and the source address (loopback, private LAN, container
   range, overlay network, public, unknown). It replaces legacy §9.4's step B (the public origin)
-  and the origins half of step C, and legacy §9.5's absolute URLs built from the configured public
-  origin (the browser's address in `sign-in` replaces it); proxy trust, the allowed hosts, host
-  validation and CORS stay as the capability map says.
+  and the origins half of step C, while `sign-in` replaces legacy §9.5's absolute URLs built from
+  the configured public origin (the browser's address, copyable links built in the browser, and
+  relative redirects); proxy trust, the allowed hosts, host validation and CORS stay as the
+  capability map says.
 - **Outcomes:** already matches (success); the proxy rewrites `Host`, so add
   `proxy_set_header Host $http_host` to it (not `$host`, which drops a non-default port) or set
   `ORIGIN=<the shown address>` and restart (warning); `ORIGIN` names another address, so open the
