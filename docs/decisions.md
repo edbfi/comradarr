@@ -70,9 +70,10 @@ transaction. comradarr targets one engine, so a dialect abstraction would be cos
 ### D7. Scoped database roles
 
 Migrations and runtime access use separately scoped database roles, so the database itself enforces
-the audit rules: the role the app runs under may insert and read audit entries but never change or
-delete them. The role design is behaviour from the
-[legacy spec](product/legacy-spec.md) (§11.5); its implementation and tests are open (D16).
+the audit rules. The owner role changes the schema, and only at startup (D17). The app role reads
+and writes every table but may only insert and read audit entries, never change or delete them. The
+audit-admin role may only read and delete audit entries, for the retention sweep, and is denied
+everything else. The implementation and tests are open (D16).
 
 Why: a bug or injection in the request path must not be able to alter or erase audit history, and
 only the database can guarantee that.
@@ -140,13 +141,15 @@ way. The `setup` spec pins the oldest PostgreSQL major version comradarr accepts
 - **Backup** is PostgreSQL's own: a `pg_dump` of comradarr's database and its restore, documented
   with the Compose example. The master key is backed up separately and restored with the database
   (D18). comradarr ships no backup command. The migration step recreates the two roles after a
-  restore, so a dump without roles is enough.
+  restore, so a dump without roles is enough. Losing the database means a fresh install: the
+  connectors are added again and sync rebuilds the mirror; the audit history, rotation positions and
+  preferences are lost.
 
 Why: the owner chose this shape. It keeps PostgreSQL out of the app image (D4) and stays close to
-the legacy "one setting to start" (legacy spec §1.2, §2.2): two secrets and a Compose example. The
-owner role is used only at startup, as the legacy migration role was (legacy spec §11.5). Deriving
-the role passwords from the master key replaces the legacy generated credentials and the separate
-audit-admin credential (legacy spec §11.5, §15.1) with nothing to store.
+the legacy app's single setting to start: two secrets and a Compose example. The owner role is used
+only at startup, as the legacy app's migration role was. Deriving the role passwords from the master
+key replaces the legacy app's generated credentials and its separate audit-admin credential with
+nothing to store.
 
 ### D20. Shared opening modules and owner sign-in, in the same shape in every app
 
@@ -207,16 +210,17 @@ keeps its own copy ([Shared groundwork](../AGENTS.md#shared-groundwork)).
 
 Each app's connection modules add their own first-run steps after `setup`. In comradarr, first run
 continues with the two-factor offer, then verifying access from the operator's own browser
-(`http-boundary`, legacy spec §9.4 phase 2, still mandatory), then the first connector. Until Verify
-access passes, the setup gate keeps sending every signed-in page back to it, as the legacy setup
-flag did (legacy spec §9.2). This replaces the legacy order, which verified access before creating
-the account (owner decision). The claim, which creates the account, is still cross-origin-checked
-like every other POST (`sign-in`'s check, which asks the browser), and it stores no address.
-Because claiming and creating the owner is one step, the legacy setup-claim cookie goes, and the
-token is printed only to the console, without the legacy token file (legacy spec §9.1). Every
-claim and recovery is audited (legacy spec §9.3, §10.8).
+(`http-boundary`, still mandatory, as the legacy app's networking step was), then the first
+connector. Until Verify access passes, the setup gate keeps sending every signed-in page back to
+it, as the legacy app's setup flag did. This replaces the legacy app's order, which verified access
+before creating the account (owner decision). The claim, which creates the account, is still
+cross-origin-checked like every other POST (`sign-in`'s check, which asks the browser), and it
+stores no address. Because claiming and creating the owner is one step, the legacy app's
+setup-claim cookie goes, and the token is printed only to the console, without the legacy app's
+token file.
+Every claim and recovery is audited.
 
-comradarr has no Plex and no users besides the owner, so the provider chain of legacy spec §10.1
+comradarr has no Plex and no users besides the owner, so the legacy app's chain of sign-in providers
 shrinks to the password, OIDC and two-factor: no header sign-in, one OIDC provider instead of
 several, no users created by a provider, and password sign-in can't be turned off (owner decision).
 API keys (`api-keys`) aren't a way of signing in: the owner creates them while signed in, and they
@@ -228,11 +232,11 @@ claim and has to know who its owner is. Encrypting in the app (D4: secrets are c
 the database) keeps stolen database files unreadable without the key. Two-factor and OIDC sign-in
 were the owner's call for every app, and so was letting a provider's own second factor stand in for
 the app's, optionally; one standard OIDC flow covers the self-hosted identity providers without a
-client for each, and `amr` is the standard way to see the provider's factor. comradarr's legacy
-design already had most of this shape: the log-printed claim token, server-side sessions stored as
-hashes, and the encrypted field with its nonce, row binding and key version (legacy spec §9.1,
-§10.6, §11.2), which the shared `secrets` keeps. Its recovery mode (legacy spec §10.8) showed that
-the shared opening had no way back in, and the owner asked for recovery in every app.
+client for each, and `amr` is the standard way to see the provider's factor. The legacy app's design
+already had most of this shape: the log-printed claim token, server-side sessions stored as hashes,
+and the encrypted field with its nonce and row binding, which the shared `secrets` keeps (with a key
+ID in place of its key version, D24). Its recovery mode showed that the shared opening had no way
+back in, and the owner asked for recovery in every app.
 
 ### D21. Every interface is translatable, in English and Danish
 
@@ -243,14 +247,14 @@ choice, then the browser's preferred languages, then English. Dates, times and n
 for the viewer's locale through `Intl`, never in a fixed format. The message files use a format
 Weblate reads, plurals included, so a Weblate project can be connected later without changing code.
 Connecting Weblate is later work and belongs to no module yet. Text the owner writes, such as
-comradarr's notification template overrides, is content, stored as written (legacy spec §8.2), not
-translated through the message files. Built-in notification templates are translated and sent in
+comradarr's notification template overrides, is content, stored as written, not translated
+through the message files. Built-in notification templates are translated and sent in
 the owner's language.
 
 Why: the owner wants full translation support in every app, with Weblate as the translation tool,
 and English and Danish now. Adding translation afterwards touches every screen; building it in from
-the first one costs little. The legacy design already passed every string through translation but
-shipped English only (legacy spec §2.2, §14.7).
+the first one costs little. The legacy app's design already passed every string through
+translation but shipped English only.
 
 ### D22. Paraglide JS with i18next JSON v4 messages
 
@@ -295,8 +299,8 @@ a real difference in the API shows up as an error, not as wrong data.
 
 In comradarr the services are Sonarr, Radarr and Prowlarr, each at its latest stable release: today
 Sonarr v4 through its v3 API, Radarr through its v3 API and Prowlarr through its v1 API. The version
-step of connector validation (legacy spec §7.3, step 5) warns instead of failing, the warning stays
-on the connector's detail (`connectors`), and the legacy support for Sonarr v3 (§7.3, §13) goes.
+check, the last step of `connectors`' validation, warns instead of failing, and the warning stays
+on the connector's detail; the legacy app's support for Sonarr v3 goes.
 
 Why: the owner doesn't want a backlog of backwards compatibility in any app (owner decision). Code
 for old versions and for upstream bugs is seldom removed once it's in, and each workaround outlives
@@ -323,8 +327,8 @@ fails the same checks, and the key loads before any database could say whether a
 is the same in all five edbfi apps; only the variable prefix, the app name and the stored secrets
 differ.
 
-Why: closes the open question of the capability map, whether the legacy weak-key checks (legacy
-§11.3) join every app's key check, with safety first (owner decision, after a council of three
+Why: closes the open question of the capability map, whether the legacy app's weak-key checks join
+every app's key check, with safety first (owner decision, after a council of three
 models and a review). Each kept check catches a real mistake (a padded or doubled short secret, a
 counter, a passphrase), and together they refuse a random key about once in 62 billion. A denylist
 adds upkeep without safety once no key is ever written in the repo. One encoding and an error when

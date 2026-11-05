@@ -230,7 +230,6 @@ PRODUCT.md  DESIGN.md                    Impeccable (needs the root)
 docs/SPEC.md                             project spec + capability map
 docs/SPEC-<id>.md                        one per module being built or changed
 docs/decisions.md                        D<n> entries: decision + why
-docs/product/legacy-spec.md              imported spec; drains to deletion
 docs/research/<topic>.md                 temporary research input
 docs/design/                             images (+ tokens until the first scaffold)
 tasks/plan.md  tasks/todo.md             the active work stream only
@@ -251,9 +250,9 @@ one of those; the cleanup procedures below still apply to every PR.
    tick off and remove finished items in `tasks/`. Review checks the doc diff for duplication and
    staleness.
 2. **End of a work stream** (`tasks/plan.md` complete): delete `tasks/`; fold durable outcomes into
-   `docs/SPEC.md` and `docs/decisions.md`; reduce each built `SPEC-<id>.md` to what code and tests
-   can't say, or delete it; delete the `legacy-spec.md` sections a spec now covers; delete research
-   whose outcome has landed; close resolved Impeccable critiques.
+   `docs/SPEC.md` and `docs/decisions.md`; move a specced module's Module notes block into its
+   `SPEC-<id>.md`; reduce each built `SPEC-<id>.md` to what code and tests can't say, or delete it;
+   delete research whose outcome has landed; close resolved Impeccable critiques.
 3. **Monthly prune** (a scheduled task): read every doc against the code and the spec, and open a PR
    that removes stale, duplicated and superseded content, finished work, merged research and closed
    critiques. Flag any doc that grew a lot since the last prune for a human look. Compare this app's
@@ -290,17 +289,17 @@ so run `build` first, and it needs Chromium once per machine:
 `bunx --bun playwright install chromium`.
 
 **Boundaries.**
-- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)). The legacy spec
-  describes behaviour to keep, not the technology: its header names the superseded sections.
+- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)).
 - Never bring code over from `legacy-old/v1` or `feat/comradarr-implementation-plan`; rebuild from
   the spec.
 
 **Read next.**
-- Product: [PRODUCT.md](PRODUCT.md), [legacy spec](docs/product/legacy-spec.md).
+- Product: [PRODUCT.md](PRODUCT.md), and the capability map and Module notes in
+  [docs/SPEC.md](docs/SPEC.md).
 - Design: [DESIGN.md](DESIGN.md), the [surface briefs](.impeccable/surfaces/) (one per route),
   [screens and references](docs/design/), [design tokens](panda.config.ts),
   [demo fixtures](tests/fixtures/demo-fixtures.json).
-- Decisions: [docs/decisions.md](docs/decisions.md).
+- Decisions: [docs/decisions.md](docs/decisions.md). Research: [docs/research/](docs/research/).
 
 ## Structure
 

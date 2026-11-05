@@ -34,7 +34,7 @@ Comradarr sits beside Sonarr and Radarr, never between them and anything else. T
 ## Operating Context
 
 - **Who and where.** A self-hosting home-lab operator who already runs a media stack: Sonarr, Radarr, usually Prowlarr, a download client and a media server. The install is one person, one instance and one account on their own hardware, often behind a reverse proxy and often on plain HTTP inside a LAN.
-- **Scale.** Libraries of tens of thousands of movies or hundreds of thousands of episodes (the legacy design targets 500,000+ episodes per install), against indexers that typically allow somewhere between fifty and a thousand queries a day. Exceeding an indexer's limit risks a temporary or permanent ban.
+- **Scale.** Libraries of tens of thousands of movies or hundreds of thousands of episodes (Comradarr is sized for 500,000+ episodes per install), against indexers that typically allow somewhere between fifty and a thousand queries a day. Exceeding an indexer's limit risks a temporary or permanent ban.
 - **The surrounding stack.** Comradarr reads library state from Sonarr and Radarr and sends them search commands; it reads indexer limits, usage and health from Prowlarr as information only; it can push alerts to notification destinations the operator configures. Comradarr works with the latest stable Sonarr, Radarr and Prowlarr only (D23): today Sonarr v4 and Radarr through their v3 APIs and Prowlarr through its v1 API; the spec verifies them.
 - **How it runs.** A self-hosted web application in one container, as one process on one HTTP port, with PostgreSQL in its own container next to it or an existing PostgreSQL server (D4, D5, D17). Before the first start the operator supplies two secrets: the master key and one database URL. The operator manages it from a browser: desktop first, with the phone a real but secondary use.
 - **Rituals.** First run is claimed with a one-time token printed to the console, which creates the owner account; first run then offers two-factor, verifies networking from the operator's own browser (each network setting is tested before it's saved; the app's own address is only checked, never saved), and adds the first connector (D20). Day to day the operator glances at the rotation overview, inspects or searches individual items, checks connector health and the inherited budget, and reviews the audit log when something changes or fails.
@@ -57,7 +57,6 @@ Aurora Observatory. Deep arctic navy and calm aurora green with violet-blue info
 
 What exists:
 
-- `docs/product/legacy-spec.md`: the imported product and behaviour specification from before the rewrite. Its designed behaviour has never run against a real library, real indexers or real users, and its thresholds are reasoned defaults, not measurements (§0, §17.1).
 - `docs/decisions.md`: the stack and architecture decisions, decided and open.
 - `docs/design/references/aurora-observatory.webp`: the reference board for the selected visual direction.
 - `docs/design/screens/01-entry-and-setup.webp` to `docs/design/screens/10-states-and-components.webp`: generated mockups (desktop boards covering the routes, a mobile board and a states board). They're proposed design seeds; their body copy, chart axes, icons and glyphs are illustrative raster renderings.
@@ -65,17 +64,17 @@ What exists:
 - `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
 - `static/comradarr-icon.svg`: the product icon, used as the favicon and in the README.
-- `LICENSE`: the GNU Affero General Public License, version 3.
+- `LICENSE`: the GNU Affero General Public License, version 3. Contributions are accepted under the same terms, and dependencies are checked for a compatible licence.
 
 What doesn't exist, and must not be fabricated:
 
 - A release, container image or deployment of the rewrite, or any product module. The rewrite has only its ground floor (`docs/SPEC.md`).
 - Users, customers, testimonials, case studies, press, adoption or download figures, and any pricing or commercial offering.
-- Measured performance, coverage, throughput or budget data. The demo fixture values are fictional, and the legacy defaults (tier windows, daily command limits, the safety margin, health thresholds) are unvalidated.
+- Measured performance, coverage, throughput or budget data. The demo fixture values are fictional. The defaults the legacy app's design reasoned out (tier windows, daily command limits, the safety margin, health thresholds, the planner's grouping rules, the Prowlarr cache) never ran against a real library, real indexers or real users: modules instrument each default and keep it as a named constant with its reason, so measurements can tune it, the defaults the owner can change included (SPEC.md rows 12 and 16).
 - Screenshots of a working interface. The screens are generated mockups, not captures.
 - Integration logo assets. Generated connector logos in the mockups must not be reproduced; use approved real marks or labelled generic icons (DESIGN.md).
-- Recorded Sonarr, Radarr or Prowlarr responses. The legacy quality bar calls for them, and none are in `tests/fixtures/`.
-- Evidence from the legacy branches. `legacy-old/v1` and `feat/comradarr-implementation-plan` are reference-only behaviour history, not proof of how the rewrite behaves.
+- Recorded Sonarr, Radarr or Prowlarr responses. Modules test against them ([SPEC.md Testing strategy](docs/SPEC.md#testing-strategy)), and none are in `tests/fixtures/` yet.
+- Evidence from the old code branches. `legacy-old/v1` and `feat/comradarr-implementation-plan` are reference-only behaviour history, not proof of how the rewrite behaves.
 
 ## Product Principles
 
@@ -83,14 +82,10 @@ What doesn't exist, and must not be fabricated:
 2. **Never finished, never a queue.** Every item stays in rotation and is ordered only by tier and staleness. Comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
 3. **Beside the stack, never inside it.** Comradarr reads libraries and sends search commands, nothing more. It doesn't download, manage files or query indexers, and new scope that crosses that line needs a deliberate decision.
 4. **Report what Comradarr actually did.** Commands sent, items covered, budget used and connector health are facts it owns; whether a better release was found belongs to Sonarr and Radarr. Errors say what went wrong and how to fix it, without blaming the operator.
-5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
+5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured, and no dependency that bundles an analytics client. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
 
 ## Accessibility and inclusion
 
 Keyboard access throughout, visible focus, labelled inputs, text plus icon for status, 44px touch targets, readable text at 200% zoom, and reduced-motion alternatives. Target WCAG AA text contrast. Never use color alone to communicate a decision. Bundle fonts locally in the implementation.
 
-## Product source and rewrite proposals
-
-Read [the legacy product specification](docs/product/legacy-spec.md) for domain behavior and current gaps. Routes in this handoff describe proposed information architecture, not implemented endpoints.
-
-This application is a planned rewrite. There is one owner account: the legacy spec's planned Operator and Viewer roles and its provisioned users don't apply, and operator and admin labels describe task emphasis, not roles.
+Semantic elements come first, and ARIA only where they fall short (landmarks, live regions for live updates, help text linked to its field). Errors are announced, every page has a unique title, icon-only controls are named for screen readers, nothing traps the keyboard, contrast is checked in every theme, and major changes get a manual screen-reader pass.
