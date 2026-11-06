@@ -258,7 +258,7 @@ translation but shipped English only.
 
 ### D22. Paraglide JS with i18next JSON v4 messages
 
-Translation (D21) uses Paraglide JS 2 (`@inlang/paraglide-js`) through its Vite plugin, SvelteKit's
+Translation (D21) uses Paraglide JS 3 (`@inlang/paraglide-js`) through its Vite plugin, SvelteKit's
 official i18n integration. Messages live in `messages/en.json` and `messages/da.json` in i18next
 JSON v4, through `@inlang/plugin-i18next` 6.2.0 or later (which fixed its plural handling), with
 plurals under CLDR suffixes. Weblate reads that format as "i18next JSON v4" (`i18nextv4`),
@@ -376,10 +376,8 @@ before the first background job lands.
 ### D15. Drizzle versions for Bun SQL
 
 The exact Drizzle ORM and Drizzle Kit pair for `drizzle-orm/bun-sql` is still to be chosen and
-validated in the app: migrations, type checking and production builds. The earlier stack comparison
-ran Drizzle `1.0.0-rc.4` against PostgreSQL 18.6 (overlapping transactions, single-connection pool
-queueing, contending row updates); that is history, not the pin. Closes with the first database
-module.
+validated in the app: migrations, type checking and production builds. Closes with the first
+database module.
 
 ### D16. Privilege matrix and append-only audit
 
