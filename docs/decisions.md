@@ -376,10 +376,8 @@ before the first background job lands.
 ### D15. Drizzle versions for Bun SQL
 
 The exact Drizzle ORM and Drizzle Kit pair for `drizzle-orm/bun-sql` is still to be chosen and
-validated in the app: migrations, type checking and production builds. The earlier stack comparison
-ran Drizzle `1.0.0-rc.4` against PostgreSQL 18.6 (overlapping transactions, single-connection pool
-queueing, contending row updates); that is history, not the pin. Closes with the first database
-module.
+validated in the app: migrations, type checking and production builds. Closes with the first
+database module.
 
 ### D16. Privilege matrix and append-only audit
 

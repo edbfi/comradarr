@@ -942,7 +942,6 @@ export const GET: RequestHandler = () => healthResponse();
 
 - [`panda.config.ts`](../panda.config.ts) holds every design token: colours, type styles,
   spacing, radii, layout sizes, breakpoints and motion durations, under the names DESIGN.md uses.
-  It replaced the seed token files that came with the design package.
 - Colours are semantic tokens behind a colour-mode condition (`_dark`), dark by default
   (`class="dark"` on `<html>` in `src/app.html`); light values can be added later without touching
   components.
@@ -1025,7 +1024,6 @@ design doesn't call for anything different; choices 4 and 5 are comradarr's own.
    nonce-based CSP always on, with a report endpoint. They belong to the first module that serves
    real pages (`setup`, whose claim page comes before `sign-in`), not the skeleton.
 4. **Where the icon lives.** SvelteKit serves static files from `static/`, so the icon is
-   `static/comradarr-icon.svg` (it was in `public/`), which the README shows and `src/app.html` uses
-   as the favicon.
+   `static/comradarr-icon.svg`, which the README shows and `src/app.html` uses as the favicon.
 5. **Health.** `/healthz` always answers `ok`. The module that adds the database replaces it with
    the health check in `setup`'s Module notes.
