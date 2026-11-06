@@ -23,11 +23,11 @@ Use the shared [design system](../../DESIGN.md). Match hierarchy, density and pa
 
 ## Required content
 
-'Connect your media library', type Sonarr selected, name Sonarr Main, address https://sonarr.example, API key masked, Test connection, status Connection verified, Save connector. Setup steps Claim / Verify access / Account / Connect.
+'Connect your media library', type Sonarr selected, name Sonarr Main, address https://sonarr.example, API key masked, Test connection, status Connection verified, Save connector. Setup steps Claim and account / Two-factor / Verify access / Connect.
 
 ## Acceptance criteria
 
-First-run claim requires log token before account creation; small Claim installation step shown completed, not open unclaimed admin signup. No secrets in text.
+First-run claim requires log token before account creation; small Claim and account step shown completed, not open unclaimed admin signup. No secrets in text.
 
 - Preserve audience boundaries from [product context](../../PRODUCT.md).
 - Use canonical data in [demo fixtures](../../tests/fixtures/demo-fixtures.json); do not infer calculations from raster text.
@@ -41,6 +41,7 @@ First-run claim requires log token before account creation; small Claim installa
 Use the images for composition and visual character. Use DESIGN.md, PRODUCT.md, this brief's acceptance criteria and the demo fixtures for exact values and behavior. Body copy, chart axes, tiny icons and font glyphs remain illustrative raster renderings. Rebuild them as native accessible UI and verify them against the specification. A PNG cannot verify focus order, screen-reader announcements, permission checks or real responsiveness.
 
 - Entry board 01 combines sign-in and post-claim connector setup for review; implement separate routes without an authenticated sidebar on sign-in.
+- The raster's step list (Claim / Verify access / Account / Connect) is the old order; use the one in Required content.
 - Prowlarr supplies indexer health and limits only. Episode commands go to Sonarr; movie commands go to Radarr.
 - The original exploration board used a different budget presentation. This detailed seed uses upstream 500, reserve 100, effective 400, used 126, available 274; the reserve is outside the effective allowance.
 
