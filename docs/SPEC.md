@@ -73,8 +73,8 @@ follows.
 
 First-run setup grows step by step: `setup` claims the instance and creates the owner account,
 `two-factor` offers itself, `http-boundary` verifies access, and `connectors` adds the first
-connector (D20). Its step list becomes Claim and account, Two-factor, Verify access and Connect
-(owner decision; the `/setup` brief lists Claim, Verify access, Account and Connect).
+connector (D20). Its step list is Claim and account, Two-factor, Verify access and Connect (owner
+decision).
 
 ### Where modules live
 
@@ -173,11 +173,10 @@ Paths are under `src/lib/server/`, except those starting with `routes/` (under `
 First-run setup's claim and account, two-factor and Verify access steps, the two-factor and OIDC
 sections and password change on `/settings/access`, the connection policy on `/connectors`, the
 Notifications page, and the API keys and observability settings are needed (all are in the Module
-notes or in PRODUCT.md's sidebar) but have no brief. The `/setup` brief's step list changes to the
-order above. Each gets its brief, or its brief's change, before its module is specced. The `/login`
-brief gains `http-boundary`'s address hint (`sign-in`) the same way, and the `/settings/access`
-brief's Public access gains proxy trust, below the address check, with the same Observed, Proposed,
-Testing and Verified states.
+notes or in PRODUCT.md's sidebar) but have no brief. Each gets its brief, or its brief's change,
+before its module is specced. The `/login` brief gains `http-boundary`'s address hint (`sign-in`)
+the same way, and the `/settings/access` brief's Public access gains proxy trust, below the address
+check, with the same Observed, Proposed, Testing and Verified states.
 
 ### Module notes
 
@@ -580,22 +579,23 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   editing, deleting, pausing, syncing and refreshing the indexer data.
 - **URLs and addresses** (the outbound HTTP the first provider builds, D9). A URL is `https://` or
   `http://` with a host, and is refused with credentials or a fragment, a sign of a pasted browser
-  address. `http://` is allowed only for a local address (loopback, private LAN, link-local, IPv6
-  unique-local and `100.64.0.0/10`, the range Tailscale and other VPNs use) only once the owner
-  ticks the opt-in for that URL, and only where the policy below allows the address; `https://` is
-  allowed for any address the policy allows (owner rule, 2026-11-04). The host is resolved and every
-  address it resolves to is classified, IPv4-mapped and IPv4-compatible IPv6 forms unmapped,
-  international names normalised and a trailing dot dropped. Always refused: multicast, unspecified,
-  broadcast, documentation and benchmarking ranges. The policy has three modes the owner chooses:
-  default allows loopback, private ranges (home networks and container bridges), unique-local IPv6,
-  carrier-grade NAT and public addresses, and refuses link-local, where cloud metadata services
-  live; strict allows only public addresses, for instances in the cloud; permissive also allows
-  link-local, warns when chosen and at every start. A host whose addresses fall on both sides is
-  refused. Before every call the host is resolved and classified again, the connection goes to a
-  classified address and the connected peer is checked, which defeats DNS rebinding; a failure is
-  its own error ("resolved to a disallowed address"). Whether an address is local, for `http://`, is
-  judged by these resolved addresses, never by the name. The same rules cover notification
-  destinations.
+  address. A connector's base URL is also refused with a query (its key goes only in a header, see
+  Keys and logs); a webhook URL may carry one (`notifications`). `http://` is allowed only for a
+  local address (loopback, private LAN, link-local, IPv6 unique-local and `100.64.0.0/10`, the range
+  Tailscale and other VPNs use) only once the owner ticks the opt-in for that URL, and only where
+  the policy below allows the address; `https://` is allowed for any address the policy allows
+  (owner rule, 2026-11-04). The host is resolved and every address it resolves to is classified,
+  IPv4-mapped and IPv4-compatible IPv6 forms unmapped, international names normalised and a trailing
+  dot dropped. Always refused: multicast, unspecified, broadcast, documentation and benchmarking
+  ranges. The policy has three modes the owner chooses: default allows loopback, private ranges
+  (home networks and container bridges), unique-local IPv6, carrier-grade NAT and public addresses,
+  and refuses link-local, where cloud metadata services live; strict allows only public addresses,
+  for instances in the cloud; permissive also allows link-local, warns when chosen and at every
+  start. A host whose addresses fall on both sides is refused. Before every call the host is
+  resolved and classified again, the connection goes to a classified address and the connected peer
+  is checked, which defeats DNS rebinding; a failure is its own error ("resolved to a disallowed
+  address"). Whether an address is local, for `http://`, is judged by these resolved addresses,
+  never by the name. The same rules cover notification destinations.
 - **TLS** verification is on by default and can't be turned off for all connectors at once; a
   connector may skip verification, shown with a warning badge on the list, or use its own CA bundle.
 
@@ -996,18 +996,6 @@ comradarr is a Bun web repo with edbfi-ci's Bun web templates:
 - **Never:** a database, authentication, Sonarr, Radarr, Prowlarr or any product feature before its
   module's approved spec builds it; a second styling tool or primitive library; Node, npm or npx
   anywhere, including CI.
-
-## Success criteria
-
-1. A fresh clone passes `bun ci`, `bun run --bun check` (zero errors and warnings), `bun run --bun
-   test`, `bun run --bun build`, `bun run --bun smoke` and `prek run --all-files --hook-stage
-   manual`, with no Node on `PATH`.
-2. The built server (`bun ./build`) serves `/` with the placeholder page and `/healthz` with `ok`
-   when started with a valid key.
-3. `panda.config.ts` holds every design token; the seed token files are gone, and nothing in `src/`
-   uses a raw colour, size or font value.
-4. Only folders with real files exist; `#lib` resolves in app code, tests and `svelte-check`.
-5. CI on the PR runs `checks`, `smoke` and `ci-ok` green; `audit` runs outside PRs.
 
 ## Ground-floor choices
 
