@@ -869,8 +869,9 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
 ## Tech stack
 
 The stack decisions are in [decisions.md](decisions.md). Versions are exact pins in
-`package.json` (Bun from its `packageManager` field) and `bun.lock`; Dependabot moves them. Every
-package is a dev dependency, so adapter-bun bundles it and `bun ./build` needs no `node_modules`.
+`package.json` (Bun from its `packageManager` field) and `bun.lock`; Dependabot moves them to the
+newest stable release (D25). Every package is a dev dependency, so adapter-bun bundles it and
+`bun ./build` needs no `node_modules`.
 
 | Part | Package |
 |---|---|
