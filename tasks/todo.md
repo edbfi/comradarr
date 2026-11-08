@@ -15,29 +15,29 @@ English and Danish, which the page starts using in task 2. Add the message check
 #301 cases. Settle the Weblate round trip.
 
 **Acceptance criteria:**
-- [ ] `@inlang/paraglide-js` and `@inlang/plugin-i18next` are exact-pinned dev dependencies at
+- [x] `@inlang/paraglide-js` and `@inlang/plugin-i18next` are exact-pinned dev dependencies at
   their newest stable release (3.2.1 and 6.5.3 on 2026-11-08, D25).
   `project.inlang/settings.json` and `project.inlang/paraglide.config.ts` are as the spec gives
   them, and the Vite plugin is added with nothing else.
-- [ ] `prepare` and `check` compile the messages after `svelte-kit sync` and before Panda's
+- [x] `prepare` and `check` compile the messages after `svelte-kit sync` and before Panda's
   codegen, calling the CLI as `bun --bun <bin>`, so a fresh clone's `bun ci` compiles them, and
   `check` then type-checks `project.inlang/*.ts`. Everything passes with no Node on `PATH` (CI's
   shims). Running `check` while `dev` is up doesn't rewrite the output under the dev server.
-- [ ] A call to a message that doesn't exist fails `check`, shown with a probe that isn't
+- [x] A call to a message that doesn't exist fails `check`, shown with a probe that isn't
   committed, its output in the PR body.
-- [ ] `src/lib/paraglide/` and `project.inlang/cache/` are gitignored, Panda's `exclude` skips the
+- [x] `src/lib/paraglide/` and `project.inlang/cache/` are gitignored, Panda's `exclude` skips the
   output, and `lint` and prek pass with it present.
-- [ ] The message files are flat and Biome-formatted and hold `placeholder_title` and
+- [x] The message files are flat and Biome-formatted and hold `placeholder_title` and
   `placeholder_body` as the spec gives them, with the name Comradarr only as `{{name}}`;
   `language_switcher_label` comes with the switcher in task 2. The page's text stays as it is until
   task 2.
-- [ ] `lib/shared/i18n/messages.test.ts` holds the check and its tests, with #301's cases. Test
+- [x] `lib/shared/i18n/messages.test.ts` holds the check and its tests, with #301's cases. Test
   first: once the toolchain compiles, `checkMessages` stubbed to return `[]` makes every case that
   breaks a rule fail (output in the PR body). With the check, it passes on `messages/*.json`; every
   rule in the spec's list, each clause on its own, has an in-memory file that breaks only it and is
   reported, with the exact list of problems asserted; and a file with several problems reports them
   all.
-- [ ] The Weblate round trip passes all four of the spec's conditions. The files the spec's
+- [x] The Weblate round trip passes all four of the spec's conditions. The files the spec's
   "Validation" lists include the hooks, which task 2 writes, so here the condition for citing
   obzorarr's #297 can't hold: the round trip is rerun, with the script and its output in the body.
   Neither the script nor its temporary message is committed.
