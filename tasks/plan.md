@@ -44,14 +44,14 @@ grouped into three. The tasks are in [todo.md](todo.md).
 
 ### Phase 2: each page in the viewer's language
 
-- [ ] Task 2: each request gets the viewer's language, the browser keeps it, the switcher changes
+- [x] Task 2: each request gets the viewer's language, the browser keeps it, the switcher changes
   it
 
 ### Checkpoint: after task 2
 
-- [ ] `check`, `test`, `lint`, `build`, `smoke` and prek pass; CI's `checks`, `smoke` and `ci-ok`
+- [x] `check`, `test`, `lint`, `build`, `smoke` and prek pass; CI's `checks`, `smoke` and `ci-ok`
   pass.
-- [ ] The built server serves `/` in Danish to a Danish browser and in English otherwise, the
+- [x] The built server serves `/` in Danish to a Danish browser and in English otherwise, the
   switcher changes it, and `/healthz` is unchanged.
 
 ### Phase 3: formatting, and closing the work stream

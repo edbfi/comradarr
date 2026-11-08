@@ -1,4 +1,5 @@
 {
 	"placeholder_title": "{{name}} bliver bygget om.",
-	"placeholder_body": "Rotationen, oversigten og indstillingerne for forbindelser er på vej tilbage. Der søges ikke i dine biblioteker endnu."
+	"placeholder_body": "Rotationen, oversigten og indstillingerne for forbindelser er på vej tilbage. Der søges ikke i dine biblioteker endnu.",
+	"language_switcher_label": "Sprog"
 }

@@ -61,34 +61,34 @@ into `<html lang>`, and keep the page's language in the browser. The placeholder
 text from the messages and shows `LanguageSwitcher.svelte`, with the global keyboard-focus rule.
 
 **Acceptance criteria:**
-- [ ] `tests/e2e/i18n.test.ts`, against the built server, written first: a `da-DK` browser gets
+- [x] `tests/e2e/i18n.test.ts`, against the built server, written first: a `da-DK` browser gets
   `/` in Danish with `<html lang="da">` and `Vary: Cookie, Accept-Language`; pressing "English"
   reloads `/` in English and writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure`
   over plain HTTP, and the next visit stays in English; a browser whose header says `fr-FR` and
   whose `navigator.languages` an init script sets to `fr-FR`, `da-DK` gets English, the switcher
   marks English as current after hydration, pressing it does nothing, and no cookie is written. None
   logs a console error. The smoke test passes unchanged in English.
-- [ ] The placeholder renders its messages as text, never with `{@html}`, filling `{{name}}` with
+- [x] The placeholder renders its messages as text, never with `{@html}`, filling `{{name}}` with
   the name Comradarr; `<title>` stays the name.
-- [ ] `app.html` has `<html lang="%lang%">` with the Biome suppression just above it, which doesn't
+- [x] `app.html` has `<html lang="%lang%">` with the Biome suppression just above it, which doesn't
   contain the token. `hooks.server.ts` and `hooks.client.ts` are as the spec's Code style gives
   them, and the `init` hook is unchanged.
-- [ ] The switcher is a labelled group of native buttons, the label a message, each button naming
+- [x] The switcher is a labelled group of native buttons, the label a message, each button naming
   its language in that language with `lang` set, from `Intl.DisplayNames` with the first letter
   upper-cased in that language ("English", "Dansk"), through a helper private to the component,
   never a message or a literal. The current language's button has `aria-current="true"` and does
   nothing when pressed; another calls `setLocale`. It is styled only with tokens, and sits beside
   the placeholder's heading.
-- [ ] `panda.config.ts`'s `globalCss` has the one `:focus-visible` rule the spec gives (DESIGN.md's
+- [x] `panda.config.ts`'s `globalCss` has the one `:focus-visible` rule the spec gives (DESIGN.md's
   2px `secondary` ring, 2px offset), and SPEC.md's Design tokens section gains obzorarr's bullet:
   "Keyboard focus is one global rule in `globalCss`: DESIGN.md's 2px `secondary` ring with a 2px
   offset on every `:focus-visible` element, so controls don't each restyle it."
-- [ ] The concurrency check passes: 200 concurrent requests in both languages against the built
+- [x] The concurrency check passes: 200 concurrent requests in both languages against the built
   server, through a temporary route that awaits a random delay in its `load`, each render in their
   own language. Cited from obzorarr's #298 only if the PR body shows that the versions and files the
   spec's "Validation" lists match `7368cff`; otherwise rerun, with the script and its output in the
   body. Neither it nor the route is committed.
-- [ ] D18 no longer lists browser interaction with a real component.
+- [x] D18 no longer lists browser interaction with a real component.
 
 **Verification:** `bun run --bun test`, `check`, `lint`, `build`, `smoke`, prek. Manual check in
 `dev`: a browser set to Danish sees the placeholder in Danish. Manual check at 360, 390, 768 and
@@ -107,7 +107,7 @@ the Design tokens section).
 
 ## Checkpoint: after task 2
 
-- [ ] Everything passes locally and in CI (`checks`, `smoke`, `ci-ok`), and the built server serves
+- [x] Everything passes locally and in CI (`checks`, `smoke`, `ci-ok`), and the built server serves
   and switches both languages.
 
 ## Task 3: formatting numbers and dates, and closing `i18n`

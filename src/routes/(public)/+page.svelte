@@ -1,4 +1,6 @@
 <script lang="ts">
+import LanguageSwitcher from "#lib/components/layout/LanguageSwitcher.svelte";
+import { m } from "#lib/paraglide/messages.js";
 import { css } from "#styled-system/css";
 </script>
 
@@ -16,9 +18,24 @@ import { css } from "#styled-system/css";
 		paddingInline: { base: "mobileGutter", tablet: "tabletGutter", desktop: "desktopGutter" },
 	})}
 >
-	<h1 class={css({ textStyle: "h1", textWrap: "balance" })}>Comradarr is being rebuilt.</h1>
+	<div
+		class={css({
+			display: "flex",
+			flexWrap: "wrap",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: "md",
+		})}
+	>
+		<!-- A word too long for the line breaks, as it did before this row. Without `anywhere`, the
+		     heading, as a flex item, keeps its longest word's width and overflows a 360px screen at
+		     200% zoom. -->
+		<h1 class={css({ textStyle: "h1", textWrap: "balance", overflowWrap: "anywhere" })}>
+			{m.placeholder_title({ name: "Comradarr" })}
+		</h1>
+		<LanguageSwitcher />
+	</div>
 	<p class={css({ marginBlockStart: "lg", color: "muted", textWrap: "pretty" })}>
-		The rotation, the dashboard and the connector settings are on their way back. Nothing searches
-		your libraries yet.
+		{m.placeholder_body()}
 	</p>
 </main>
