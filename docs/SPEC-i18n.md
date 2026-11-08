@@ -26,7 +26,8 @@
 - the decision numbers: D21 and D22 hold the decisions, D18 the runtime validation gaps and D25 the
   dependency rule.
 
-**Status:** awaiting the owner's approval. Module 2 of the capability map ([docs/SPEC.md](SPEC.md)).
+**Status:** approved by the owner (2026-11-08). Module 2 of the capability map
+([docs/SPEC.md](SPEC.md)).
 
 ## Objective
 
@@ -48,8 +49,8 @@ It also runs the validations D22 lists.
 
 `@inlang/paraglide-js` 3.2.1 and `@inlang/plugin-i18next` 6.5.3, exact-pinned dev dependencies:
 the newest stable releases on 2026-11-08, the same as obzorarr's. D22 names both packages; they are
-new to comradarr, so they join with the owner's approval of this spec, at their newest stable
-release when the build adds them (D25). Version 3's breaking changes touch nothing here: the
+new to comradarr, and the owner approved them with this spec (2026-11-08); they join at their newest
+stable release when the build adds them (D25). Version 3's breaking changes touch nothing here: the
 `additionalFiles` option and the middleware's locale splitting are gone, and Vite builds default to
 a new output layout, which the config below sets explicitly. TypeScript stays on 6.x (D2):
 Paraglide 3 writes its declarations itself and needs no TypeScript.

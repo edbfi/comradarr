@@ -83,5 +83,6 @@ obzorarr and the others get the same fix.
 
 ## Open questions
 
-None. The choices the port left open were put to the council; the spec PR's body records them
-under "Decided by council" for the owner's review.
+None. The choices the port left open were put to the council; the spec PR's body (#200) records
+them under "Decided by council". The owner approved the spec, this plan, the task list and those
+answers on 2026-11-08.
