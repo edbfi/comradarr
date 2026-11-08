@@ -891,8 +891,9 @@ Setup facts for this stack:
 - Package subpath imports replace `$lib` and need explicit file targets: `#lib/*` maps to
   `./src/lib/*` and imports name the file with its extension (`#lib/server/services/health.ts`);
   `#styled-system/*` maps to the generated `./styled-system/*/index.js`.
-- `prepare` and `check` run `svelte-kit sync`, then Paraglide's compile, then Panda's codegen.
-  Dev, build and Vitest compile the messages through Paraglide's Vite plugin.
+- `prepare` and `check` run `svelte-kit sync`, then Paraglide's compile, then Panda's codegen, so a
+  fresh clone type-checks without a dev server having run. Dev, build and Vitest compile the
+  messages through Paraglide's Vite plugin.
 - The Panda Vite plugin appends the generated CSS to the stylesheet that declares the layer order
   (`src/app.css`), and `transform: true` turns static `css()` calls into class strings at build
   time.
