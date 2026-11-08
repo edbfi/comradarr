@@ -38,7 +38,7 @@ Comradarr sits beside Sonarr and Radarr, never between them and anything else. T
 - **The surrounding stack.** Comradarr reads library state from Sonarr and Radarr and sends them search commands; it reads indexer limits, usage and health from Prowlarr as information only; it can push alerts to notification destinations the operator configures. Comradarr works with the latest stable Sonarr, Radarr and Prowlarr only (D23).
 - **How it runs.** A self-hosted web application in one container, as one process on one HTTP port, with PostgreSQL in its own container next to it or an existing PostgreSQL server (D4, D5, D17). Before the first start the operator supplies two secrets: the master key and one database URL. The operator manages it from a browser: desktop first, with the phone a real but secondary use.
 - **Rituals.** First run is claimed with a one-time token printed to the console, which creates the owner account; first run then offers two-factor, verifies networking from the operator's own browser (each network setting is tested before it's saved; the app's own address is only checked, never saved), and adds the first connector (D20). Day to day the operator glances at the rotation overview, inspects or searches individual items, checks connector health and the inherited budget, and reviews the audit log when something changes or fails.
-- **Language.** English, the default, and Danish, with dates and numbers formatted for the operator's locale (D21).
+- **Language.** English, the default, and Danish, with dates and numbers formatted for the operator's language (D21).
 - **Project state.** [AGENTS.md](AGENTS.md) has the current status.
 
 ## Product requirements
@@ -68,7 +68,7 @@ What exists:
 
 What doesn't exist, and must not be fabricated:
 
-- A release, container image or deployment of the rewrite, or any product module after `secrets`. The rewrite has only its ground floor and `secrets` (`docs/SPEC.md`).
+- A release, container image or deployment of the rewrite, or any product module after `i18n`. The rewrite has only its ground floor, `secrets` and `i18n` (`docs/SPEC.md`).
 - Users, customers, testimonials, case studies, press, adoption or download figures, and any pricing or commercial offering.
 - Measured performance, coverage, throughput or budget data. The demo fixture values are fictional. The defaults the legacy app's design reasoned out (tier windows, daily command limits, the safety margin, health thresholds, the planner's grouping rules, the Prowlarr cache) never ran against a real library, real indexers or real users: modules instrument each default and keep it as a named constant with its reason, so measurements can tune it, the defaults the owner can change included (SPEC.md rows 12 and 16).
 - Screenshots of a working interface. The screens are generated mockups, not captures.
