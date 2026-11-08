@@ -7,7 +7,8 @@ D22 hold the decisions. Ported from obzorarr, the reference app for `i18n`
 say. The full text before this cut is `278d925:docs/SPEC-i18n.md`.
 
 **What differs from obzorarr:**
-- the name Comradarr comes into a message as `{{name}}` ([Messages](#messages));
+- the placeholder `/`'s messages, with the name Comradarr coming into a message as `{{name}}`
+  ([Messages](#messages));
 - where the switcher shows: on the placeholder `/` only, with no brief gaining it, since comradarr
   has no `/` brief ([The language switcher](#the-language-switcher));
 - the time zone callers pass to `formatDateTime`: obzorarr's instance-zone rule (its D24) doesn't
@@ -23,9 +24,6 @@ say. The full text before this cut is `278d925:docs/SPEC-i18n.md`.
 - "return, never throw" also binds `api-keys`' key check
   ([Choosing the language](#choosing-the-language));
 - the decision numbers: D18 holds the runtime validation gaps and D25 the dependency rule.
-
-Everything else, the cookie name included, stays the same, so a language chosen in one app carries
-over to the others on the same host.
 
 ## Objective
 
