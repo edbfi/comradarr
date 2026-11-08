@@ -309,10 +309,11 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
 #### sign-in
 
 - **Request order** (startup has already finished in SvelteKit's `init` hook): the language
-  (`i18n`, which refuses nothing), the cross-origin check, rate limits, sign-in, the setup gate, then
-  the owner check. Security headers go on every response, an early return from any stage included.
-  (comradarr) The client address is resolved once, after the language and before the first check
-  (`http-boundary`), and every stage, the audit trail and the logs read the same one; the limits on API keys apply once `sign-in` has checked the key.
+  (`i18n`, which refuses nothing), the cross-origin check, rate limits, sign-in, the setup gate,
+  then the owner check. Security headers go on every response, an early return from any stage
+  included. (comradarr) The client address is resolved once, after the language and before the
+  first check (`http-boundary`), and every stage, the audit trail and the logs read the same one;
+  the limits on API keys apply once `sign-in` has checked the key.
 - **SvelteKit's own form check is off:** `sveltekit({ csrf: { trustedOrigins: ['*'] } })` in
   `vite.config.ts` (SvelteKit 3 takes its options in the `sveltekit()` call, with no `kit:`
   wrapper). Remote functions stay off. A config test asserts both, so SvelteKit's only remaining
@@ -321,10 +322,10 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
 - **The cross-origin check** asks the browser, so the app doesn't need to know its own address and
   stores none. It is the first check in `handle`, after only the language (`i18n`), for every
   method except GET, HEAD and OPTIONS, and for every content type (form, JSON, multipart,
-  `text/plain`, empty). Internal `event.fetch` subrequests (`event.isSubRequest`) skip it. (comradarr: it replaces the legacy app's origin check
-  against a stored list and its exemptions; the claim and the CSP report endpoint are checked like
-  any other POST, and a request with an API key passes without browser headers only as a machine
-  route, below.)
+  `text/plain`, empty). Internal `event.fetch` subrequests (`event.isSubRequest`) skip it.
+  (comradarr: it replaces the legacy app's origin check against a stored list and its exemptions;
+  the claim and the CSP report endpoint are checked like any other POST, and a request with an API
+  key passes without browser headers only as a machine route, below.)
   - An `Origin` header, whenever it is present, must parse as one bare `http` or `https` origin;
     `null`, a malformed value or several values are refused. This applies on every branch below.
   - With `ORIGIN` set, a present `Origin` must equal `ORIGIN`, compared as parsed origins. Without
