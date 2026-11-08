@@ -16,8 +16,11 @@
 - built-in notification templates go out in the owner's language (D21), and the saved language
   preference belongs to `preferences`; both are left to their modules
   ([Left to other modules](#left-to-other-modules));
-- the request order names where the client address is resolved ([Choosing the
-  language](#choosing-the-language));
+- the request order names where the client address is resolved, and "return, never throw" also
+  binds `api-keys`' key check ([Choosing the language](#choosing-the-language));
+- obzorarr's evidence for the Weblate round trip and the concurrency check is cited only when the
+  versions and files match its `7368cff`; otherwise the build reruns them
+  ([Validation](#validation));
 - the decision numbers: D21 and D22 hold the decisions, D18 the runtime validation gaps and D25 the
   dependency rule.
 

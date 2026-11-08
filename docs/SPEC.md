@@ -81,9 +81,8 @@ decision).
 
 Paths are under `src/lib/server/`, except those starting with `routes/` (under `src/`) or `lib/`
 (under `src/`), the hooks (`src/hooks.server.ts`, `src/hooks.client.ts`), and `messages/` and
-`project.inlang/` (the repo root). Signed-in pages sit in
-`routes/(app)/`, with the app shell as its layout. They follow the
-[Code structure](../AGENTS.md#code-structure) layout:
+`project.inlang/` (the repo root). Signed-in pages sit in `routes/(app)/`, with the app shell as
+its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout:
 
 | Module | Main homes |
 |---|---|
