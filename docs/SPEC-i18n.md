@@ -284,8 +284,8 @@ languages (Paraglide's `locales`) and its base language, and the tests run it on
 and on small in-memory files that break each rule once. It checks that:
 - every language the project has has its file, and no file is for a language it doesn't have,
   which Paraglide would ignore without a word;
-- each file is one JSON object (a file that is `null` or an array is reported and left out of the
-  other checks);
+- each file is one JSON object (a file that isn't, such as `null`, an array or a string, is
+  reported and left out of the other checks);
 - every value is a non-empty string, so the files stay flat; a value of only whitespace counts as
   empty, because it renders nothing;
 - every message name fits the rule above, no key contains `_ordinal_`, and no message is both one
@@ -303,9 +303,9 @@ and on small in-memory files that break each rule once. It checks that:
   as `a<b and c>d`, and the plugin shows it as text rather than dropping it. Plain angle brackets
   (`1 < 2 and 3 > 2`, `<- back`, `I <3 you and > me`, `<5 minutes (>1 play)`) pass.
 
-Each rule has an in-memory file that breaks only it, and the test asserts the exact list of
-problems, so nothing else is reported; a file with several problems reports them all. It runs in
-the existing `tests` hook and in CI, so no new hook is needed.
+Each clause of each rule has an in-memory file that breaks only it, and the test asserts the exact
+list of problems, so nothing else is reported; a file with several problems reports them all. It
+runs in the existing `tests` hook and in CI, so no new hook is needed.
 
 ## Left to other modules
 

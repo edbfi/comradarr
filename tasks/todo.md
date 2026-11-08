@@ -37,10 +37,10 @@ English and Danish, which the page starts using in task 2. Add the message check
   rule in the spec's list, each clause on its own, has an in-memory file that breaks only it and is
   reported, with the exact list of problems asserted; and a file with several problems reports them
   all.
-- [ ] The Weblate round trip passes all four of the spec's conditions: cited from obzorarr's #297
-  only if the PR body shows that the versions and files the spec's "Validation" lists match
-  `7368cff`, and otherwise rerun with the script and its output in the body. Neither the script nor
-  its temporary message is committed.
+- [ ] The Weblate round trip passes all four of the spec's conditions. The files the spec's
+  "Validation" lists include the hooks, which task 2 writes, so here the condition for citing
+  obzorarr's #297 can't hold: the round trip is rerun, with the script and its output in the body.
+  Neither the script nor its temporary message is committed.
 
 **Verification:** `bun run --bun test`, `check`, `lint`, `build`, `smoke`, prek.
 
@@ -54,7 +54,7 @@ for `bun ci` and `check`, and the testing section).
 
 **Size:** M.
 
-## Task 2: each request gets the viewer's language, the browser keeps it, and the switcher changes it
+## Task 2: each request gets the viewer's language, the browser keeps it, the switcher changes it
 
 **Description:** Run every request through `paraglideMiddleware` in `handle`, write the language
 into `<html lang>`, and keep the page's language in the browser. The placeholder page renders its
@@ -127,7 +127,7 @@ in the current language, with the time zone required. This task also closes the 
     `docs/decisions.md` (D21), `docs/SPEC.md` (the capability-map note and row 2) and `PRODUCT.md`
     ("the operator's language"); row 2 marked **Built.**; the `i18n` line of "Open decisions each
     module closes" removed; D22's "Still to validate" paragraph deleted; the status lines in
-    SPEC.md, AGENTS.md and PRODUCT.md updated;
+    SPEC.md, AGENTS.md and PRODUCT.md updated; SPEC.md's testing section gains `format.test.ts`;
   - `tasks/` is deleted;
   - SPEC-i18n.md is cut to what code and tests can't say, the way obzorarr's #301 cut its spec;
   - the PR body maps every removed requirement to a test, a spec or an owner-approved removal, in

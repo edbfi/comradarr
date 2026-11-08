@@ -26,10 +26,11 @@ grouped into three. The tasks are in [todo.md](todo.md).
   #301 cases, so every message written from then on is checked.
 - **Each validation's evidence goes in the body of the PR that runs it:** no Node on `PATH` and the
   Weblate round trip in task 1's, the adapter-bun build and the concurrency check in task 2's, and
-  the full list in task 3's, which closes D22. The Weblate round trip and the concurrency check
-  cite obzorarr's #297 and #298 only when the body shows the versions and files the spec lists
-  match obzorarr's `7368cff`; otherwise they are rerun (SPEC-i18n.md, "Validation"). The temporary
-  messages, route and scripts are never committed.
+  the full list in task 3's, which closes D22. Obzorarr's evidence is cited only when the body
+  shows the versions and files the spec lists match its `7368cff`, otherwise rerun
+  (SPEC-i18n.md, "Validation"). Those files include the hooks, which don't exist until task 2, so
+  task 1 reruns the Weblate round trip; task 2 may cite #298 for the concurrency check. The
+  temporary messages, route and scripts are never committed.
 - **Facts change in the task that changes them.** Each task updates SPEC.md's tech stack,
   Commands, Design tokens and testing sections, and AGENTS.md's structure, as its files land.
   Task 3 does the rest of the spec's "Docs this module changes when built" list and the
@@ -43,8 +44,8 @@ grouped into three. The tasks are in [todo.md](todo.md).
 
 ### Phase 2: each page in the viewer's language
 
-- [ ] Task 2: each request gets the viewer's language, the browser keeps it, and the switcher
-  changes it
+- [ ] Task 2: each request gets the viewer's language, the browser keeps it, the switcher changes
+  it
 
 ### Checkpoint: after task 2
 
@@ -68,7 +69,7 @@ grouped into three. The tasks are in [todo.md](todo.md).
 |---|---|---|
 | The middleware returns nothing in the adapter-bun build (#725) | High | Task 2's e2e tests run against the built server |
 | The CLI and the Vite plugin write different layouts into one folder | Medium | `outputStructure: "message-modules"` in the shared config; task 1 runs `check` beside `dev` |
-| Weblate writes the files in a shape Biome or the plugin refuses | Medium | Task 1's round trip, cited from #297 or rerun, before any page uses a message |
+| Weblate writes the files in a shape Biome or the plugin refuses | Medium | Task 1's round trip, rerun before any page uses a message |
 | Concurrent requests mix languages under Bun's AsyncLocalStorage | High | Task 2's 200-request check against the built server, cited from #298 or rerun |
 | Generated output trips Biome, Panda or the docs-set hook | Low | The two `.gitignore` lines and Panda's `exclude` land in task 1; prek runs with the output present |
 | A dependency has moved since obzorarr's `7368cff`, so its evidence no longer applies | Medium | Each PR body compares the versions and files; anything moved means a rerun |
