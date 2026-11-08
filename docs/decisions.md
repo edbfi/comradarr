@@ -392,9 +392,10 @@ with `setup`, which creates the roles (D17) and the audit trail.
 
 ### D18. Runtime validation gaps
 
-Not yet validated for this stack: browser interaction with a real component, production containers,
-realistic load, and job recovery after a restart. Hydration is validated: the e2e smoke test waits
-for the hydrated app in Chromium against the built server, with no console errors.
+Not yet validated for this stack: production containers, realistic load, and job recovery after a
+restart. Hydration is validated: the e2e smoke test waits for the hydrated app in Chromium against
+the built server, with no console errors. So is browser interaction with a real component:
+`i18n.test.ts` presses the language switcher and follows the reload it causes.
 A crash test doesn't prove recovery from power loss or storage faults. PostgreSQL backup and restore
 hasn't been validated; the procedure (D17) is still to be tested, and the database and the master
 key must be restored together. Each closes with the work that first depends on it.
