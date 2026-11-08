@@ -1,9 +1,9 @@
 # Spec: comradarr
 
 **Status:** the ground floor (skeleton) is specified here, approved by the orchestrator
-(2026-10-22) and built. The capability map below is approved; module 1, `secrets`, is built
-([SPEC-secrets.md](SPEC-secrets.md)), and module 2, `i18n`, is specified and approved by the owner
-(2026-11-08) ([SPEC-i18n.md](SPEC-i18n.md)).
+(2026-10-22) and built. The capability map below is approved; module 1, `secrets`
+([SPEC-secrets.md](SPEC-secrets.md)), and module 2, `i18n` ([SPEC-i18n.md](SPEC-i18n.md)), are
+built.
 
 ## Objective
 
@@ -34,12 +34,12 @@ adds in that layout, and review checks them. In short:
 - Tests sit next to their source.
 
 **Every module writes its text in English and Danish** through `i18n` (D21): no user-facing text in
-components or services, and dates and numbers formatted for the viewer's locale.
+components or services, and dates and numbers formatted for the viewer's language.
 
 | # | Module id | Responsibility | Depends on | Surfaces |
 |---|---|---|---|---|
 | 1 | `secrets` | **Built.** Encrypts stored secrets (connector API keys, notification channel settings, two-factor secrets, the OIDC client secret) before they reach the database (D20), and the secret wrapper that shows only a redaction marker and opens at one named call | — | — |
-| 2 | `i18n` | The translation groundwork (D21) with Paraglide JS (D22): message files in English and Danish, choosing each request's language, the language switcher, formatting dates and numbers for the viewer's locale, and a check that every message exists in both languages | — | the language switcher in each shell |
+| 2 | `i18n` | **Built.** The translation groundwork (D21) with Paraglide JS (D22): message files in English and Danish, choosing each request's language, the language switcher, formatting dates and numbers for the viewer's language, and a check that every message exists in both languages | — | the language switcher in each shell |
 | 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the claim's per-address limit; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: claim and account (no brief yet); `/healthz` |
 | 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits, the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts, and the sessions list with revoking | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
 | 5 | `two-factor` | Optional but strongly recommended (D20): authenticator codes, backup codes and the challenge after every way the owner signs in (except the optional OIDC skip, D20), with replay protection and a limit on failed attempts. Recovery turns it off. Adds the offer to first-run setup, right after the owner account is created and before any connection step, and the reminder in the app shell while it is off | `sign-in` | the two-factor offer in first-run setup; its section of `/settings/access` (no brief yet); the reminder in the app shell |
@@ -112,8 +112,6 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Open decisions each module closes
 
-- `i18n`: the validation that D22 lists (pinned versions, the adapter-bun build, a Weblate round
-  trip).
 - `setup`: D15 (Drizzle versions for Bun SQL), D16 (with the roles of D17), the oldest PostgreSQL
   version (D17) and the logging library half of D14; and how the inline `style` attributes that Ark
   UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup
@@ -957,6 +955,9 @@ export const GET: RequestHandler = () => healthResponse();
   `cache-control: no-store`), the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
   `security/secrets/`, under `src/lib/server/`), and in `src/lib/shared/i18n/`:
+  - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
+    language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
+    it is given, not the machine's;
   - `messages.test.ts`, the message check, finds every problem in `messages/*.json`, and breaks
     each of its rules once in small files held in memory, to show that each is reported.
 

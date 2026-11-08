@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { baseLocale, locales } from "#lib/paraglide/runtime.js";
 
-// The message check (SPEC-i18n.md, "The message check"). It sits in `src/` only because Vitest
-// runs `src/**`, and it runs in prek's `tests` hook and in CI.
+// The message check (SPEC-i18n.md, "Messages"). It sits in `src/` only because Vitest runs
+// `src/**`, and it runs in prek's `tests` hook and in CI.
 
 /** CLDR's plural categories, in CLDR's order. A key that ends in one is a plural form. */
 const pluralCategories = ["zero", "one", "two", "few", "many", "other"];
