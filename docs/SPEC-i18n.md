@@ -117,7 +117,8 @@ but doesn't approve it, and Weblate corrects it later.
 | `language_switcher_label` | `Language` | `Sprog` |
 
 `<title>` stays the name, which isn't a message. `placeholder_` names the ground floor's
-placeholder `/`, which has no surface or brief; its messages go when a module replaces that page.
+placeholder `/`, which has no surface or brief: the `placeholder_` messages go when a module
+replaces that page, and `language_switcher_label` stays with the switcher.
 
 **The inlang project** is `project.inlang/settings.json`:
 
@@ -194,9 +195,8 @@ through the Vite plugin in dev, build and Vitest. Panda's `exclude` skips it.
 - **Caching:** the middleware adds `Vary: Cookie, Accept-Language` to every response. No page is
   prerendered, since a prerendered page would have one language for everyone.
 - **First in `handle`:** the language handle refuses nothing and never reads the body. Later modules
-  add their stages after it with `sequence`, the client address (`http-boundary`) and the
-  cross-origin check (`sign-in`) first among them (SPEC.md, Module notes, `sign-in`'s request
-  order). Errors thrown while rendering a route reach `+error.svelte` in the viewer's language.
+  add their stages after it with `sequence`, in `sign-in`'s request order. Errors thrown while
+  rendering a route reach `+error.svelte` in the viewer's language.
 
 **A later stage that refuses a request returns its response; it never throws.** An error thrown out
 of a `handle` stage, `error(403)` included, leaves the middleware. SvelteKit then renders its
