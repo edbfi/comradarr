@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="static/comradarr-icon.svg" alt="comradarr logo" width="256" height="256">
+  <img src="static/comradarr-icon.svg" alt="comradarr logo" width="160">
 </p>
 <h1 align="center">comradarr</h1>
 <p align="center"><strong>Continuous search rotation for Sonarr and Radarr within indexer budgets</strong></p>
 <p align="center">
-  <a href="https://github.com/edbfi/comradarr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue?style=flat" alt="License: AGPL-3.0-only"></a>
+  <a href="https://github.com/edbfi/comradarr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=flat" alt="License: AGPL-3.0-or-later"></a>
   <a href="https://github.com/oven-sh/bun"><img src="https://img.shields.io/badge/Bun-000000?style=flat&amp;logo=bun&amp;logoColor=white" alt="Bun"></a>
   <a href="https://github.com/sveltejs/kit"><img src="https://img.shields.io/badge/SvelteKit-FF3E00?style=flat&amp;logo=svelte&amp;logoColor=white" alt="SvelteKit"></a>
   <a href="https://github.com/microsoft/TypeScript"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat&amp;logo=typescript&amp;logoColor=white" alt="TypeScript"></a>
@@ -90,3 +90,11 @@ roles Comradarr creates; it sets those again when it starts, so they need no bac
 Start with [AGENTS.md](AGENTS.md): the house rules, the workflow and where each document lives.
 The product and design context is in [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md) and
 [docs/](docs/).
+
+## License
+
+Comradarr's owner-original code is free software: you can redistribute it and/or modify it under
+the terms of the [GNU Affero General Public License](LICENSE) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version
+(`AGPL-3.0-or-later`). Third-party code, dependencies and installed agent skills retain their
+respective licenses and notices.

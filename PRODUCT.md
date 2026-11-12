@@ -64,7 +64,7 @@ What exists:
 - `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
 - `static/comradarr-icon.svg`: the product icon, used as the favicon and in the README.
-- `LICENSE`: the GNU Affero General Public License, version 3. Contributions are accepted under the same terms, and dependencies are checked for a compatible licence.
+- [README licensing grant](README.md#license), with the full terms in `LICENSE`. Contributions are accepted under the same terms, and dependencies are checked for a compatible licence.
 
 What doesn't exist, and must not be fabricated:
 
