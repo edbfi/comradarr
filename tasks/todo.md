@@ -241,16 +241,16 @@ as `internal_error`.
 first-run state, ported, printed in comradarr's banner and audited at every printing.
 
 **Acceptance criteria:**
-- [ ] `server/services/audit/record.test.ts` first fails, then passes: an entry's fields, the
+- [x] `server/services/audit/record.test.ts` first fails, then passes: an entry's fields, the
   app's own entries with no request fields, the context redacted, the user agent cut, a failed
   write logged.
-- [ ] Startup stops when the database lacks a code in `actions.ts`, naming it; `actions.ts` notes
+- [x] Startup stops when the database lacks a code in `actions.ts`, naming it; `actions.ts` notes
   the spec's rule that a migration never uses a code added in the same release.
-- [ ] `server/security/bootstrap-token.test.ts` and `server/services/setup/first-run.test.ts`
+- [x] `server/security/bootstrap-token.test.ts` and `server/services/setup/first-run.test.ts`
   (obzorarr's, ported): format, bias, expiry, comparison, renewal held during a claim, none after
   stopping or once claimed; the banner's lines, the link only with `ORIGIN`, `setup.token_printed`
   each time.
-- [ ] e2e: the banner before "Listening on"; the token never in a log entry, a response or
+- [x] e2e: the banner before "Listening on"; the token never in a log entry, a response or
   `audit_log`.
 
 **Verification:** the gates.
