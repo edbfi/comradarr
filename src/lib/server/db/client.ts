@@ -107,6 +107,32 @@ export async function openDatabase(url: string, options: OpenOptions = {}): Prom
 }
 
 /**
+ * Whether the database answers `select 1` within `timeoutMs`: `undefined` when it does, otherwise
+ * why not, never holding the URL. At the limit the query is cancelled, so a database that stopped
+ * answering doesn't keep one pending query per probe on the pool (SPEC-setup.md, "Health").
+ */
+export async function probeDatabase(db: Database, timeoutMs: number): Promise<string | undefined> {
+	const query = db.$client`select 1`;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timedOut = new Promise<string>((resolve) => {
+		timer = setTimeout(() => {
+			query.cancel();
+			resolve(`no answer within ${timeoutMs / 1000} seconds`);
+		}, timeoutMs);
+	});
+	try {
+		// The query's own outcome is handled here, so its rejection after a cancel is never unhandled.
+		const answered = query.then(
+			() => undefined,
+			(error: unknown) => reasonOf(error),
+		);
+		return await Promise.race([answered, timedOut]);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
  * PostgreSQL's refusal of a connection, which waiting won't fix, such as a wrong password or a
  * `pg_hba.conf` that rejects the role (28000). It names who connected and PostgreSQL's reason.
  */

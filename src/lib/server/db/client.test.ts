@@ -1,8 +1,10 @@
+import { SQL } from "bun";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sql";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { createDatabase, dropDatabase, type TestDatabase } from "../../../../tests/database.ts";
 import { ConfigError } from "../config/config-error.ts";
-import { type Database, isWorthWaiting, openDatabase } from "./client.ts";
+import { type Database, isWorthWaiting, openDatabase, probeDatabase } from "./client.ts";
 import { migrateDatabase } from "./migrate.ts";
 import { settings } from "./settings.ts";
 
@@ -198,6 +200,39 @@ describe("openDatabase", () => {
 	});
 });
 
+describe("probeDatabase", () => {
+	it("is undefined while the database answers", async () => {
+		expect(await probeDatabase(db, 2000)).toBeUndefined();
+	});
+
+	it("names why a database fails, without the URL", async () => {
+		const closed = drizzle({ client: new SQL(database.url, { max: 1 }) });
+		await closed.$client.close();
+
+		const reason = await probeDatabase(closed, 2000);
+
+		expect(reason).toEqual(expect.any(String));
+		expect(reason).not.toContain(new URL(database.url).password);
+	});
+
+	it("cancels a query the server never answers, so a stalled database can't fill the pool", async () => {
+		const cancels: string[] = [];
+		const server = silentServer(cancels);
+		const stalled = drizzle({
+			client: new SQL(`postgres://u:p@127.0.0.1:${server.port}/d?sslmode=disable`, { max: 1 }),
+		});
+		try {
+			expect(await probeDatabase(stalled, 300)).toBe("no answer within 0.3 seconds");
+			for (let i = 0; i < 20 && cancels.length === 0; i++) await Bun.sleep(50);
+
+			expect(cancels).toEqual(["7:42"]);
+		} finally {
+			await stalled.$client.close({ timeout: 0 }).catch(() => {});
+			server.stop(true);
+		}
+	});
+});
+
 describe("isWorthWaiting", () => {
 	const error = (fields: Record<string, string>) => Object.assign(new Error("x"), fields);
 
@@ -223,22 +258,29 @@ describe("isWorthWaiting", () => {
  * A server that speaks just enough of PostgreSQL's protocol to accept a connection (refusing TLS,
  * then authentication OK and ready for a query) and then never answers a query.
  */
-function silentServer() {
+function silentServer(cancels: string[] = []) {
 	return Bun.listen({
 		hostname: "127.0.0.1",
 		port: 0,
 		socket: {
 			data(socket, data) {
-				const sslRequest = data.length === 8 && data.readInt32BE(4) === 80877103;
-				if (sslRequest) {
-					socket.write("N");
+				const code = data.length >= 8 ? data.readInt32BE(4) : 0;
+				if (data.length === 8 && code === 80877103) {
+					socket.write("N"); // no TLS
+					return;
+				}
+				if (data.length === 16 && code === 80877102) {
+					cancels.push(`${data.readInt32BE(8)}:${data.readInt32BE(12)}`); // a CancelRequest
+					socket.end();
 					return;
 				}
 				if (data[0] === 0) {
-					// The startup message: AuthenticationOk, then ReadyForQuery (idle).
+					// The startup message: AuthenticationOk, BackendKeyData (the key a cancel names),
+					// then ReadyForQuery (idle).
 					const ok = Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0]);
+					const key = Buffer.from([0x4b, 0, 0, 0, 12, 0, 0, 0, 7, 0, 0, 0, 42]);
 					const ready = Buffer.from([0x5a, 0, 0, 0, 5, 0x49]);
-					socket.write(Buffer.concat([ok, ready]));
+					socket.write(Buffer.concat([ok, key, ready]));
 				}
 			},
 		},

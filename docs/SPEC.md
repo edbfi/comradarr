@@ -769,10 +769,11 @@ Biome's defaults with the shared `biome.json` (tabs, double quotes, 100 columns)
 [Code structure](../AGENTS.md#code-structure).
 
 ```ts
-import { healthResponse } from "#lib/server/services/health.ts";
+import { checkHealth, healthResponse } from "#lib/server/services/health.ts";
+import { currentDatabase } from "#lib/server/services/setup/startup.ts";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = () => healthResponse();
+export const GET: RequestHandler = async () => healthResponse(await checkHealth(currentDatabase()));
 ```
 
 ## Design tokens
@@ -792,22 +793,25 @@ export const GET: RequestHandler = () => healthResponse();
 
 ## Testing strategy
 
-- **Unit (Vitest, `node` environment):** the `/healthz` handler (status 200, body `ok`,
-  `cache-control: no-store`), the `secrets` module (`config/secret-key.test.ts`, and
+- **Unit (Vitest, `node` environment):** the `/healthz` handler and `services/health.test.ts`
+  (healthy, unavailable when the database fails, 200 or 503, JSON with no version, timing or error,
+  never cached, and one log entry when the database becomes unavailable and one when it is back, a
+  slow older probe never logging a false recovery), `db/client.test.ts`'s probe (a stalled query
+  cancelled at the limit), the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
-  `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
-  in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
-  the migrations, a failed one, and the records against Drizzle Kit's own migrator's;
+  `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and in
+  `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`, the
+  migrations, a failed one, and the records against Drizzle Kit's own migrator's;
   `preflight.test.ts` and `roles.test.ts`, on PostgreSQL 16 and 18, the owner role's checks, the
   roles, their verifiers and the privilege matrix (D16), a real `pg_hba.conf` rejection and the
   statement log; `parameterised.test.ts`, no SQL built from strings), logging
   (`config/log-debug.test.ts`, and in `logging/`: `redact.test.ts`, every redaction rule on its own
-  and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the
-  entry's shape, the debug switch, the request id across awaits and concurrent requests, and
-  `flushLogs`; `request-line.test.ts`, the request line), `services/unexpected-error.test.ts`
-  (`handleError`), `services/setup/startup.test.ts` (a failed startup's entry flushed before the
-  throw; shutdown's order, exit codes and deadline with its bounded flush, no handlers in `dev`,
-  handlers a turn after `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
+  and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the entry's
+  shape, the debug switch, the request id across awaits and concurrent requests, and `flushLogs`;
+  `request-line.test.ts`, the request line), `services/unexpected-error.test.ts` (`handleError`),
+  `services/setup/startup.test.ts` (a failed startup's entry flushed before the throw; shutdown's
+  order, exit codes and deadline with its bounded flush, no handlers in `dev`, handlers a turn after
+  `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -819,8 +823,8 @@ export const GET: RequestHandler = () => healthResponse();
   Playwright generates for each run, so CI needs no stored secret.
   - `smoke.test.ts` checks that `/` returns 200, shows the placeholder heading, hydrates (it waits
     for the `data-hydrated` attribute the root layout sets when mounted), applies the Panda
-    background token and `h1` text style and logs no console errors, and that `/healthz` returns
-    `ok`.
+    background token and `h1` text style and logs no console errors, and that `/healthz` reports
+    the database healthy as JSON, never cached, and answers `HEAD` without a body.
   - `secret-key.test.ts` checks that the built server refuses to start without a valid key.
   - `setup.test.ts` starts its own servers, each on a new database: the migrations on a new
     database and nothing on a second start, a failed migration stopping startup, the database URL
@@ -885,5 +889,6 @@ design doesn't call for anything different; choices 4 and 5 are comradarr's own.
    real pages (`setup`, whose claim page comes before `sign-in`), not the skeleton.
 4. **Where the icon lives.** SvelteKit serves static files from `static/`, so the icon is
    `static/comradarr-icon.svg`, which the README shows and `src/app.html` uses as the favicon.
-5. **Health.** `/healthz` always answers `ok`. The module that adds the database replaces it with
-   the health check in `setup`'s Module notes.
+5. **Health.** `/healthz` reports the overall and per-component status as JSON, 200 or 503, with no
+   versions or timings ([SPEC-setup.md](SPEC-setup.md#health)); `setup` built it in place of the
+   ground floor's fixed `ok`.

@@ -71,13 +71,13 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 - [x] Task 2: the roles and their privileges (D16, D17)
 - [x] Task 3: logging with redaction and the request id
 - [x] Task 4: shutdown
-- [ ] Task 5: the health check
+- [x] Task 5: the health check
 
 ### Checkpoint: after task 5
 
-- [ ] `check`, `test`, `lint`, `build`, `smoke` and prek pass; CI's `checks`, `smoke` and `ci-ok`
+- [x] `check`, `test`, `lint`, `build`, `smoke` and prek pass; CI's `checks`, `smoke` and `ci-ok`
   pass with no CI change.
-- [ ] The built server waits for PostgreSQL, checks the owner role, migrates, sets both roles,
+- [x] The built server waits for PostgreSQL, checks the owner role, migrates, sets both roles,
   serves as the app role, logs JSON lines, reports the database on `/healthz`, and exits 0 on
   `SIGTERM` and `SIGHUP`.
 
