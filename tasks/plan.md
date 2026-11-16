@@ -70,7 +70,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 - [x] Task 1: the database (D15)
 - [x] Task 2: the roles and their privileges (D16, D17)
 - [x] Task 3: logging with redaction and the request id
-- [ ] Task 4: shutdown
+- [x] Task 4: shutdown
 - [ ] Task 5: the health check
 
 ### Checkpoint: after task 5

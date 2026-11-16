@@ -805,7 +805,9 @@ export const GET: RequestHandler = () => healthResponse();
   and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the
   entry's shape, the debug switch, the request id across awaits and concurrent requests, and
   `flushLogs`; `request-line.test.ts`, the request line), `services/unexpected-error.test.ts`
-  (`handleError`), and in `src/lib/shared/i18n/`:
+  (`handleError`), `services/setup/startup.test.ts` (a failed startup's entry flushed before the
+  throw; shutdown's order, exit codes and deadline with its bounded flush, no handlers in `dev`,
+  handlers a turn after `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -824,8 +826,9 @@ export const GET: RequestHandler = () => healthResponse();
     database and nothing on a second start, a failed migration stopping startup, the database URL
     required, readable from a file, and never echoed, the two roles set up with no owner-role
     session left, an owner role without `CREATEROLE` refused, the logs as JSON lines with one line
-    per request carrying its id, no password, verifier or database URL in startup's output, and a
-    bad `COMRADARR_LOG_DEBUG` refused in one entry.
+    per request carrying its id, no password, verifier or database URL in startup's output, a bad
+    `COMRADARR_LOG_DEBUG` refused in one entry, and `SIGTERM` and `SIGHUP` each stopping the server
+    with exit code 0.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

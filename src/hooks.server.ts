@@ -14,11 +14,11 @@ import {
 } from "#lib/server/logging/request-line.ts";
 import { startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
-import { building } from "$app/env";
+import { building, dev } from "$app/env";
 import * as env from "$app/env/private";
 
 export const init: ServerInit = async () => {
-	if (!building) await startUp(env);
+	if (!building) await startUp(env, { dev });
 };
 
 /**
