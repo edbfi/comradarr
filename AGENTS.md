@@ -347,7 +347,7 @@ src/
                                  schema per aggregate; parameterised.test.ts: no SQL built from
                                  strings
       services/setup/startup.ts  startup's steps: the key, the configuration, the database; the
-                                 app role's pool
+                                 app role's pool; shutdown on the signals, with its deadline
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
                                  the AES key, the key ID and the database roles' passwords;

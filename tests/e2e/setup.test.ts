@@ -298,6 +298,23 @@ test.describe("the logs", () => {
 	});
 });
 
+test.describe("shutdown", () => {
+	for (const signal of ["SIGTERM", "SIGHUP"] as const) {
+		test(`${signal} shuts the built server down with exit code 0`, async () => {
+			const database = await newDatabase();
+			const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+			expect((await fetch(`${server.url}/healthz`)).status).toBe(200);
+
+			expect(await server.stop(signal)).toBe(0);
+			const stopping = logEntries(server.output()).filter((entry) => entry.message === "stopping");
+			// SIGHUP arrives as itself, then the app passes it on as SIGTERM.
+			expect(stopping.map((entry) => (entry.metadata as { signal: string }).signal)).toEqual([
+				"SIGTERM",
+			]);
+		});
+	}
+});
+
 test.describe("the database URL", () => {
 	test("is required, and never echoed when refused", async () => {
 		const database = await newDatabase();

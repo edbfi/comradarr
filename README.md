@@ -111,6 +111,22 @@ so there is nothing to store: a new key sets new passwords at the next start. If
 role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
 
+## Stopping and the server's limits
+
+Comradarr stops cleanly on `SIGTERM`, `SIGINT` or `SIGHUP`: it lets the requests in progress finish,
+for up to `SHUTDOWN_TIMEOUT` seconds, closes its database connections, and exits. These variables
+belong to the Bun server it runs on:
+
+| Variable | Holds | Default |
+| --- | --- | --- |
+| `SHUTDOWN_TIMEOUT` | seconds to let requests finish when stopping | `30` |
+| `CONNECTION_IDLE_TIMEOUT` | seconds before an idle connection closes, at most 255 | `10` |
+| `BODY_SIZE_LIMIT` | the largest request body accepted | `512K` |
+
+After the requests finish, Comradarr takes a little over 5 more seconds at most to close. Give the container
+longer than `SHUTDOWN_TIMEOUT` plus 5 seconds to stop, or it's killed mid-write. Docker's default is
+10 seconds, so with the default `SHUTDOWN_TIMEOUT`, set Compose's `stop_grace_period` to `40s`.
+
 ## Logs
 
 Comradarr writes its log to standard output, one JSON object per line, which the container

@@ -144,11 +144,11 @@ closing the pool and flushing the logs on `sveltekit:shutdown`, and the 5-second
 the built server.
 
 **Acceptance criteria:**
-- [ ] `server/services/setup/startup.test.ts` first fails, then passes: obzorarr's shutdown cases
+- [x] `server/services/setup/startup.test.ts` first fails, then passes: obzorarr's shutdown cases
   (order, exit codes, the deadline with its bounded flush, no handlers in `dev`, handlers a turn
   after `init`), with the pool's close.
-- [ ] e2e: `SIGTERM` and `SIGHUP` each stop the built server with exit code 0.
-- [ ] The README's server limits and `stop_grace_period`.
+- [x] e2e: `SIGTERM` and `SIGHUP` each stop the built server with exit code 0.
+- [x] The README's server limits and `stop_grace_period`.
 
 **Verification:** the gates; Ctrl+C still ends `dev`.
 
