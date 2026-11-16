@@ -5,7 +5,6 @@
 const DENIED_FEATURES = [
 	"accelerometer",
 	"autoplay",
-	"browsing-topics",
 	"camera",
 	"display-capture",
 	"encrypted-media",

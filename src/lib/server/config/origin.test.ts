@@ -44,6 +44,9 @@ describe("readOrigin", () => {
 		["https://comradarr.example/app/..", "ORIGIN must not have a path"],
 		["https://comradarr.example/%2e", "ORIGIN must not have a path"],
 		["https://comradarr.example/.", "ORIGIN must not have a path"],
+		// The parser reads a backslash as a slash in http and https.
+		["https://comradarr.example\\app\\..", "ORIGIN must not have a path"],
+		["https://comradarr.example\\", "ORIGIN must not have a path"],
 		["https://comradarr.example/?x=1", "ORIGIN must not have a query"],
 		["https://comradarr.example?", "ORIGIN must not have a query"],
 		["https://comradarr.example/#top", "ORIGIN must not have a fragment"],

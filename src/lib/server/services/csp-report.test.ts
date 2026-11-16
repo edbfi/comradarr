@@ -16,6 +16,9 @@ afterEach(() => vi.restoreAllMocks());
 
 const entries = () => lines.map((line) => JSON.parse(line) as Record<string, unknown>);
 
+/** The first entry's metadata. */
+const metadata = () => (entries()[0]?.metadata ?? {}) as Record<string, string>;
+
 const report = (body: unknown, type = "application/csp-report") =>
 	new Request("http://x/api/csp-report", {
 		method: "POST",
@@ -71,9 +74,45 @@ describe("reportCspViolation", () => {
 	});
 
 	it.each([
+		["chrome-extension://abcdef/inject.js?user=me", "chrome-extension://abcdef"],
+		["data:text/css,body{color:red}", "data"],
+		["blob:https://comradarr.local/0f3a", "https://comradarr.local"],
+	])(
+		"logs only the scheme and host of an address without an origin: %s",
+		async (blocked, logged) => {
+			await reportCspViolation(report({ "csp-report": { "blocked-uri": blocked } }));
+
+			expect(metadata().blocked).toBe(logged);
+		},
+	);
+
+	it("keeps the blocked origin within 200 characters when the parser expands it", async () => {
+		// 144 characters whose origin, in punycode, is 352.
+		const label = Array.from({ length: 12 }, (_, i) => String.fromCodePoint(0x4e00 + i * 97)).join(
+			"",
+		);
+		const blockedUri = `https://${Array(10).fill(label).join(".")}.test/x`;
+		await reportCspViolation(report({ "csp-report": { "blocked-uri": blockedUri } }));
+
+		const blocked = metadata().blocked ?? "";
+		expect(blocked.startsWith("https://xn--")).toBe(true);
+		expect(blocked).toHaveLength(200);
+	});
+
+	it("leaves out a page address that doesn't parse", async () => {
+		await reportCspViolation(
+			report({ "csp-report": { "document-uri": "not a url", "blocked-uri": "inline" } }),
+		);
+
+		expect(entries()[0]?.metadata).toEqual({ blocked: "inline" });
+	});
+
+	it.each([
 		["another content type", report(violation, "application/json")],
 		["a body that isn't JSON", report("{nope")],
 		["JSON without a report", report({ other: 1 })],
+		["a report that is a list", report({ "csp-report": [] })],
+		["a report with no field it knows", report({ "csp-report": { other: 1 } })],
 		["a body over 16 KB", report(JSON.stringify(violation) + " ".repeat(17_000))],
 	])("answers 204 to %s and logs nothing", async (_, request) => {
 		const response = await reportCspViolation(request);

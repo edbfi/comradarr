@@ -55,7 +55,7 @@ function parseReport(text: string | undefined): Record<string, string | number> 
 		return undefined;
 	}
 	const report = (body as { "csp-report"?: unknown } | null)?.["csp-report"];
-	if (typeof report !== "object" || report === null) return undefined;
+	if (typeof report !== "object" || report === null || Array.isArray(report)) return undefined;
 	const field = (name: string) => {
 		const value = (report as Record<string, unknown>)[name];
 		return typeof value === "string" ? value.slice(0, MAX_TEXT) : undefined;
@@ -65,15 +65,23 @@ function parseReport(text: string | undefined): Record<string, string | number> 
 	const directive = field("effective-directive") ?? field("violated-directive");
 	if (directive !== undefined) context.directive = directive;
 	const blocked = field("blocked-uri");
-	if (blocked !== undefined) context.blocked = originOf(blocked) ?? blocked;
-	const page = field("document-uri");
-	if (page !== undefined) context.page = (URL.parse(page)?.pathname ?? "").slice(0, MAX_TEXT);
+	if (blocked !== undefined) context.blocked = (originOf(blocked) ?? blocked).slice(0, MAX_TEXT);
+	const page = URL.parse(field("document-uri") ?? "");
+	if (page !== null) context.page = page.pathname.slice(0, MAX_TEXT);
 	if (typeof line === "number" && Number.isInteger(line)) context.line = line;
-	return context;
+	// A report with nothing this endpoint reads is not worth a warning.
+	return Object.keys(context).length > 0 ? context : undefined;
 }
 
-/** A URL's origin, or undefined for a keyword such as `inline` or `eval`. */
+/**
+ * Where a blocked address came from, never its path or query: its origin, or, for one without
+ * (an extension's or a `data:` address), its scheme and host. Undefined for a keyword such as
+ * `inline` or `eval`. The parser can lengthen a host into punycode, so the caller cuts the result.
+ */
 function originOf(value: string): string | undefined {
 	const url = URL.parse(value);
-	return url === null || url.origin === "null" ? undefined : url.origin;
+	if (url === null) return undefined;
+	if (url.origin !== "null") return url.origin;
+	const scheme = url.protocol.slice(0, -1);
+	return url.host === "" ? scheme : `${scheme}://${url.host}`;
 }

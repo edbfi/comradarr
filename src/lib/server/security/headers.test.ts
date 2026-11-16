@@ -4,7 +4,7 @@ import { securityHeaders, withSecurityHeaders } from "./headers.ts";
 const HSTS = "Strict-Transport-Security";
 
 const PERMISSIONS =
-	"accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), " +
+	"accelerometer=(), autoplay=(), camera=(), display-capture=(), " +
 	"encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), " +
 	"magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), " +
 	"publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), " +

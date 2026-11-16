@@ -322,7 +322,7 @@ test.describe("security headers and the CSP", () => {
 		}
 	});
 
-	test("a page's policy is the spec's, its scripts carry the nonce, and the browser reports no violation", async ({
+	test("a page's policy is the spec's, its scripts carry the nonce, and the browser reports no violation or header error", async ({
 		page,
 	}) => {
 		const database = await newDatabase();
@@ -361,7 +361,10 @@ test.describe("security headers and the CSP", () => {
 
 			const violations: string[] = [];
 			page.on("console", (message) => {
-				if (/Content Security Policy/i.test(message.text())) violations.push(message.text());
+				// A violation, or a header the browser can't read, such as a feature it doesn't know.
+				if (/Content Security Policy|Permissions-Policy/i.test(message.text())) {
+					violations.push(message.text());
+				}
 			});
 			await page.addInitScript(() => {
 				document.addEventListener("securitypolicyviolation", (event) => {
