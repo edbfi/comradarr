@@ -1,12 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import type { TestRun } from "./tests/database.ts";
 
-// A developer's own key and database never reach a test: only the web server gets a key, generated
-// per run, and the run's own database (SPEC-secrets.md, "Startup"; SPEC-setup.md).
+// A developer's own key, database and `ORIGIN` never reach a test: only the web server gets a key,
+// generated per run, and the run's own database (SPEC-secrets.md, "Startup"; SPEC-setup.md).
 delete process.env.COMRADARR_SECRET_KEY;
 delete process.env.COMRADARR_SECRET_KEY_FILE;
 delete process.env.COMRADARR_DATABASE_URL;
 delete process.env.COMRADARR_DATABASE_URL_FILE;
+delete process.env.ORIGIN;
 const key = crypto.getRandomValues(new Uint8Array(32)).toBase64();
 
 /**
