@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLogging } from "./logger.ts";
-import { logRequest, pathWithoutValues, sentStatusAndSize } from "./request-line.ts";
+import { clientAddress, logRequest, pathWithoutValues, sentStatusAndSize } from "./request-line.ts";
 
 let lines: string[];
 
@@ -90,5 +90,18 @@ describe("sentStatusAndSize", () => {
 			size: 0,
 		});
 		expect(sentStatusAndSize('W/"a"', ok({ etag: '"a"' }))).toEqual({ status: 304, size: 0 });
+	});
+});
+
+describe("clientAddress", () => {
+	it("is the connection's address, or unknown when the adapter throws", () => {
+		expect(clientAddress({ getClientAddress: () => "192.0.2.7" })).toBe("192.0.2.7");
+		expect(
+			clientAddress({
+				getClientAddress: () => {
+					throw new Error("Address header was specified with ADDRESS_HEADER but is absent");
+				},
+			}),
+		).toBe("unknown");
 	});
 });

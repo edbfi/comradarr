@@ -29,6 +29,18 @@ export function sentStatusAndSize(
 	return { status: response.status, size: length === null ? undefined : Number(length) };
 }
 
+/**
+ * The client's address, or `unknown`: adapter-bun throws when `ADDRESS_HEADER` names a header the
+ * request lacks, and a log line must never fail the response it records.
+ */
+export function clientAddress(event: { getClientAddress: () => string }): string {
+	try {
+		return event.getClientAddress();
+	} catch {
+		return "unknown";
+	}
+}
+
 /** The URL's path with its parameters' names but none of their values. */
 export function pathWithoutValues(url: URL): string {
 	const names = [...url.searchParams.keys()];

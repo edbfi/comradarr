@@ -6,7 +6,7 @@ import {
 } from "@sveltejs/kit/hooks";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { withRequestId } from "#lib/server/logging/logger.ts";
-import { logRequest, sentStatusAndSize } from "#lib/server/logging/request-line.ts";
+import { clientAddress, logRequest, sentStatusAndSize } from "#lib/server/logging/request-line.ts";
 import { startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
 import { building } from "$app/env";
@@ -40,7 +40,7 @@ const requestId: Handle = ({ event, resolve }) => {
 				url: event.url,
 				...sent,
 				ms: performance.now() - started,
-				clientAddress: event.getClientAddress(),
+				clientAddress: clientAddress(event),
 			});
 		}
 	});
@@ -59,7 +59,9 @@ export const handle = sequence(requestId, language);
 
 /**
  * Every error SvelteKit catches passes here: one nobody expected goes through the logger,
- * redacted, never to `console.error`, and every answer carries the request's id.
+ * redacted, never to `console.error`, and every answer carries the request's id. The id can be
+ * missing although the type says otherwise: an error before `handle` runs, such as in `reroute`,
+ * reaches this hook too.
  */
 export const handleError: HandleServerError = ({ kind, error, event }) =>
 	answerCaughtError({ kind, error, requestId: event.locals.requestId, url: event.url });

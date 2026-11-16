@@ -5,7 +5,7 @@ import { type Database, openDatabase, withCredentials } from "#lib/server/db/cli
 import { migrateDatabase } from "#lib/server/db/migrate.ts";
 import { checkOwnerRole } from "#lib/server/db/preflight.ts";
 import { setUpRoles } from "#lib/server/db/roles.ts";
-import { configureLogging, createLogger } from "#lib/server/logging/logger.ts";
+import { configureLogging, createLogger, flushLogs } from "#lib/server/logging/logger.ts";
 import { currentKeyring, loadKeyring } from "#lib/server/security/secrets/keyring.ts";
 
 /** Every variable startup reads. */
@@ -25,6 +25,8 @@ export async function startUp(env: StartupEnv): Promise<void> {
 		await runSteps(env);
 	} catch (error) {
 		log.error("startup failed", { error });
+		// The process ends with the throw: the entry an operator needs must have left first.
+		await flushLogs();
 		throw error;
 	}
 }
