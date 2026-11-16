@@ -25,20 +25,23 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 - **The runtime role arrives in task 2.** Task 1 runs migrations and the app on the owner URL; task
   2 adds the pre-flight check, the two roles and the privilege matrix, and moves requests onto the
   app role's pool. No release is cut in between.
-- **The audit table lands with the roles,** because the privilege matrix and its tests (D16) are
-  about it; its writer, the action list and startup's enum check land in task 8 with the first
-  entry, the token's printing. Named operations still join with their first caller.
+- **All three tables come with the first migration** (the spec): `settings`, `owner` and
+  `audit_log` with its enum land in task 1, the audit table's privileges in task 2, and its writer,
+  the action list and startup's enum check in task 8 with the first entry, the token's printing.
+  Named operations still join with their first caller.
 - **A PostgreSQL for the tests** comes from one helper. Vitest starts it in a global setup (async);
   Playwright's config can't await before the web server starts, so it provisions synchronously
   (`docker run -d`, then `pg_isready` until ready) in the runner process only, as obzorarr's config
   creates its temporary folder there, and removes the container on exit. Both reuse
-  `COMRADARR_TEST_DATABASE_URL` when it is set.
+  `COMRADARR_TEST_DATABASE_URL` when it is set. Task 2 adds `postgres:16` for the role and
+  privilege tests, from Docker unless `COMRADARR_TEST_DATABASE_URL_16` names one.
 - **Startup grows task by task** in `services/setup/startup.ts`: the key, the configuration
   (`COMRADARR_DATABASE_URL` in task 1, `COMRADARR_LOG_DEBUG` in task 3, `ORIGIN` in task 6, all
   checked before the database), the database (tasks 1 and 2), then first run (tasks 8 to 11).
   `hooks.server.ts` only calls services (Code structure).
 - **Startup failures are thrown first and logged later,** as in obzorarr: until task 3 brings the
-  logger, a failed step throws from `init` as the key error does.
+  logger, a failed step throws from `init` as the key error does, and task 3 adds the log lines
+  the spec gives the migrations and the wait for PostgreSQL.
 - **The request checks come before any form.** Task 7 switches SvelteKit's form check off and puts
   the cross-origin check in its place in one PR, so `main` never has neither. The CSP report
   endpoint arrives in task 6, before that check exists, and task 7's e2e shows a real report still
@@ -46,6 +49,10 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 - **The gate comes last.** Task 10 makes the claim work at `/setup` with every other page still
   served, so the smoke and language tests run unchanged; task 11 adds the gate with the Playwright
   global setup that claims the instance.
+- **Errors take the error format in task 7.** Task 3's `handleError` returns the generic message
+  and the request id; task 7 brings the format and moves `handleError` onto it as
+  `internal_error`. Task 11 adds `setup_incomplete`.
+- **No test route ships.** `handleError` is unit-tested; the build adds no route that throws.
 - **The refusal page has no styles.** Its fixed policy allows none, so it sets its colour scheme
   with `<meta name="color-scheme" content="dark">` and holds no raw values.
 - **Signal handlers only in the built server,** one turn after `init` resolves, as obzorarr's.
@@ -111,7 +118,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 | prek gets slow with a container per run | Medium | One container per run, a database per test file from a template; task 1 records the time added |
 | `CREATEROLE` behaves differently on 16 and 18, or the owner role can't set a SCRAM verifier | High | Task 2's role and privilege tests run on both versions |
 | A grant the matrix misses, or one `PUBLIC` still holds, lets the app role change the schema or the audit trail | High | Task 2 checks effective privileges, also on a database whose `public` schema still grants `CREATE` |
-| An audit code used in the migration that adds it fails the whole migration | Medium | Task 8's migration test applies the enum and its first use in separate releases' migrations |
+| An audit code used in the migration that adds it fails the whole migration | Medium | The spec's authoring rule, noted in `actions.ts` (task 8); no `setup` migration uses a code, and startup's enum check catches a missing one |
 | Playwright's web server starts before its global setup, so the database must exist when the config loads | Medium | Task 1 provisions synchronously in the runner process (above) |
 | The CSP report endpoint fills the log before `sign-in`'s limit | Low | Bounded context per report; accepted in the spec until `sign-in` |
 | The token or a password reaches a log entry, a response or the audit trail | High | Tasks 8 and 10 search the server's output, every response and `audit_log` |

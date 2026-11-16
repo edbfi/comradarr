@@ -13,8 +13,8 @@ review. Paths under `src/lib/server/` are shortened to `server/`.
 **Description:** Add `drizzle-orm` 0.45.4 and `drizzle-kit` 0.31.11, a PostgreSQL for the tests,
 and open and migrate the database at startup on the owner URL, with D15's validation. Startup moves
 into `server/services/setup/startup.ts`: the key, `COMRADARR_DATABASE_URL` (or `…_FILE`), the wait
-for PostgreSQL, then the migrations. `settings` and `owner` go into the first migration; no
-operations yet.
+for PostgreSQL, then the migrations. `settings`, `owner` and `audit_log` with its `audit_action`
+enum (the four `setup` codes) go into the first migration (the spec); no operations yet.
 
 **Acceptance criteria:**
 - [ ] `tests/database.ts` provisions as the spec says (the variable or a labelled `postgres:18`
@@ -25,8 +25,10 @@ operations yet.
   set refused, empty as unset, the 4 KiB cap and one trailing newline, the scheme, user and
   database checked, and no message ever echoing the URL.
 - [ ] `server/db/migrate.test.ts` first fails, then passes: the bundled migrations apply to a new
-  database, both tables exist, a second run applies nothing, and the records match Drizzle Kit's
-  own migrator's; or the fallback ships `drizzle/` beside `build/`, and the test covers that path.
+  database, the three tables and the enum exist, a second run applies nothing, and the records
+  match Drizzle Kit's own migrator's; or the fallback ships `drizzle/` beside `build/`, and the test
+  covers that path. A failed migration stops startup, thrown with its name and PostgreSQL's reason,
+  and the built server exits non-zero.
 - [ ] `server/db/client.test.ts`: rollback isolation (D6), and the wait for PostgreSQL (retried
   on a refused connection, a host that doesn't resolve and `57P03` within 30 seconds, every 2
   seconds; an authentication failure at once).
@@ -46,7 +48,7 @@ new database.
 
 **Files:** `package.json`, `bun.lock`, `drizzle.config.ts`, `drizzle/`, `src/env.ts`,
 `src/hooks.server.ts`, `server/config/{database-url,config-error}.ts` (+ test),
-`server/db/{client,migrate,settings,owner}.ts` (+ tests), `server/db/parameterised.test.ts`,
+`server/db/{client,migrate,settings,owner,audit}.ts` (+ tests), `server/db/parameterised.test.ts`,
 `server/services/setup/startup.ts`, `tests/database.ts`, `vite.config.ts` (Vitest's global setup),
 `playwright.config.ts`, `tests/e2e/setup.test.ts`, README (the database URL, PostgreSQL 16+, the
 test database), SPEC.md (tech stack, `db:generate`, Commands, testing), decisions.md (D15),
@@ -58,31 +60,38 @@ database together in the built server.
 ## Task 2: the roles and their privileges (D16, D17)
 
 **Description:** The pre-flight check, the two roles named after the database with passwords
-derived from the master key and set as SCRAM verifiers, the `audit_log` table and its enum (the
-four `setup` codes), the privilege matrix, revoking `PUBLIC`'s `CREATE` and `TEMPORARY`, the owner
-connection closed after migrations, and requests on the app role's pool.
+derived from the master key and set as SCRAM verifiers, the privilege matrix (with `audit_log`'s
+rules), revoking `PUBLIC`'s `CREATE` and `TEMPORARY`, the owner connection closed after migrations,
+and requests on the app role's pool. `tests/database.ts` gains `postgres:16`.
 
 **Acceptance criteria:**
 - [ ] `server/security/secrets/keyring.test.ts` gains the two role passwords under their HKDF
   labels, 43 characters of base64url, the same for the same key and different across keys.
 - [ ] `server/db/preflight.test.ts` first fails, then passes, on PostgreSQL 16 and 18: each refusal
   of the spec, named, all at once, before anything changes.
+- [ ] `tests/database.ts` provides `postgres:16` from Docker, or `COMRADARR_TEST_DATABASE_URL_16`
+  when it is set; without either, the 16 run fails clearly, like the 18 one.
 - [ ] `server/db/roles.test.ts`, on 16 and 18: roles created, passwords set as verifiers (fresh
   salt, 4096 iterations; the app role logs in with the derived password, and again after a new
   key), and the D16 privilege checks of the spec's Validation, effective privileges included,
-  also on a database whose `public` schema still grants `CREATE` to `PUBLIC`.
-- [ ] No verifier or password in a log entry or an error (a test searches both).
-- [ ] The built server serves as the app role, and the owner connection is closed (e2e: the
-  server's PostgreSQL sessions).
+  also on a database whose `public` schema still grants `CREATE` to `PUBLIC`; a database name with
+  a `"` and capitals still gets correctly quoted roles; a `pg_hba.conf`-style refusal of the app
+  role fails with an error naming the role.
+- [ ] `parameterised.test.ts` exempts `db/roles.ts` and only it.
+- [ ] No verifier or password in a thrown error or PostgreSQL's statement log (a test searches
+  both; task 3 adds the log entries).
+- [ ] e2e: the built server serves as the app role with the owner connection closed (the server's
+  PostgreSQL sessions), and refuses to start with an owner role without `CREATEROLE`, echoing no
+  value.
 
 **Verification:** the gates; D16 and D17's evidence in the PR body.
 
 **Dependencies:** task 1.
 
-**Files:** `server/db/{preflight,roles,audit,client}.ts` (+ tests), `drizzle/`,
+**Files:** `server/db/{preflight,roles,client}.ts` (+ tests), `server/db/parameterised.test.ts`,
 `server/security/secrets/keyring.ts` (+ test), `server/services/setup/startup.ts`,
-`tests/e2e/setup.test.ts`, README (the roles, `pg_hba.conf`), decisions.md (D16 Decided, D17's
-version and names), AGENTS.md.
+`tests/database.ts`, `tests/e2e/setup.test.ts`, README (the roles, `pg_hba.conf`), decisions.md
+(D16 Decided, D17's version and names), AGENTS.md.
 
 **Size:** L. The roles and the matrix are one unit: the privilege tests need both.
 
@@ -102,9 +111,13 @@ A failed startup step is logged, then thrown.
   `/healthz` at debug).
 - [ ] `server/config/log-debug.test.ts`: `true`, `false`, empty as unset, anything else refused
   before the database, without the value.
-- [ ] An error thrown in a load reaches the log as one redacted JSON entry with the request id, and
-  the response carries the generic message and the id (e2e).
-- [ ] A startup failure is one entry and the thrown error; `secret-key.test.ts` still passes.
+- [ ] `handleError`, unit-tested: an unexpected error becomes one redacted JSON entry with the
+  request id from `event.locals`, and the answer carries the generic message and the id. No route
+  that throws ships in the build.
+- [ ] A startup failure is one entry and the thrown error; `secret-key.test.ts` still passes. A
+  pending migration logs its name with the backup reminder, a failed one is one entry, and the
+  wait for PostgreSQL logs its first failure at warning.
+- [ ] No verifier, password or database URL in a log entry (a test searches startup's output).
 
 **Verification:** the gates; the built server logs one line per request.
 
@@ -146,8 +159,9 @@ or 503, closing ground-floor choice 5.
 **Acceptance criteria:**
 - [ ] `server/services/health.test.ts` first fails, then passes: healthy, and unavailable when the
   query fails or takes over 2 seconds, with no version, timing or error in the answer.
-- [ ] `routes/healthz/server.test.ts` and the smoke test move to the new answer; `HEAD` works.
-- [ ] e2e: the built server answers 503 once its PostgreSQL stops.
+- [ ] `routes/healthz/server.test.ts` and the smoke test move to the new answer, with
+  `cache-control: no-store`; `HEAD` works. The database-down answer stays a unit test: the test
+  PostgreSQL is shared, so no e2e stops it.
 
 **Verification:** the gates.
 
@@ -188,12 +202,17 @@ AGENTS.md.
 ## Task 7: the cross-origin check and the error format
 
 **Description:** obzorarr's cross-origin check and its refusal, with SvelteKit's form check off in
-the same PR, and the error format, which the JSON refusal uses first.
+the same PR, and the error format, which the JSON refusal uses first and `handleError` moves onto
+as `internal_error`.
 
 **Acceptance criteria:**
-- [ ] `server/security/cross-origin.test.ts` (obzorarr's matrix, ported) and `vite.config.test.ts`.
+- [ ] `server/security/cross-origin.test.ts` (obzorarr's matrix, ported) and `vite.config.test.ts`,
+  which Vitest's `include` gains (AGENTS.md's "Vitest runs" line with it).
 - [ ] `lib/shared/errors/problem.test.ts` and `server/security/access-denied.test.ts`: the shape,
   the message keys, both languages, the page's own policy and `color-scheme` meta with no style.
+- [ ] `handleError` answers JSON callers with `internal_error` in the format, with the matching
+  request id and translated messages (`error_internal_error_*` and `error_access_denied_*` in both
+  languages).
 - [ ] e2e: obzorarr's cross-site, same-origin and `app.test` cases, a JSON caller's error, and a
   browser's CSP report passing the check on `app.test`.
 - [ ] The README's proxy fix.
@@ -217,7 +236,8 @@ first-run state, ported, printed in comradarr's banner and audited at every prin
 - [ ] `server/services/audit/record.test.ts` first fails, then passes: an entry's fields, the
   app's own entries with no request fields, the context redacted, the user agent cut, a failed
   write logged.
-- [ ] Startup stops when the database lacks a code in `actions.ts`, naming it.
+- [ ] Startup stops when the database lacks a code in `actions.ts`, naming it; `actions.ts` notes
+  the spec's rule that a migration never uses a code added in the same release.
 - [ ] `server/security/bootstrap-token.test.ts` and `server/services/setup/first-run.test.ts`
   (obzorarr's, ported): format, bias, expiry, comparison, renewal held during a claim, none after
   stopping or once claimed; the banner's lines, the link only with `ORIGIN`, `setup.token_printed`
@@ -227,7 +247,7 @@ first-run state, ported, printed in comradarr's banner and audited at every prin
 
 **Verification:** the gates.
 
-**Dependencies:** tasks 2 and 3.
+**Dependencies:** tasks 2, 3 and 6 (`ORIGIN` for the link).
 
 **Files:** `server/services/audit/{actions,record}.ts` (+ tests), `server/db/audit.ts`,
 `server/security/bootstrap-token.ts` (+ test), `server/services/setup/{first-run,startup}.ts`
@@ -264,13 +284,15 @@ with the brief's claim step, and startup reading the pointer back. No gate yet.
 - [ ] `server/services/setup/claim.test.ts` (obzorarr's cases, ported): success with its three
   audit entries in the transaction; a field error leaving the token unused; a wrong and an expired
   token never reaching the hash, each audited with its outcome; a second claim; two at once
-  leaving one owner and one grant; a failed transaction printing a new token, none after
-  shutdown; a restart reading the pointer back.
+  leaving one owner and one grant; a field error audited as `invalid`; a failed transaction
+  printing a new token, none after shutdown, and audited as `failed` on its own with no entry of
+  the grant; a restart reading the pointer back.
 - [ ] `routes/setup/token-format.test.ts` (obzorarr's) and the fragment filled in and removed.
 - [ ] The page meets the brief: checked at 360, 390, 768 and 1440 px, 200% zoom, the keyboard,
   reduced motion and every state the brief names, in English and Danish, with screenshots and
   Impeccable's finish review in the PR body, and DESIGN.md refreshed if the finish asks.
-- [ ] e2e: the link fills the token; a wrong token refused; the rules list; the right token, upper
+- [ ] e2e: the link fills the token; a wrong token refused, keeping the typed username and
+  clearing the token and password; the rules list; the language switcher; the right token, upper
   case without dashes, claims and lands on `/`; `/setup` and its action 404, also after a restart;
   neither secret in the output, a response or `audit_log`.
 
@@ -295,9 +317,11 @@ the instance.
 - [ ] `first-run.test.ts`: the gate's decision for each path, JSON callers, and after a restart.
 - [ ] `playwright.config.ts`'s `wait.stdout` captures the banner's token; `global-setup.ts` claims
   through the form, so `smoke.test.ts` and `i18n.test.ts` run unchanged.
-- [ ] e2e: every page sends a fresh instance to `/setup`, a JSON caller gets the 503, `/healthz` and
-  the report endpoint still answer, the headers are on the redirect; the plain-HTTP host test
-  claims its server first.
+- [ ] e2e: every page sends a fresh instance to `/setup`, a JSON caller gets the 503
+  (`error_setup_incomplete_*` in both languages), `/healthz` and the report endpoint still answer,
+  the headers are on the redirect. Every earlier page-level test in `setup.test.ts` (the headers on
+  a page, the nonce, no violation, the plain-HTTP host test) claims its server first, so none
+  silently tests `/setup`.
 - [ ] The README's first run.
 
 **Verification:** the gates; success criterion 2 by hand over plain HTTP.
@@ -305,7 +329,8 @@ the instance.
 **Dependencies:** task 10.
 
 **Files:** `server/services/setup/first-run.ts` (+ test), `src/hooks.server.ts`,
-`playwright.config.ts`, `tests/e2e/{global-setup,setup}.test.ts`, README, AGENTS.md.
+`playwright.config.ts`, `tests/e2e/global-setup.ts`, `tests/e2e/setup.test.ts`, `messages/`,
+README, AGENTS.md.
 
 **Size:** M.
 
