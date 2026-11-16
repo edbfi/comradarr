@@ -769,10 +769,11 @@ Biome's defaults with the shared `biome.json` (tabs, double quotes, 100 columns)
 [Code structure](../AGENTS.md#code-structure).
 
 ```ts
-import { healthResponse } from "#lib/server/services/health.ts";
+import { checkHealth, healthResponse } from "#lib/server/services/health.ts";
+import { currentDatabase } from "#lib/server/services/setup/startup.ts";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = () => healthResponse();
+export const GET: RequestHandler = async () => healthResponse(await checkHealth(currentDatabase()));
 ```
 
 ## Design tokens
