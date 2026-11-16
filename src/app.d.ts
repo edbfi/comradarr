@@ -1,8 +1,13 @@
+import type { Problem } from "#lib/shared/errors/problem.ts";
+
 // See https://svelte.dev/docs/kit/types#app.d.ts
 declare global {
 	namespace App {
-		/** What an unexpected error's answer holds: a generic message and the request's id. */
-		interface Error {
+		/**
+		 * What an error's answer holds: SvelteKit's status and message, and the request's id; an
+		 * unexpected error's is also the error format's `internal_error` (SPEC-setup.md).
+		 */
+		interface Error extends Partial<Omit<Problem, "status">> {
 			status: number;
 			message: string;
 			requestId?: string;
@@ -16,5 +21,3 @@ declare global {
 		// interface Platform {}
 	}
 }
-
-export {};

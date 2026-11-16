@@ -214,16 +214,16 @@ the same PR, and the error format, which the JSON refusal uses first and `handle
 as `internal_error`.
 
 **Acceptance criteria:**
-- [ ] `server/security/cross-origin.test.ts` (obzorarr's matrix, ported) and `vite.config.test.ts`,
+- [x] `server/security/cross-origin.test.ts` (obzorarr's matrix, ported) and `vite.config.test.ts`,
   which Vitest's `include` gains (AGENTS.md's "Vitest runs" line with it).
-- [ ] `lib/shared/errors/problem.test.ts` and `server/security/access-denied.test.ts`: the shape,
+- [x] `lib/shared/errors/problem.test.ts` and `server/security/access-denied.test.ts`: the shape,
   the message keys, both languages, the page's own policy and `color-scheme` meta with no style.
-- [ ] `handleError` answers JSON callers with `internal_error` in the format, with the matching
+- [x] `handleError` answers JSON callers with `internal_error` in the format, with the matching
   request id and translated messages (`error_internal_error_*` and `error_access_denied_*` in both
   languages).
-- [ ] e2e: obzorarr's cross-site, same-origin and `app.test` cases, a JSON caller's error, and a
+- [x] e2e: obzorarr's cross-site, same-origin and `app.test` cases, a JSON caller's error, and a
   browser's CSP report passing the check on `app.test`.
-- [ ] The README's proxy fix.
+- [x] The README's proxy fix.
 
 **Verification:** the gates.
 

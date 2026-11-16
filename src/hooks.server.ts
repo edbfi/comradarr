@@ -12,6 +12,8 @@ import {
 	sentStatusAndSize,
 	thrownStatus,
 } from "#lib/server/logging/request-line.ts";
+import { accessDenied } from "#lib/server/security/access-denied.ts";
+import { crossOriginAllowed } from "#lib/server/security/cross-origin.ts";
 import { securityHeaders, withSecurityHeaders } from "#lib/server/security/headers.ts";
 import { currentOrigin, startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
@@ -69,11 +71,28 @@ const language: Handle = ({ event, resolve }) =>
 const headers: Handle = async ({ event, resolve }) =>
 	withSecurityHeaders(await resolve(event), securityHeaders(event.request, currentOrigin()));
 
-export const handle = sequence(requestId, language, headers);
+/**
+ * The cross-origin check on every state-changing request, which replaces SvelteKit's own form
+ * check; a refusal is returned, never thrown, so it keeps the language and the headers.
+ */
+const crossOrigin: Handle = ({ event, resolve }) =>
+	crossOriginAllowed(
+		{
+			method: event.request.method,
+			headers: event.request.headers,
+			isSubRequest: event.isSubRequest,
+		},
+		currentOrigin(),
+	)
+		? resolve(event)
+		: accessDenied(event.request, event.locals.requestId);
+
+export const handle = sequence(requestId, language, headers, crossOrigin);
 
 /**
  * Every error SvelteKit catches passes here: one nobody expected goes through the logger,
- * redacted, never to `console.error`, and every answer carries the request's id. The id can be
+ * redacted, never to `console.error`, and is answered as the error format's `internal_error` in
+ * the viewer's language; every answer carries the request's id. The id can be
  * missing although the type says otherwise: an error before `handle` runs, such as in `reroute`,
  * reaches this hook too.
  */

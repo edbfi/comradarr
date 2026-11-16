@@ -806,7 +806,11 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   (`config/log-debug.test.ts`, and in `logging/`: `redact.test.ts`, every redaction rule on its own
   and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the entry's
   shape, the debug switch, the request id across awaits and concurrent requests, and `flushLogs`;
-  `request-line.test.ts`, the request line), `services/unexpected-error.test.ts` (`handleError`),
+  `request-line.test.ts`, the request line), `services/unexpected-error.test.ts` (`handleError`'s
+  `internal_error` in both languages), `security/cross-origin.test.ts` (the check's whole matrix),
+  `security/access-denied.test.ts` (the refusal page and its JSON, in both languages),
+  `lib/shared/errors/problem.test.ts` (the error format), `vite.config.test.ts` (SvelteKit's form
+  check and remote functions off),
   `config/origin.test.ts` (`ORIGIN`'s accepted forms and each refusal), `security/headers.test.ts`
   (the headers over HTTPS, plain HTTP, `localhost` and loopback, and with `ORIGIN`),
   `services/csp-report.test.ts` (a report logged with bounded context, and 204 for anything else, an
@@ -836,8 +840,11 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     `COMRADARR_LOG_DEBUG` refused in one entry, `SIGTERM` and `SIGHUP` each stopping the server
     with exit code 0, the headers on a page, `/healthz` and a 404 with no HSTS over plain HTTP and
     no server banner, the policy directive by directive with the nonce on every script and no
-    violation, a provoked violation reaching the log through the report endpoint, and an `ORIGIN`
-    with credentials or a path refused without echoing it.
+    violation, a provoked violation reaching the log through the report endpoint, an `ORIGIN`
+    with credentials or a path refused without echoing it, and the cross-origin check: another
+    site's form refused with the "Access denied" page in the viewer's language and its own policy,
+    a JSON caller's refusal in the error format with its request id, and the app's own form and a
+    browser's CSP report passing, on `localhost` and on the plain-HTTP host name `app.test`.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

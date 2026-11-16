@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { answerCaughtError, reportUnexpectedError } from "./unexpected-error.ts";
 
 let lines: string[];
@@ -25,7 +26,14 @@ describe("reportUnexpectedError", () => {
 			url: new URL("http://x/setup?token=abc"),
 		});
 
-		expect(answer).toEqual({ message: "Something went wrong", requestId: "req-9" });
+		expect(answer).toEqual({
+			type: "internal_error",
+			title: "Something went wrong",
+			status: 500,
+			detail: "Try again. If it keeps happening, look for this request's id in the server's log.",
+			requestId: "req-9",
+			message: "Something went wrong",
+		});
 		expect(lines).toHaveLength(1);
 		const entry = JSON.parse(lines[0] as string) as Record<string, unknown>;
 		expect(entry).toMatchObject({
@@ -66,5 +74,22 @@ describe("answerCaughtError", () => {
 		expect(answer.requestId).toMatch(/^[0-9a-f-]{36}$/);
 		expect(lines).toHaveLength(1);
 		expect(JSON.parse(lines[0] as string)).toMatchObject({ requestId: answer.requestId });
+	});
+
+	it("answers in the viewer's language", async () => {
+		const request = new Request("http://x/", { headers: { "accept-language": "da" } });
+		let answer: ReturnType<typeof reportUnexpectedError> | undefined;
+		await paraglideMiddleware(request, () => {
+			answer = reportUnexpectedError({ error: new Error("x"), requestId: "req-3", url });
+			return new Response();
+		});
+
+		expect(answer).toMatchObject({
+			type: "internal_error",
+			title: "Noget gik galt",
+			detail: "Prøv igen. Sker det igen, så find anmodningens id i serverens log.",
+			message: "Noget gik galt",
+			requestId: "req-3",
+		});
 	});
 });

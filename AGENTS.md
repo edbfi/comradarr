@@ -308,15 +308,17 @@ src/
   app.html                       document shell; `class="dark"` sets the default colour mode,
                                  and `handle` writes the request's language into `<html lang>`
   app.css                        Panda layer order; the Vite plugin appends the generated CSS
-  app.d.ts                       SvelteKit ambient types: the request id in `locals` and in an
-                                 error's answer
+  app.d.ts                       SvelteKit ambient types: the request id in `locals`, and an
+                                 error's answer: the request id and, for an unexpected error, the
+                                 error format
   env.ts                         declares `COMRADARR_SECRET_KEY`, `COMRADARR_DATABASE_URL`, their
                                  `_FILE` forms, `ORIGIN` and `COMRADARR_LOG_DEBUG`: private, read at
                                  runtime, optional
   hooks.server.ts                the `init` hook: runs startup, except while building;
                                  `handle`: each request's id and log line, its language through
-                                 Paraglide's middleware, then the security headers;
-                                 `handleError`: unexpected errors through the logger
+                                 Paraglide's middleware, the security headers, then the
+                                 cross-origin check; `handleError`: unexpected errors through the
+                                 logger, answered as `internal_error`
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
     +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
@@ -330,7 +332,7 @@ src/
     paraglide/                   the compiled messages (generated, gitignored)
     server/                      server-only: services/health.ts: the components' status and the
                                  `/healthz` answer; services/unexpected-error.ts:
-                                 `handleError`'s log entry and generic answer;
+                                 `handleError`'s log entry and its `internal_error` answer;
                                  services/csp-report.ts: a CSP violation report to the log; later
                                  providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
                                  http/ (SSRF-safe fetch)
@@ -352,6 +354,10 @@ src/
       services/setup/startup.ts  startup's steps: the key, the configuration, the database; the
                                  app role's pool; shutdown on the signals, with its deadline
       security/headers.ts        the security headers for a request, HSTS only over HTTPS
+      security/cross-origin.ts   the cross-origin check: whether a state-changing request came
+                                 from the app itself, asking the browser
+      security/access-denied.ts  the check's 403: the "Access denied" page, or `access_denied` in
+                                 the error format for a JSON caller
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
                                  the AES key, the key ID and the database roles' passwords;
@@ -365,6 +371,8 @@ src/
       i18n/format.ts             `formatNumber` and `formatDateTime` in the current language;
                                  `formatDateTime` needs a time zone
       i18n/messages.test.ts      the message check: every problem in `messages/*.json`
+      errors/problem.ts          the error format: one shape for every error answered in JSON,
+                                 its title and detail from `error_<type>_*` in the messages
 static/                          served as is (comradarr-icon.svg, also the favicon)
 tests/
   database.ts                    PostgreSQL 18 and 16 for the tests (Docker, or
@@ -387,8 +395,10 @@ drizzle/                         the reviewed migrations, from `db:generate`; dr
                                  lists the schema files
 panda.config.ts                  every design token; components use them through
                                  `#styled-system/<module>` (generated, gitignored)
-vite.config.ts                   SvelteKit (all its configuration), Panda, Paraglide and Vitest
+vite.config.ts                   SvelteKit (all its configuration, exported as `kit`, with its own
+                                 form check off), Panda, Paraglide and Vitest; vite.config.test.ts
+                                 checks the form check and remote functions stay off
 playwright.config.ts  tsconfig.json  package.json  bun.lock
 ```
 
-Vitest runs `src/**/*.test.ts`; Playwright runs `tests/e2e/`.
+Vitest runs `src/**/*.test.ts` and `vite.config.test.ts`; Playwright runs `tests/e2e/`.

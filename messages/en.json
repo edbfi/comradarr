@@ -2,5 +2,8 @@
 	"placeholder_title": "{{name}} is being rebuilt.",
 	"placeholder_body": "The rotation, the dashboard and the connector settings are on their way back. Nothing searches your libraries yet.",
 	"language_switcher_label": "Language",
-	"error_internal_error_title": "Something went wrong"
+	"error_internal_error_title": "Something went wrong",
+	"error_internal_error_description": "Try again. If it keeps happening, look for this request's id in the server's log.",
+	"error_access_denied_title": "Access denied",
+	"error_access_denied_description": "The request was refused because it didn't come from this site."
 }

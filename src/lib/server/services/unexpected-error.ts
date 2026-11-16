@@ -1,6 +1,6 @@
-import { m } from "#lib/paraglide/messages.js";
 import { createLogger, withRequestId } from "#lib/server/logging/logger.ts";
 import { pathWithoutValues } from "#lib/server/logging/request-line.ts";
+import { type Problem, problem } from "#lib/shared/errors/problem.ts";
 
 const log = createLogger("http");
 
@@ -15,24 +15,32 @@ export function answerCaughtError(input: {
 	error: unknown;
 	requestId: string | undefined;
 	url: URL;
-}): { requestId: string; message?: string } {
+}): { requestId: string } | UnexpectedErrorAnswer {
 	const requestId = input.requestId ?? crypto.randomUUID();
 	if (input.kind !== "unknown") return { requestId };
 	return reportUnexpectedError({ error: input.error, requestId, url: input.url });
 }
 
 /**
- * SvelteKit's `handleError` for an error nobody expected in a load, an action or an endpoint: the
- * error goes to the log as one redacted entry with the request's id, and the answer holds only a
- * generic message and that id. Without it, SvelteKit prints the error with `console.error`,
- * unredacted and not as JSON (SPEC-setup.md, "Logging").
+ * The answer to an unexpected error: the error format's `internal_error`, and the `message` that
+ * SvelteKit adds to every error, which repeats the title.
  */
-export function reportUnexpectedError(input: { error: unknown; requestId: string; url: URL }): {
-	message: string;
+export type UnexpectedErrorAnswer = Problem & { requestId: string; message: string };
+
+/**
+ * SvelteKit's `handleError` for an error nobody expected in a load, an action or an endpoint: the
+ * error goes to the log as one redacted entry with the request's id, and the answer holds only
+ * `internal_error`, in the viewer's language, and that id. Without it, SvelteKit prints the error
+ * with `console.error`, unredacted and not as JSON (SPEC-setup.md, "Logging", "The error format").
+ */
+export function reportUnexpectedError(input: {
+	error: unknown;
 	requestId: string;
-} {
+	url: URL;
+}): UnexpectedErrorAnswer {
 	withRequestId(input.requestId, () =>
 		log.error("unexpected error", { error: input.error, path: pathWithoutValues(input.url) }),
 	);
-	return { message: m.error_internal_error_title(), requestId: input.requestId };
+	const answer = problem("internal_error", { requestId: input.requestId });
+	return { ...answer, requestId: input.requestId, message: answer.title };
 }
