@@ -25,7 +25,10 @@ test("/ serves the placeholder page, hydrated and styled, without console errors
 	const fonts = await page.evaluate(async () => {
 		await document.fonts.ready;
 		return {
-			sans: document.fonts.check('600 32px "Source Sans 3 Variable"'),
+			// `load` finds the registered faces; `check` would pass with none registered at all.
+			sans: await document.fonts
+				.load('600 32px "Source Sans 3 Variable"')
+				.then((faces) => faces.length > 0),
 			mono: await document.fonts.load('400 16px "IBM Plex Mono"').then((faces) => faces.length > 0),
 			sources: performance
 				.getEntriesByType("resource")
