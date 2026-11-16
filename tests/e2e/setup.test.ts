@@ -538,10 +538,10 @@ test.describe("the claim", () => {
 			});
 			expect(action.status).toBe(404);
 
-			// After a restart too, and no token is printed. The first server's log is kept for the
-			// secrets check below.
-			const firstLog = logEntries(server.output());
+			// After a restart too, and no token is printed. The first server's whole log, its
+			// shutdown included, is kept for the secrets check below.
 			await server.stop();
+			const firstLog = logEntries(server.output());
 			server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
 			expect(server.output()).not.toContain("Comradarr setup");
 			expect((await fetch(`${server.url}/setup`)).status).toBe(404);
