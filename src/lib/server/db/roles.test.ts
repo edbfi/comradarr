@@ -12,7 +12,13 @@ import { Secret } from "../security/secrets/secret.ts";
 import { type Database, openDatabase, refusal, withCredentials } from "./client.ts";
 import { migrateDatabase } from "./migrate.ts";
 import { checkOwnerRole } from "./preflight.ts";
-import { quoteIdentifier, RoleSetupError, scramVerifier, setUpRoles } from "./roles.ts";
+import {
+	checkPrivileges,
+	quoteIdentifier,
+	RoleSetupError,
+	scramVerifier,
+	setUpRoles,
+} from "./roles.ts";
 
 const servers = inject("testDatabaseServers");
 const created: { server: TestServer; database: TestDatabase }[] = [];
@@ -212,6 +218,66 @@ for (const version of [18, 16] as const) {
 				app_temporary: false,
 				app_drizzle: false,
 			});
+		});
+
+		it("takes back what PUBLIC or an earlier grant gave either role", async () => {
+			const { database, owner, context, passwords } = await setUp(server);
+			const app = quoteIdentifier(context.names.app);
+			const admin = new SQL(adminOn(server, database), { max: 1 });
+			await admin.unsafe(`grant delete, truncate on audit_log to public`);
+			await admin.unsafe(`grant create on schema public to ${app}`);
+			await admin.unsafe(
+				`grant create, temporary on database ${quoteIdentifier(database.name)} to ${app}`,
+			);
+			await admin.close();
+
+			await setUpRoles(owner, context, passwords);
+			const client = connectAs(database, context.names.app, passwords.app);
+			const outcomes = {
+				delete: await attempt(client, "delete from audit_log"),
+				truncate: await attempt(client, "truncate audit_log"),
+				create: await attempt(client, "create table extra (id int)"),
+				temporary: await attempt(client, "create temporary table scratch (id int)"),
+				schema: await attempt(client, "create schema extra"),
+			};
+			await client.close();
+
+			expect(outcomes).toEqual({
+				delete: DENIED,
+				truncate: DENIED,
+				create: DENIED,
+				temporary: DENIED,
+				schema: DENIED,
+			});
+		});
+
+		it("sets a leftover role's expiry and connection limit back, so it can sign in", async () => {
+			const { database, owner, context, passwords } = await setUp(server);
+			const admin = new SQL(server.adminUrl, { max: 1 });
+			await admin.unsafe(
+				`alter role ${quoteIdentifier(context.names.app)} valid until '2000-01-01' connection limit 0`,
+			);
+			await admin.close();
+
+			await setUpRoles(owner, context, passwords);
+			const app = connectAs(database, context.names.app, passwords.app);
+
+			expect(await attempt(app, "select 1")).toBe("ok");
+			await app.close();
+		});
+
+		it("finds a privilege the matrix doesn't give, naming it", async () => {
+			const { database, owner, context } = await setUp(server);
+			const admin = new SQL(adminOn(server, database), { max: 1 });
+			await admin.unsafe(`grant update on audit_log to ${quoteIdentifier(context.names.app)}`);
+			await admin.close();
+
+			const error = await checkPrivileges(owner, context).catch((caught: unknown) => caught);
+
+			expect(error).toBeInstanceOf(RoleSetupError);
+			expect((error as Error).message).toBe(
+				`the role "${context.names.app}" has privileges the matrix doesn't give it: UPDATE on audit_log`,
+			);
 		});
 
 		it("quotes a database name with a quote and capitals in every statement", async () => {

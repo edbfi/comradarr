@@ -28,7 +28,12 @@ async function ownerOf(server: TestServer, attributes?: string) {
 
 /** Runs `statement` as the server's superuser. */
 async function asAdmin(server: TestServer, statement: string) {
-	const admin = new SQL(server.adminUrl, { max: 1 });
+	await asAdminOn(server.adminUrl, statement);
+}
+
+/** Runs `statement` as the superuser, on the database `adminUrl` names. */
+async function asAdminOn(adminUrl: string, statement: string) {
+	const admin = new SQL(adminUrl, { max: 1 });
 	try {
 		await admin.unsafe(statement);
 	} finally {
@@ -89,6 +94,36 @@ for (const version of [18, 16] as const) {
 			expect(await problemsOf(db)).toEqual([
 				`the role "${role}" has CREATEDB and BYPASSRLS, which the owner role may not remove`,
 			]);
+			await asAdmin(server, `drop role "${role}"`);
+		});
+
+		it("refuses a public schema the owner role doesn't control", async () => {
+			const { database, db } = await ownerOf(server);
+			const admin = new URL(server.adminUrl);
+			admin.pathname = `/${database.name}`;
+			await asAdminOn(admin.toString(), "alter schema public owner to current_user");
+
+			expect(await problemsOf(db)).toEqual([
+				`the owner role "${database.name}" doesn't control the public schema: run ALTER SCHEMA public OWNER TO pg_database_owner as a superuser`,
+			]);
+		});
+
+		it("refuses an existing role that owns something", async () => {
+			const { database, db } = await ownerOf(server);
+			const role = `${database.name}_app`;
+			await asAdmin(server, `create role "${role}" login`);
+			await asAdmin(server, `grant "${role}" to "${database.name}" with admin option`);
+			const admin = new URL(server.adminUrl);
+			admin.pathname = `/${database.name}`;
+			await asAdminOn(
+				admin.toString(),
+				`create table leftover (id int); alter table leftover owner to "${role}"`,
+			);
+
+			expect(await problemsOf(db)).toEqual([
+				`the role "${role}" owns objects in the database, which would let it change them`,
+			]);
+			await asAdminOn(admin.toString(), "drop table leftover");
 			await asAdmin(server, `drop role "${role}"`);
 		});
 

@@ -4,6 +4,9 @@ import type { Database } from "./client.ts";
 import type { OwnerContext } from "./preflight.ts";
 import { serverMessage } from "./server-message.ts";
 
+/** What a statement runs on: the database, or the transaction setting the roles up. */
+type Executor = Database | Parameters<Parameters<Database["transaction"]>[0]>[0];
+
 /** The roles' passwords, which the master key derives (D17). */
 export type RolePasswords = { readonly app: Secret; readonly auditAdmin: Secret };
 
@@ -100,21 +103,21 @@ export async function setUpRoles(
 				const verb = found === undefined ? "CREATE ROLE" : "ALTER ROLE";
 				await tx.execute(
 					sql.raw(
-						`${verb} ${quoteIdentifier(name)} WITH LOGIN${found === undefined ? "" : attributes} PASSWORD ${quoteLiteral(verifiers[role])}`,
+						`${verb} ${quoteIdentifier(name)} WITH LOGIN${found === undefined ? "" : attributes} VALID UNTIL 'infinity' CONNECTION LIMIT -1 PASSWORD ${quoteLiteral(verifiers[role])}`,
 					),
 				);
 			}
 			step = "setting the roles' privileges";
-			await tx.execute(sql.raw("REVOKE CREATE ON SCHEMA public FROM PUBLIC"));
-			await tx.execute(sql.raw(`REVOKE TEMPORARY ON DATABASE ${database} FROM PUBLIC`));
+			// What PUBLIC or an earlier grant gave either role goes first, so only the matrix is left.
+			const everyone = `PUBLIC, ${app}, ${auditAdmin}`;
+			await tx.execute(sql.raw(`REVOKE CREATE ON SCHEMA public FROM ${everyone}`));
+			await tx.execute(
+				sql.raw(`REVOKE CREATE, TEMPORARY ON DATABASE ${database} FROM ${everyone}`),
+			);
+			await tx.execute(sql.raw(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${everyone}`));
+			await tx.execute(sql.raw(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ${everyone}`));
 			await tx.execute(sql.raw(`GRANT CONNECT ON DATABASE ${database} TO ${app}, ${auditAdmin}`));
 			await tx.execute(sql.raw(`GRANT USAGE ON SCHEMA public TO ${app}, ${auditAdmin}`));
-			await tx.execute(
-				sql.raw(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${app}, ${auditAdmin}`),
-			);
-			await tx.execute(
-				sql.raw(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ${app}, ${auditAdmin}`),
-			);
 			const tables = await tx.execute<{ tablename: string }>(
 				sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
 			);
@@ -130,8 +133,70 @@ export async function setUpRoles(
 					);
 				}
 			}
+			step = "checking the roles' privileges";
+			await checkPrivileges(tx, context);
 		});
 	} catch (error) {
+		if (error instanceof RoleSetupError) throw error;
 		throw new RoleSetupError(`${step} failed: ${serverMessage(error)}`);
+	}
+}
+
+/** The table privileges PostgreSQL knows; `MAINTAIN` came with 17. */
+const TABLE_PRIVILEGES = [
+	"SELECT",
+	"INSERT",
+	"UPDATE",
+	"DELETE",
+	"TRUNCATE",
+	"REFERENCES",
+	"TRIGGER",
+];
+
+/**
+ * Checks the roles' effective privileges against the matrix, whatever granted them, and throws
+ * naming any the matrix doesn't give: a backstop after the revokes, for an ACL nobody expected.
+ */
+export async function checkPrivileges(db: Executor, context: OwnerContext): Promise<void> {
+	const [server] = await db.execute<{ version: number }>(
+		sql`select current_setting('server_version_num')::int as version`,
+	);
+	const privileges = [
+		...TABLE_PRIVILEGES,
+		...((server?.version ?? 0) >= 170000 ? ["MAINTAIN"] : []),
+	];
+	const values = sql.join(
+		privileges.map((privilege) => sql`(${privilege})`),
+		sql`, `,
+	);
+	for (const role of ["app", "auditAdmin"] as const) {
+		const name = context.names[role];
+		const tables = await db.execute<{ tablename: string; privilege: string }>(sql`
+			select t.tablename, p.privilege
+			from pg_tables t cross join (values ${values}) as p(privilege)
+			where t.schemaname = 'public'
+				and has_table_privilege(${name}, format('public.%I', t.tablename), p.privilege)
+			order by t.tablename, p.privilege
+		`);
+		const extra = tables
+			.filter(({ tablename, privilege }) => !grantsOn(tablename)[role].includes(privilege))
+			.map(({ tablename, privilege }) => `${privilege} on ${tablename}`);
+		const [elsewhere] = await db.execute<{
+			schema_create: boolean;
+			database_create: boolean;
+			temporary: boolean;
+		}>(sql`
+			select has_schema_privilege(${name}, 'public', 'CREATE') as schema_create,
+				has_database_privilege(${name}, current_database(), 'CREATE') as database_create,
+				has_database_privilege(${name}, current_database(), 'TEMPORARY') as temporary
+		`);
+		if (elsewhere?.schema_create) extra.push("CREATE on the public schema");
+		if (elsewhere?.database_create) extra.push("CREATE on the database");
+		if (elsewhere?.temporary) extra.push("TEMPORARY on the database");
+		if (extra.length > 0) {
+			throw new RoleSetupError(
+				`the role "${name}" has privileges the matrix doesn't give it: ${extra.join(", ")}`,
+			);
+		}
 	}
 }

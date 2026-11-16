@@ -66,6 +66,7 @@ type ExistingRole = Record<keyof typeof ATTRIBUTES, boolean> & {
 	rolname: string;
 	administered: boolean;
 	member_of: string[];
+	owns_objects: boolean;
 };
 
 /**
@@ -83,13 +84,16 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 		superuser: boolean;
 		createrole: boolean;
 		owns: boolean;
+		controls_public: boolean;
 	}>(sql`
 		select current_setting('server_version_num')::int as version,
 			current_user as owner,
 			current_database() as database,
 			r.rolsuper as superuser,
 			r.rolcreaterole as createrole,
-			d.datdba = r.oid as owns
+			d.datdba = r.oid as owns,
+			pg_has_role(current_user, (select nspowner from pg_namespace where nspname = 'public'), 'MEMBER')
+				as controls_public
 		from pg_roles r, pg_database d
 		where r.rolname = current_user and d.datname = current_database()
 	`);
@@ -104,11 +108,22 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 	}
 	if (!self.owns && !superuser) {
 		problems.push(`the owner role "${owner}" doesn't own the database "${database}"`);
+	} else if (!self.controls_public && !superuser) {
+		// A database created from a template upgraded from PostgreSQL 14 or older keeps a public
+		// schema that belongs to the old superuser, so the owner role couldn't revoke CREATE on it.
+		problems.push(
+			`the owner role "${owner}" doesn't control the public schema: run ALTER SCHEMA public OWNER TO pg_database_owner as a superuser`,
+		);
 	}
 	problems.push(...nameProblems(database, owner));
 
 	const existing = await db.execute<ExistingRole>(sql`
 		select r.rolname, r.rolsuper, r.rolcreatedb, r.rolcreaterole, r.rolreplication, r.rolbypassrls,
+			exists (select 1 from pg_class where relowner = r.oid)
+				or exists (select 1 from pg_namespace where nspowner = r.oid)
+				or exists (select 1 from pg_proc where proowner = r.oid) as owns_objects,
+			-- Only a direct grant with ADMIN counts: an inherited one would also work on 16, but
+			-- refusing it fails safe, and D17's owner role always holds ADMIN directly.
 			exists (
 				select 1 from pg_auth_members m
 				where m.roleid = r.oid and m.member = (select oid from pg_roles where rolname = current_user)
@@ -133,6 +148,11 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 		if (!superuser && held.length > 0) {
 			problems.push(
 				`the role "${role.rolname}" has ${held.join(" and ")}, which the owner role may not remove`,
+			);
+		}
+		if (role.owns_objects) {
+			problems.push(
+				`the role "${role.rolname}" owns objects in the database, which would let it change them`,
 			);
 		}
 		if (role.member_of.length > 0) {
