@@ -6,6 +6,8 @@
 	"error_internal_error_description": "Prøv igen. Sker det igen, så find anmodningens id i serverens log.",
 	"error_access_denied_title": "Adgang nægtet",
 	"error_access_denied_description": "Anmodningen blev afvist, fordi den ikke kom fra dette websted.",
+	"error_setup_incomplete_title": "Opsætningen er ikke færdig",
+	"error_setup_incomplete_description": "Første opstart er ikke afsluttet endnu. Gør den færdig på /setup, og prøv så igen.",
 	"setup_page_title": "Tag denne {{name}} i brug",
 	"setup_title": "Tag denne {{name}} i brug",
 	"setup_intro": "Skriv opsætningskoden fra serverkonsollen, og opret derefter ejerkontoen.",

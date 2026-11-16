@@ -69,6 +69,27 @@ async function startServer(cwd: string, env: Record<string, string>): Promise<Se
 	throw new Error(`the server didn't start:\n${output}`);
 }
 
+/**
+ * Claims a fresh server's instance with the token its banner printed, through the form's action
+ * as a browser without script would, so a test of a page doesn't silently test the setup gate.
+ */
+async function claimServer(server: Server): Promise<void> {
+	const token = /Setup token: ([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}) /.exec(server.output())?.[1];
+	if (token === undefined) throw new Error(`no setup token in:\n${server.output()}`);
+	const response = await fetch(`${server.url}/setup`, {
+		method: "POST",
+		redirect: "manual",
+		// A page's Accept: with fetch's `*/*`, SvelteKit answers as to `enhance`, in JSON with a 200.
+		headers: {
+			origin: server.url,
+			accept: "text/html",
+			"content-type": "application/x-www-form-urlencoded",
+		},
+		body: new URLSearchParams({ token, username: "owner", password: "violet harbour lanterns" }),
+	});
+	if (response.status !== 303) throw new Error(`the claim answered ${response.status}`);
+}
+
 /** Runs the built server with `env` until it exits by itself, killing it after 45 s. */
 async function runToExit(cwd: string, env: Record<string, string>) {
 	const server = spawnServer(cwd, env);
@@ -219,6 +240,7 @@ test.describe("the logs", () => {
 	test("are JSON lines, with one line per request carrying its id", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		try {
 			await fetch(`${server.url}/?page=2`);
 		} finally {
@@ -307,6 +329,7 @@ test.describe("security headers and the CSP", () => {
 	test("every response that passes through handle carries them, with no HSTS over plain HTTP and no server banner", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		try {
 			const statuses: Record<string, number> = {};
 			for (const path of ["/", "/healthz", "/no-such-page"]) {
@@ -331,6 +354,7 @@ test.describe("security headers and the CSP", () => {
 	}) => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		try {
 			const response = await fetch(`${server.url}/`);
 			const policy = response.headers.get("content-security-policy") ?? "";
@@ -421,6 +445,46 @@ test.describe("security headers and the CSP", () => {
 			expect(JSON.stringify(failures[0])).toContain(message);
 		});
 	}
+});
+
+test.describe("the setup gate", () => {
+	test("sends every page of a fresh instance to /setup with the headers, answers a JSON caller with a 503, and lets the health check and the CSP report endpoint through", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		try {
+			for (const path of ["/", "/no-such-page", "/setup/more", "/api/other"]) {
+				const response = await fetch(`${server.url}${path}`, { redirect: "manual" });
+				expect(response.status, path).toBe(303);
+				expect(response.headers.get("location"), path).toBe("/setup");
+				expect(response.headers.get("x-frame-options"), path).toBe("DENY");
+				expect(response.headers.get("referrer-policy"), path).toBe("same-origin");
+			}
+			for (const [language, title] of [
+				["en", "Setup isn't finished"],
+				["da", "Opsætningen er ikke færdig"],
+			] as const) {
+				const json = await fetch(`${server.url}/`, {
+					headers: { accept: "application/json", "accept-language": language },
+				});
+				expect(json.status).toBe(503);
+				expect(await json.json()).toMatchObject({ type: "setup_incomplete", status: 503, title });
+			}
+			expect((await fetch(`${server.url}/healthz`)).status).toBe(200);
+			expect((await fetch(`${server.url}/setup`)).status).toBe(200);
+			const report = await fetch(`${server.url}/api/csp-report`, {
+				method: "POST",
+				headers: { origin: server.url, "content-type": "application/csp-report" },
+				body: JSON.stringify({ "csp-report": { "effective-directive": "style-src-elem" } }),
+			});
+			expect(report.status).toBe(204);
+
+			// Once claimed, the gate lets everything through.
+			await claimServer(server);
+			expect((await fetch(`${server.url}/`, { redirect: "manual" })).status).toBe(200);
+		} finally {
+			await server.stop();
+		}
+	});
 });
 
 test.describe("the bootstrap token", () => {
@@ -597,6 +661,7 @@ test.describe("the cross-origin check", () => {
 	}) => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		const context = await browser.newContext({ locale: "da-DK" });
 		try {
 			const page = await context.newPage();
@@ -619,6 +684,7 @@ test.describe("the cross-origin check", () => {
 	test("on localhost, a same-origin POST without Sec-Fetch headers passes, and a JSON caller from another site gets the error format with its request id", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		try {
 			const url = server.url.replace("127.0.0.1", "localhost");
 			const own = await fetch(`${url}/`, {
@@ -656,6 +722,7 @@ test.describe("the cross-origin check", () => {
 	test("on a plain-HTTP host name that isn't loopback, the app's own form and a CSP report pass and another site's form is refused", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		await claimServer(server);
 		// Chromium sends no Sec-Fetch headers to app.test over plain HTTP, so the check compares
 		// Origin with Host there.
 		const browser = await chromium.launch({

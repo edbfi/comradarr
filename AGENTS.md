@@ -316,9 +316,9 @@ src/
                                  runtime, optional
   hooks.server.ts                the `init` hook: runs startup, except while building;
                                  `handle`: each request's id and log line, its language through
-                                 Paraglide's middleware, the security headers, then the
-                                 cross-origin check; `handleError`: unexpected errors through the
-                                 logger, answered as `internal_error`
+                                 Paraglide's middleware, the security headers, the cross-origin
+                                 check, then the setup gate; `handleError`: unexpected errors
+                                 through the logger, answered as `internal_error`
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
     +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
@@ -361,7 +361,7 @@ src/
       services/setup/first-run.ts
                                  first run's state in memory, read back from the step pointer:
                                  the bootstrap token, its banner, renewal held during a claim,
-                                 and each printing audited
+                                 each printing audited, and the setup gate's decision and answer
       services/setup/claim.ts    the claim: fields, token, hash, then one transaction with the
                                  owner, the pointer and the grant's audit entries
       services/audit/            actions.ts: the action codes, each one's context, and startup's
@@ -393,6 +393,8 @@ src/
       i18n/messages.test.ts      the message check: every problem in `messages/*.json`
       errors/problem.ts          the error format: one shape for every error answered in JSON,
                                  its title and detail from `error_<type>_*` in the messages
+      errors/json-caller.ts      who gets an error in that format: a caller that asks for JSON
+                                 and not for a page
       password-rules.ts          the password rules the browser checks as the owner types, which
                                  security/password.ts applies too
 static/                          served as is (comradarr-icon.svg, also the favicon)
@@ -401,6 +403,8 @@ tests/
                                  COMRADARR_TEST_DATABASE_URL and its `_16` form), a database per
                                  test file; Vitest's global setup, and a command Playwright's
                                  config runs
+  e2e/global-setup.ts            claims the web server's instance through the form, with the
+                                 token playwright.config.ts captures from the banner
   e2e/smoke.test.ts              Playwright smoke against the built server
   e2e/secret-key.test.ts         the built server refuses to start without a valid key
   e2e/setup.test.ts              first run and the request checks on the built server

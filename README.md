@@ -130,7 +130,9 @@ keep it to yourself. The token appears only in this banner, never in Comradarr's
 
 Open the link, choose the owner's username and a password of 15 to 128 characters, and claim. The
 page shows which password rules are met as you type; common passwords are checked when you claim.
-Once claimed, `/setup` is gone, and no token is printed again.
+Until then, every page sends the browser to `/setup`, and a program that asks for JSON gets a 503
+`setup_incomplete`; `/healthz` still answers. Once claimed, `/setup` is gone, and no token is
+printed again.
 
 ## Health
 

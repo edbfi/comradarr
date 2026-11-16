@@ -9,6 +9,8 @@ import {
 	tokenMatches,
 } from "#lib/server/security/bootstrap-token.ts";
 import { recordAudit } from "#lib/server/services/audit/record.ts";
+import { wantsJson } from "#lib/shared/errors/json-caller.ts";
+import { problem } from "#lib/shared/errors/problem.ts";
 
 /**
  * The settings key of first run's step pointer, stored and compared exactly: the claim writes it,
@@ -86,6 +88,38 @@ export function isClaimed(): boolean {
 /** Whether first run is complete, after which its steps answer "not found". */
 export function isFirstRunComplete(): boolean {
 	return complete;
+}
+
+/** The claim, first run's only step until `two-factor` adds the next. */
+const CURRENT_STEP = "/setup";
+
+/**
+ * Paths the gate lets through before first run is complete, besides the current step: the health
+ * check and the CSP report endpoint (SPEC-setup.md, "First run").
+ */
+const ALWAYS_OPEN = new Set(["/healthz", "/api/csp-report"]);
+
+/**
+ * The setup gate's decision for a request's path: until first run is complete, every path but the
+ * current step and the open ones is sent to that step; once it is complete, none is.
+ */
+export function firstRunRedirect(path: string): string | undefined {
+	if (complete || path === CURRENT_STEP || ALWAYS_OPEN.has(path)) return undefined;
+	return CURRENT_STEP;
+}
+
+/**
+ * The gate's answer to a request it holds back: a 303 to `step`, or, for a caller that asks for
+ * JSON and not for a page, a 503 `setup_incomplete` in the error format, never a 401.
+ */
+export function gateAnswer(request: Request, step: string, requestId: string): Response {
+	if (wantsJson(request)) {
+		return Response.json(problem("setup_incomplete", { requestId }), {
+			status: 503,
+			headers: { "cache-control": "no-store" },
+		});
+	}
+	return new Response(null, { status: 303, headers: { location: step } });
 }
 
 /**

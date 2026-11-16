@@ -6,6 +6,8 @@
 	"error_internal_error_description": "Try again. If it keeps happening, look for this request's id in the server's log.",
 	"error_access_denied_title": "Access denied",
 	"error_access_denied_description": "The request was refused because it didn't come from this site.",
+	"error_setup_incomplete_title": "Setup isn't finished",
+	"error_setup_incomplete_description": "First run isn't complete yet. Finish it at /setup, then try again.",
 	"setup_page_title": "Claim this {{name}}",
 	"setup_title": "Claim this {{name}}",
 	"setup_intro": "Enter the setup token printed in the server console, then create the owner account.",

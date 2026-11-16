@@ -322,15 +322,15 @@ exceptions, a 503 `setup_incomplete` for JSON callers, and the Playwright global
 the instance.
 
 **Acceptance criteria:**
-- [ ] `first-run.test.ts`: the gate's decision for each path, JSON callers, and after a restart.
-- [ ] `playwright.config.ts`'s `wait.stdout` captures the banner's token; `global-setup.ts` claims
+- [x] `first-run.test.ts`: the gate's decision for each path, JSON callers, and after a restart.
+- [x] `playwright.config.ts`'s `wait.stdout` captures the banner's token; `global-setup.ts` claims
   through the form, so `smoke.test.ts` and `i18n.test.ts` run unchanged.
-- [ ] e2e: every page sends a fresh instance to `/setup`, a JSON caller gets the 503
+- [x] e2e: every page sends a fresh instance to `/setup`, a JSON caller gets the 503
   (`error_setup_incomplete_*` in both languages), `/healthz` and the report endpoint still answer,
   the headers are on the redirect. Every earlier page-level test in `setup.test.ts` (the headers on
   a page, the nonce, no violation, the plain-HTTP host test) claims its server first, so none
   silently tests `/setup`.
-- [ ] The README's first run.
+- [x] The README's first run.
 
 **Verification:** the gates; success criterion 2 by hand over plain HTTP.
 

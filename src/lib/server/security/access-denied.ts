@@ -1,4 +1,5 @@
 import { getLocale } from "#lib/paraglide/runtime.js";
+import { wantsJson } from "#lib/shared/errors/json-caller.ts";
 import { problem } from "#lib/shared/errors/problem.ts";
 
 /**
@@ -41,12 +42,6 @@ export function accessDenied(request: Request, requestId: string): Response {
 			"cache-control": "no-store",
 		},
 	});
-}
-
-/** A caller that asks for JSON and not for a page. */
-function wantsJson(request: Request): boolean {
-	const accept = request.headers.get("accept") ?? "";
-	return accept.includes("application/json") && !accept.includes("text/html");
 }
 
 function escapeHtml(text: string): string {

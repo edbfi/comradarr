@@ -8,6 +8,8 @@ import { createDatabase, dropDatabase, type TestDatabase } from "../../../../../
 import {
 	FIRST_RUN_COMPLETE,
 	FIRST_RUN_STEP_KEY,
+	firstRunRedirect,
+	gateAnswer,
 	isClaimed,
 	isFirstRunComplete,
 	markClaimed,
@@ -252,6 +254,62 @@ describe("first run's bootstrap token", () => {
 	});
 });
 
+describe("the setup gate", () => {
+	const PATHS = [
+		"/",
+		"/no-such-page",
+		"/setup",
+		"/setup/more",
+		"/healthz",
+		"/healthz/more",
+		"/api/csp-report",
+		"/api/other",
+	];
+
+	it("sends every path but /setup, /healthz and the CSP report endpoint to /setup until the claim, then none", async () => {
+		await startFirstRun({ db, origin: undefined, print: () => {} });
+
+		expect(Object.fromEntries(PATHS.map((path) => [path, firstRunRedirect(path)]))).toEqual({
+			"/": "/setup",
+			"/no-such-page": "/setup",
+			"/setup": undefined,
+			"/setup/more": "/setup",
+			"/healthz": undefined,
+			"/healthz/more": "/setup",
+			"/api/csp-report": undefined,
+			"/api/other": "/setup",
+		});
+
+		markClaimed();
+		for (const path of PATHS) expect(firstRunRedirect(path), path).toBeUndefined();
+	});
+
+	it("answers a page with a 303 to the step, and a JSON caller with a 503 setup_incomplete", async () => {
+		const page = gateAnswer(
+			new Request("http://x/", { headers: { accept: "text/html" } }),
+			"/setup",
+			"req-1",
+		);
+		expect(page.status).toBe(303);
+		expect(page.headers.get("location")).toBe("/setup");
+
+		const json = gateAnswer(
+			new Request("http://x/api/things", { headers: { accept: "application/json" } }),
+			"/setup",
+			"req-2",
+		);
+		expect(json.status).toBe(503);
+		expect(json.headers.get("cache-control")).toBe("no-store");
+		expect(await json.json()).toEqual({
+			type: "setup_incomplete",
+			title: "Setup isn't finished",
+			status: 503,
+			detail: "First run isn't complete yet. Finish it at /setup, then try again.",
+			requestId: "req-2",
+		});
+	});
+});
+
 describe("first run after a restart", () => {
 	it("reads the step pointer back: a claimed instance starts complete and prints nothing", async () => {
 		const own = await createDatabase(adminUrl);
@@ -274,6 +332,7 @@ describe("first run after a restart", () => {
 			expect(isClaimed()).toBe(true);
 			expect(isFirstRunComplete()).toBe(true);
 			expect(printed).toEqual([]);
+			expect(firstRunRedirect("/")).toBeUndefined();
 		} finally {
 			await ownDb.$client.close();
 			await dropDatabase(adminUrl, own);
