@@ -31,8 +31,7 @@ function docker(args: string[]): string {
 	return result.stdout.toString().trim();
 }
 
-/** Whether Docker answers: false when its CLI is missing, which `Bun.spawnSync` throws for. */
-export function dockerAvailable(): boolean {
+function dockerAvailable(): boolean {
 	try {
 		return Bun.spawnSync(["docker", "info"], { stdout: "ignore", stderr: "ignore" }).success;
 	} catch {

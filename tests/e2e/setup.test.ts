@@ -6,12 +6,12 @@ import { chromium, expect, type Page, test } from "@playwright/test";
 import { SQL } from "bun";
 import {
 	createDatabase,
-	dockerAvailable,
 	dropDatabase,
 	startServer as startPostgres,
 	stopServer as stopPostgres,
 	type TestDatabase,
 	type TestRun,
+	type TestServer,
 } from "../database.ts";
 
 // First run and the request checks on the built server (docs/SPEC.md, "Testing strategy"). Each
@@ -19,8 +19,9 @@ import {
 const BUILD = fileURLToPath(new URL("../../build", import.meta.url));
 const MIGRATIONS = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
-const adminUrl = (JSON.parse(process.env.COMRADARR_E2E_DATABASE_RUN ?? "{}") as TestRun).server
-	.adminUrl;
+/** The run's PostgreSQL, which `bun tests/database.ts start` started for Playwright's config. */
+const runServer = (JSON.parse(process.env.COMRADARR_E2E_DATABASE_RUN ?? "{}") as TestRun).server;
+const adminUrl = runServer.adminUrl;
 
 const randomKey = () => crypto.getRandomValues(new Uint8Array(32)).toBase64();
 
@@ -128,17 +129,33 @@ function logEntries(output: string): Record<string, unknown>[] {
 }
 
 /**
- * Runs a PostgreSQL client tool, `pg_dump` or `psql`, with `args` and `input` on its standard
- * input: the one on PATH if it is version 18 or later (an older `pg_dump` refuses a newer server),
- * otherwise the `postgres:18` image's, as the README runs it, on the host's network so it reaches
- * the tests' servers on 127.0.0.1. Its standard output, or a throw with what it printed.
+ * Runs a PostgreSQL client tool, `pg_dump` or `psql`, against `url` on `server`, with `args` and
+ * `input` on its standard input, as the README runs it: inside the server's own container, so the
+ * client is the server's version and no host networking is needed. A server the tests were given
+ * through `COMRADARR_TEST_DATABASE_URL` has no container: then the tool on PATH, if it is version
+ * 18 or later, since an older `pg_dump` refuses a newer server. Its standard output, or a throw
+ * with what it printed.
  */
-function postgresTool(tool: "pg_dump" | "psql", args: string[], input?: string): string {
+function postgresTool(
+	tool: "pg_dump" | "psql",
+	server: TestServer,
+	url: string,
+	args: string[],
+	input?: string,
+): string {
 	let command: string[];
-	if (Bun.which(tool) !== null && majorVersion(tool) >= 18) command = [tool, ...args];
-	else if (dockerAvailable()) {
-		command = ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args];
-	} else throw new Error(`the restore test needs ${tool} 18 or later on PATH, or Docker`);
+	if (server.containerId !== undefined) {
+		const inside = new URL(url);
+		inside.hostname = "127.0.0.1";
+		inside.port = "5432";
+		command = ["docker", "exec", "-i", server.containerId, tool, `--dbname=${inside}`, ...args];
+	} else if (Bun.which(tool) !== null && majorVersion(tool) >= 18) {
+		command = [tool, `--dbname=${url}`, ...args];
+	} else {
+		throw new Error(
+			`the restore test needs ${tool} 18 or later on PATH for a server COMRADARR_TEST_DATABASE_URL names`,
+		);
+	}
 	const result = Bun.spawnSync(command, {
 		stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
 		stdout: "pipe",
@@ -701,10 +718,9 @@ test.describe("backup and restore (D18)", () => {
 		expect(history.map((entry) => entry.action)).toContain("setup.owner_created");
 
 		// The README's backup: the database alone, without its owner or privileges.
-		const dump = postgresTool("pg_dump", [
+		const dump = postgresTool("pg_dump", runServer, database.url, [
 			"--no-owner",
 			"--no-privileges",
-			`--dbname=${database.url}`,
 		]);
 
 		// A new PostgreSQL, with a new owner role and an empty database of the same name. On a
@@ -726,7 +742,9 @@ test.describe("backup and restore (D18)", () => {
 			expect([...before]).toEqual([]);
 			postgresTool(
 				"psql",
-				["-v", "ON_ERROR_STOP=1", "--single-transaction", "--quiet", `--dbname=${restored.url}`],
+				target,
+				restored.url,
+				["-v", "ON_ERROR_STOP=1", "--single-transaction", "--quiet"],
 				dump,
 			);
 
