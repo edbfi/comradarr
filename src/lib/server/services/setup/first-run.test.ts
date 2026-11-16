@@ -83,15 +83,15 @@ describe("first run's bootstrap token", () => {
 	it("records every printing in the audit trail, with its expiry and never the token", async () => {
 		// A database of its own: another test's renewal may still be writing to the shared one.
 		const own = await createDatabase(adminUrl);
-		const db = await openDatabase(own.url);
-		await migrateDatabase(db);
-		const printedEntries = () => db.select().from(auditLog).orderBy(auditLog.id);
+		const ownDb = await openDatabase(own.url);
+		await migrateDatabase(ownDb);
+		const printedEntries = () => ownDb.select().from(auditLog).orderBy(auditLog.id);
 		try {
 			const printed: string[] = [];
 			fakeClock();
 			vi.setSystemTime(new Date("2026-11-16T14:30:00.000Z"));
 			await startFirstRun({
-				db,
+				db: ownDb,
 				origin: undefined,
 				print: (banner) => printed.push(banner),
 				lifetimeMs: 60_000,
@@ -115,7 +115,7 @@ describe("first run's bootstrap token", () => {
 			for (const banner of printed) expect(stored).not.toContain(tokenIn(banner));
 		} finally {
 			stopFirstRun();
-			await db.$client.close();
+			await ownDb.$client.close();
 			await dropDatabase(adminUrl, own);
 		}
 	});

@@ -49,8 +49,8 @@ export async function writeAuditEntry(db: AuditWriter, entry: AuditEntry): Promi
 
 /**
  * Writes `entry` on its own. A failed write is logged as an error and not thrown, so the request
- * or the timer goes on as it would have. The entry holds the database's own message, not Drizzle's,
- * which repeats the insert's parameters: the request's fields would be copied into the log.
+ * or the timer goes on as it would have. The log entry holds the database's own message, not
+ * Drizzle's, which repeats the insert's parameters: the request's fields would reach the log.
  */
 export async function recordAudit(db: AuditWriter, entry: AuditEntry): Promise<void> {
 	try {
