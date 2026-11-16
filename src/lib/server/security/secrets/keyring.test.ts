@@ -58,6 +58,24 @@ async function expectedKeyId(text: string): Promise<string> {
 	return Buffer.from(bits).toString("base64url");
 }
 
+/** A role's password as D17 derives it: 32 bytes of HKDF-SHA-256 under its label, base64url. */
+async function expectedRolePassword(key: string, role: "app" | "audit-admin"): Promise<string> {
+	const base = await crypto.subtle.importKey("raw", Uint8Array.fromBase64(key), "HKDF", false, [
+		"deriveBits",
+	]);
+	const bits = await crypto.subtle.deriveBits(
+		{
+			name: "HKDF",
+			hash: "SHA-256",
+			salt: new Uint8Array(0),
+			info: new TextEncoder().encode(`edbfi:database-role:v1:${role}`),
+		},
+		base,
+		256,
+	);
+	return new Uint8Array(bits).toBase64({ alphabet: "base64url", omitPadding: true });
+}
+
 async function failure(env: SecretKeyEnv): Promise<KeyringError> {
 	try {
 		await loadKeyring(env);
@@ -225,6 +243,26 @@ describe("loadKeyring and currentKeyring", () => {
 		expect([...aesKey.usages].sort()).toEqual(["decrypt", "encrypt"]);
 		await expect(crypto.subtle.exportKey("raw", aesKey)).rejects.toThrow();
 		expect(Object.isFrozen(currentKeyring())).toBe(true);
+	});
+
+	it("derives one password per database role, under its own label (D17)", async () => {
+		const key = randomKey();
+		await loadKeyring({ COMRADARR_SECRET_KEY: key });
+		const { rolePasswords } = currentKeyring();
+
+		expect(rolePasswords.app.reveal()).toBe(await expectedRolePassword(key, "app"));
+		expect(rolePasswords.auditAdmin.reveal()).toBe(await expectedRolePassword(key, "audit-admin"));
+		expect(rolePasswords.app.reveal()).toMatch(/^[A-Za-z0-9_-]{43}$/);
+		expect(rolePasswords.app.reveal()).not.toBe(rolePasswords.auditAdmin.reveal());
+		expect(`${rolePasswords.app}`).toBe("[redacted]");
+	});
+
+	it("gives a new key new role passwords", async () => {
+		await loadKeyring({ COMRADARR_SECRET_KEY: randomKey() });
+		const first = currentKeyring().rolePasswords.app.reveal();
+		await loadKeyring({ COMRADARR_SECRET_KEY: randomKey() });
+
+		expect(currentKeyring().rolePasswords.app.reveal()).not.toBe(first);
 	});
 
 	it("has no keyring after a failed load", async () => {

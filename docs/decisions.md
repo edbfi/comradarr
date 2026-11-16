@@ -146,22 +146,39 @@ Why: D25 rules out a release candidate, and the stable pair has every part D5 ne
 migrations in the app instead of through Drizzle's folder migrator keeps `drizzle/` out of the
 deployment and lets startup name a failed migration.
 
+### D16. The privilege matrix and the append-only audit
+
+`db/roles.ts` sets D7's privileges after every migration from one matrix, on the tables of the
+`public` schema: the app role gets exactly `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table
+except `audit_log`, where it may only insert and read; the audit-admin role may only read and
+delete `audit_log`. Neither owns anything or belongs to another role, and startup revokes
+`PUBLIC`'s `CREATE` on the `public` schema and `TEMPORARY` on the database. `db/roles.test.ts`
+proves it on PostgreSQL 16 and 18, as each role and through the effective privileges: the app role
+can't update, delete or truncate an audit entry, change or create a table, create a temporary
+table, read Drizzle's migration records or `SET ROLE` to the owner, and the audit-admin role can do
+nothing but read and delete audit entries.
+
+Why: D7 asks the database to enforce the audit rules, and only tests against a real PostgreSQL show
+the configuration does; the matrix covers every later table without a new rule.
+
 ### D17. PostgreSQL in its own container; the app creates its roles
 
 PostgreSQL runs as its own service, never inside the app image (D4). The documented Docker Compose
 example runs it in a container next to comradarr, and an existing PostgreSQL server works the same
-way. The `setup` spec pins the oldest PostgreSQL major version comradarr accepts.
+way. The oldest PostgreSQL major version comradarr accepts is 16, whose `CREATEROLE` gives a role
+control over only the roles it created; the pre-flight check refuses an older server.
 
 - **Before the first start**, the operator supplies two secrets, each as an environment variable or
   a secret file: the master key (D20) and one database URL for a role that owns comradarr's
   database and may create roles. Missing either stops startup.
 - **At startup**, before serving or starting jobs, the migration step runs as that owner role (D5)
-  and creates or updates the two other roles of D7: the app role and the audit-admin role. Their
-  passwords are derived from the master key with HKDF (WebCrypto), each under its own label, when
-  the key loads (D24), so there are no more credentials to store or hand out. There is no key
-  rotation (D24); if the master key is ever replaced, the migration step sets the new passwords. A
-  pre-flight check names any missing privilege before anything migrates. The owner connection
-  closes once migrations are done.
+  and creates or updates the two other roles of D7: the app role and the audit-admin role, named
+  after the database (`<database>_app` and `<database>_audit_admin`), since roles belong to the
+  whole server and two instances may share one. Their passwords are derived from the master key with
+  HKDF (WebCrypto), each under its own label, when the key loads (D24), so there are no more
+  credentials to store or hand out. There is no key rotation (D24); if the master key is ever
+  replaced, the migration step sets the new passwords. A pre-flight check names any missing
+  privilege before anything migrates. The owner connection closes once migrations are done.
 - **At runtime**, requests and jobs use the app role only, and the retention sweep connects as the
   audit-admin role on a short connection of its own. Each role logs in separately: switching roles
   on one connection (`SET ROLE`) would let an injected statement switch back.
@@ -394,13 +411,6 @@ generated client.
 
 The logging library (D12) and the concrete job lifecycle implementation (D8) aren't chosen. Close
 before the first background job lands.
-
-### D16. Privilege matrix and append-only audit
-
-The PostgreSQL role and privilege matrix (D7) and the append-only audit enforcement still have to be
-implemented and tested, including that the runtime role can't change the schema or an audit row.
-Choosing PostgreSQL makes this possible; it doesn't prove the role configuration is correct. Closes
-with `setup`, which creates the roles (D17) and the audit trail.
 
 ### D18. Runtime validation gaps
 

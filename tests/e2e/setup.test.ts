@@ -89,8 +89,8 @@ let root: string;
 const databases: TestDatabase[] = [];
 
 /** A new database on the run's PostgreSQL, dropped after the test. */
-async function newDatabase(): Promise<TestDatabase> {
-	const database = await createDatabase(adminUrl);
+async function newDatabase(attributes?: string): Promise<TestDatabase> {
+	const database = await createDatabase(adminUrl, undefined, attributes);
 	databases.push(database);
 	return database;
 }
@@ -140,6 +140,42 @@ test.describe("the database", () => {
 
 		expect(exitCode).not.toBe(0);
 		expect(output).toMatch(/the migration \d{4}_\w+ failed: relation "settings" already exists/);
+		expect(output).not.toContain(new URL(database.url).password);
+	});
+});
+
+test.describe("the roles (D17)", () => {
+	test("are set up, and the server keeps no owner-role session once it serves", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		const admin = new SQL(adminUrl, { max: 1 });
+		try {
+			const sessions = await admin`
+				select usename from pg_stat_activity where datname = ${database.name} and usename = ${database.name}`;
+			const roles = await admin`
+				select rolname from pg_roles where rolname in (${`${database.name}_app`}, ${`${database.name}_audit_admin`})
+				order by rolname`;
+
+			expect(sessions.length).toBe(0);
+			expect(roles.map((row: { rolname: string }) => row.rolname)).toEqual([
+				`${database.name}_app`,
+				`${database.name}_audit_admin`,
+			]);
+		} finally {
+			await admin.close();
+			await server.stop();
+		}
+	});
+
+	test("are refused to an owner role without CREATEROLE, naming it and echoing nothing", async () => {
+		const database = await newDatabase("");
+
+		const { exitCode, output } = await runToExit(root, { COMRADARR_DATABASE_URL: database.url });
+
+		expect(exitCode).not.toBe(0);
+		expect(output).toContain(
+			`the owner role "${database.name}" may not create roles: it needs CREATEROLE`,
+		);
 		expect(output).not.toContain(new URL(database.url).password);
 	});
 });

@@ -752,7 +752,7 @@ Setup facts for this stack:
 | `bun run --bun build` | production build through adapter-bun into `build/`; needs no key and never embeds one |
 | `bun run --bun preview` | runs the built server (`bun ./build`; `PORT`, default 3000, and `HOST`); without a valid key or a reachable database it exits before listening |
 | `bun run --bun check` | `svelte-kit sync`, the message compile, Panda codegen, then `svelte-check` failing on any error or warning |
-| `bun run --bun test` | Vitest unit tests, once (no watch), with a PostgreSQL from `tests/database.ts`: `COMRADARR_TEST_DATABASE_URL`, or a throwaway container through Docker |
+| `bun run --bun test` | Vitest unit tests, once (no watch), with PostgreSQL 18 and 16 from `tests/database.ts`: `COMRADARR_TEST_DATABASE_URL` and `COMRADARR_TEST_DATABASE_URL_16`, or throwaway containers through Docker |
 | `bun run --bun smoke` | Playwright e2e: the browser smoke test, the language tests and the startup tests, with a key it generates, never a developer's `.env` or exported key, and a PostgreSQL as `test` gets one; it starts the built server, so `build` comes first, and Chromium comes from `bunx --bun playwright install chromium` |
 | `bun run --bun db:generate` | Drizzle Kit generates a migration from the schema into `drizzle/`, then Biome formats it; the migration is reviewed and committed |
 | `bun run --bun lint` | `biome ci`, read-only; `biome.json` lists the file extensions Biome checks |
@@ -799,7 +799,10 @@ export const GET: RequestHandler = () => healthResponse();
   `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
   in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
   the migrations, a failed one, and the records against Drizzle Kit's own migrator's;
-  `parameterised.test.ts`, no SQL built from strings), and in `src/lib/shared/i18n/`:
+  `preflight.test.ts` and `roles.test.ts`, on PostgreSQL 16 and 18, the owner role's checks, the
+  roles, their verifiers and the privilege matrix (D16), a real `pg_hba.conf` rejection and the
+  statement log; `parameterised.test.ts`, no SQL built from strings), and in
+  `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -815,8 +818,9 @@ export const GET: RequestHandler = () => healthResponse();
     `ok`.
   - `secret-key.test.ts` checks that the built server refuses to start without a valid key.
   - `setup.test.ts` starts its own servers, each on a new database: the migrations on a new
-    database and nothing on a second start, a failed migration stopping startup, and the database
-    URL required, readable from a file, and never echoed.
+    database and nothing on a second start, a failed migration stopping startup, the database URL
+    required, readable from a file, and never echoed, the two roles set up with no owner-role
+    session left, and an owner role without `CREATEROLE` refused.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

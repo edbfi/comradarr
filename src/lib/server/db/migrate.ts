@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { MigrationMeta } from "drizzle-orm/migrator";
 import type { Database } from "./client.ts";
+import { serverMessage } from "./server-message.ts";
 
 /** A migration as Drizzle's migrator takes it, with the name Drizzle Kit gave it. */
 export type Migration = MigrationMeta & { readonly tag: string };
@@ -83,14 +84,4 @@ export async function migrateDatabase(
 		throw new MigrationError(`${current} failed: ${serverMessage(error)}`);
 	}
 	return pending.map((migration) => migration.tag);
-}
-
-/**
- * PostgreSQL's own message: Drizzle wraps it in an error whose message repeats the query and its
- * parameters, so the reason comes from the innermost cause.
- */
-function serverMessage(error: unknown): string {
-	let inner = error;
-	while (inner instanceof Error && inner.cause instanceof Error) inner = inner.cause;
-	return inner instanceof Error ? inner.message : "unknown error";
 }

@@ -100,7 +100,15 @@ Set exactly one of these variables, as for the master key:
 | `COMRADARR_DATABASE_URL_FILE` | the path of a file holding that URL, such as a Docker or Compose secret |
 
 The URL is a secret: Comradarr never prints the URL or its password; its errors name the variable
-and PostgreSQL's reason. When
+and PostgreSQL's reason.
+
+**The roles Comradarr creates.** At every start, before it serves anything, Comradarr checks that
+the owner role can do its job (it names anything missing), migrates, and sets up two roles of its
+own, named after the database: `<database>_app`, which every request uses, and
+`<database>_audit_admin`, for clearing old audit entries. Their passwords come from the master key,
+so there is nothing to store: a new key sets new passwords at the next start. If your server's
+`pg_hba.conf` lists the users it lets in, allow these two from Comradarr's address, as the owner
+role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
 
 ## Working on it

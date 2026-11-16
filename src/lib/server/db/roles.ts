@@ -1,0 +1,137 @@
+import { sql } from "drizzle-orm";
+import type { Secret } from "#lib/server/security/secrets/secret.ts";
+import type { Database } from "./client.ts";
+import type { OwnerContext } from "./preflight.ts";
+import { serverMessage } from "./server-message.ts";
+
+/** The roles' passwords, which the master key derives (D17). */
+export type RolePasswords = { readonly app: Secret; readonly auditAdmin: Secret };
+
+/** Setting up a role or the privileges failed; the message never holds a password or verifier. */
+export class RoleSetupError extends Error {
+	override readonly name = "RoleSetupError";
+}
+
+/**
+ * The privileges D7 gives each role on a table of the `public` schema: the app role reads and
+ * writes every table but may only add and read audit entries; the audit-admin role may only read
+ * and delete them. A table a later migration adds gets the app role's privileges without a rule.
+ */
+function grantsOn(table: string): { app: string[]; auditAdmin: string[] } {
+	if (table === "audit_log") return { app: ["SELECT", "INSERT"], auditAdmin: ["SELECT", "DELETE"] };
+	return { app: ["SELECT", "INSERT", "UPDATE", "DELETE"], auditAdmin: [] };
+}
+
+/** A PostgreSQL identifier, quoted, for the statements that can't take parameters. */
+export function quoteIdentifier(name: string): string {
+	return `"${name.replaceAll('"', '""')}"`;
+}
+
+const quoteLiteral = (text: string) => `'${text.replaceAll("'", "''")}'`;
+
+const base64 = (bytes: ArrayBuffer | Uint8Array) =>
+	(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)).toBase64();
+
+/**
+ * The SCRAM-SHA-256 verifier PostgreSQL stores for `password` (RFC 5802, RFC 7677), with a fresh
+ * random salt and PostgreSQL's 4096 iterations. Sending it instead of the password keeps the
+ * password out of a server that logs its statements, as `psql`'s `\password` does. The derived
+ * passwords are base64url, which SASLprep leaves as they are.
+ */
+export async function scramVerifier(password: Secret, iterations = 4096): Promise<string> {
+	const encoder = new TextEncoder();
+	const salt = crypto.getRandomValues(new Uint8Array(16));
+	const key = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(password.reveal()),
+		"PBKDF2",
+		false,
+		["deriveBits"],
+	);
+	const salted = await crypto.subtle.deriveBits(
+		{ name: "PBKDF2", hash: "SHA-256", salt, iterations },
+		key,
+		256,
+	);
+	const hmac = await crypto.subtle.importKey(
+		"raw",
+		salted,
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const clientKey = await crypto.subtle.sign("HMAC", hmac, encoder.encode("Client Key"));
+	const storedKey = await crypto.subtle.digest("SHA-256", clientKey);
+	const serverKey = await crypto.subtle.sign("HMAC", hmac, encoder.encode("Server Key"));
+	return `SCRAM-SHA-256$${iterations}:${base64(salt)}$${base64(storedKey)}:${base64(serverKey)}`;
+}
+
+/**
+ * Creates the app and audit-admin roles when missing and sets their passwords every time, then
+ * sets the privileges from the matrix, in one transaction, as the owner role after the pre-flight
+ * check and the migrations (D7, D16, D17). It also revokes `PUBLIC`'s `CREATE` on the `public`
+ * schema and `TEMPORARY` on the database, which an older or upgraded database may still grant.
+ */
+export async function setUpRoles(
+	db: Database,
+	context: OwnerContext,
+	passwords: RolePasswords,
+): Promise<void> {
+	const { names } = context;
+	const app = quoteIdentifier(names.app);
+	const auditAdmin = quoteIdentifier(names.auditAdmin);
+	const database = quoteIdentifier(context.database);
+	const verifiers = {
+		app: await scramVerifier(passwords.app),
+		auditAdmin: await scramVerifier(passwords.auditAdmin),
+	};
+	// A superuser owner may remove attributes; anyone else may not even name them (pre-flight
+	// refused an existing role that has one).
+	const attributes = context.superuser
+		? " NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+		: "";
+	let step = "";
+	try {
+		await db.transaction(async (tx) => {
+			for (const role of ["app", "auditAdmin"] as const) {
+				const name = names[role];
+				step = `setting up the role "${name}"`;
+				const [found] = await tx.execute(sql`select 1 from pg_roles where rolname = ${name}`);
+				const verb = found === undefined ? "CREATE ROLE" : "ALTER ROLE";
+				await tx.execute(
+					sql.raw(
+						`${verb} ${quoteIdentifier(name)} WITH LOGIN${found === undefined ? "" : attributes} PASSWORD ${quoteLiteral(verifiers[role])}`,
+					),
+				);
+			}
+			step = "setting the roles' privileges";
+			await tx.execute(sql.raw("REVOKE CREATE ON SCHEMA public FROM PUBLIC"));
+			await tx.execute(sql.raw(`REVOKE TEMPORARY ON DATABASE ${database} FROM PUBLIC`));
+			await tx.execute(sql.raw(`GRANT CONNECT ON DATABASE ${database} TO ${app}, ${auditAdmin}`));
+			await tx.execute(sql.raw(`GRANT USAGE ON SCHEMA public TO ${app}, ${auditAdmin}`));
+			await tx.execute(
+				sql.raw(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${app}, ${auditAdmin}`),
+			);
+			await tx.execute(
+				sql.raw(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ${app}, ${auditAdmin}`),
+			);
+			const tables = await tx.execute<{ tablename: string }>(
+				sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
+			);
+			for (const { tablename } of tables) {
+				const grants = grantsOn(tablename);
+				const table = `public.${quoteIdentifier(tablename)}`;
+				if (grants.app.length > 0) {
+					await tx.execute(sql.raw(`GRANT ${grants.app.join(", ")} ON ${table} TO ${app}`));
+				}
+				if (grants.auditAdmin.length > 0) {
+					await tx.execute(
+						sql.raw(`GRANT ${grants.auditAdmin.join(", ")} ON ${table} TO ${auditAdmin}`),
+					);
+				}
+			}
+		});
+	} catch (error) {
+		throw new RoleSetupError(`${step} failed: ${serverMessage(error)}`);
+	}
+}

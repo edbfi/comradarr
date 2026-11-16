@@ -277,8 +277,9 @@ owner-approved `docs/SPEC-<id>.md`. Module 1, `secrets`
 a secret yet. Module 2, `i18n` ([`docs/SPEC-i18n.md`](docs/SPEC-i18n.md)), is built: pages are
 served in English or Danish, with a language switcher, number and date formatters, and a check of
 the message files. Module 3, `setup` ([`docs/SPEC-setup.md`](docs/SPEC-setup.md)), is being built
-from [`tasks/todo.md`](tasks/todo.md): startup waits for PostgreSQL and migrates it, still as the
-owner role until the app's own roles arrive.
+from [`tasks/todo.md`](tasks/todo.md): startup waits for PostgreSQL, checks the owner role,
+migrates, sets up the app and audit-admin roles with their privileges, and serves as the app
+role.
 
 **Commands:** the table in [docs/SPEC.md](docs/SPEC.md#commands); for the master key and the
 database that `dev` and `preview` need, see the README's [Master key](README.md#master-key) and
@@ -330,10 +331,14 @@ src/
                                  or the file its `_FILE` form names; secret-key.ts: the master
                                  key's text; database-url.ts: the owner role's URL
       db/                        client.ts: the pool, after waiting for PostgreSQL; migrate.ts:
-                                 applies the bundled migrations; settings.ts, owner.ts, audit.ts:
-                                 one schema per aggregate; parameterised.test.ts: no SQL built
-                                 from strings
-      services/setup/startup.ts  startup's steps: the key, the configuration, the database
+                                 applies the bundled migrations; preflight.ts: the owner role's
+                                 checks; roles.ts: the two roles, their SCRAM verifiers and the
+                                 privilege matrix; server-message.ts: PostgreSQL's own message
+                                 from Drizzle's wrapper; settings.ts, owner.ts, audit.ts: one
+                                 schema per aggregate; parameterised.test.ts: no SQL built from
+                                 strings
+      services/setup/startup.ts  startup's steps: the key, the configuration, the database; the
+                                 app role's pool
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
                                  the AES key and key ID; secret.ts: the `Secret` wrapper,
@@ -349,9 +354,10 @@ src/
       i18n/messages.test.ts      the message check: every problem in `messages/*.json`
 static/                          served as is (comradarr-icon.svg, also the favicon)
 tests/
-  database.ts                    a PostgreSQL for the tests (Docker or COMRADARR_TEST_DATABASE_URL),
-                                 a database per test file; Vitest's global setup, and a command
-                                 Playwright's config runs
+  database.ts                    PostgreSQL 18 and 16 for the tests (Docker, or
+                                 COMRADARR_TEST_DATABASE_URL and its `_16` form), a database per
+                                 test file; Vitest's global setup, and a command Playwright's
+                                 config runs
   e2e/smoke.test.ts              Playwright smoke against the built server
   e2e/secret-key.test.ts         the built server refuses to start without a valid key
   e2e/setup.test.ts              first run and the request checks on the built server
