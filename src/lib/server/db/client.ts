@@ -1,6 +1,7 @@
 import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
 import { ConfigError } from "#lib/server/config/config-error.ts";
+import { type DatabaseUrlVariable, databaseUrlSubject } from "#lib/server/config/database-url.ts";
 
 /** The pool's size: one process (D19) serving one owner needs few connections. */
 const POOL_SIZE = 10;
@@ -12,12 +13,6 @@ function connect(url: string) {
 
 export type Database = ReturnType<typeof connect>;
 
-/** A transaction's handle: every statement in a transaction goes through it (D6). */
-export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-
-/** What a named operation runs on: the database, or a transaction a service opened. */
-export type Executor = Database | Transaction;
-
 export type OpenOptions = {
 	/** How long to keep trying while waiting can help (SPEC-setup.md, "Waiting for PostgreSQL"). */
 	readonly waitMs?: number;
@@ -25,6 +20,8 @@ export type OpenOptions = {
 	readonly intervalMs?: number;
 	/** Called after each failed attempt worth waiting for, with its number from 1. */
 	readonly onWaiting?: (attempt: number, reason: string) => void;
+	/** The variable the URL came from, which errors name. */
+	readonly variable?: DatabaseUrlVariable;
 };
 
 /** What Bun SQL reports for a connection that failed before PostgreSQL answered. */
@@ -55,26 +52,41 @@ export function isWorthWaiting(error: unknown): boolean {
  */
 export async function openDatabase(url: string, options: OpenOptions = {}): Promise<Database> {
 	const { waitMs = 30_000, intervalMs = 2_000, onWaiting } = options;
+	const variable = options.variable ?? "COMRADARR_DATABASE_URL";
+	const at = `PostgreSQL at ${databaseUrlSubject(variable)}`;
 	const deadline = Date.now() + waitMs;
 	for (let attempt = 1; ; attempt++) {
 		const left = Math.max(deadline - Date.now(), 1);
 		const probe = new SQL(url, { max: 1, connectionTimeout: Math.ceil(left / 1000) });
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		// The connection timeout covers only connecting: a server can accept and then never answer,
+		// so the whole attempt is bounded by the time left.
+		const timedOut = new Promise<never>((_, reject) => {
+			timer = setTimeout(
+				() =>
+					reject(Object.assign(new Error("timeout"), { code: "ERR_POSTGRES_CONNECTION_TIMEOUT" })),
+				left,
+			);
+		});
 		try {
-			await probe`select 1`;
+			await Promise.race([probe`select 1`, timedOut]);
 			return connect(url);
 		} catch (error) {
-			if (!isWorthWaiting(error)) throw refused(error);
+			if (!isWorthWaiting(error)) {
+				throw new ConfigError(variable, `${at} refused the connection (${reasonOf(error)})`);
+			}
 			const reason = reasonOf(error);
 			if (Date.now() + intervalMs >= deadline) {
 				throw new ConfigError(
-					"COMRADARR_DATABASE_URL",
-					`the PostgreSQL COMRADARR_DATABASE_URL names could not be reached within ${waitMs / 1000} seconds (${reason})`,
+					variable,
+					`${at} could not be reached within ${waitMs / 1000} seconds (${reason})`,
 				);
 			}
 			onWaiting?.(attempt, reason);
 			await Bun.sleep(intervalMs);
 		} finally {
-			await probe.close().catch(() => {});
+			clearTimeout(timer);
+			await probe.close({ timeout: 0 }).catch(() => {});
 		}
 	}
 }
@@ -85,11 +97,4 @@ function reasonOf(error: unknown): string {
 	const { code, errno } = error as Error & { code?: unknown; errno?: unknown };
 	if (typeof errno === "string") return `${errno}: ${error.message}`;
 	return typeof code === "string" ? code : "unknown error";
-}
-
-function refused(error: unknown): ConfigError {
-	return new ConfigError(
-		"COMRADARR_DATABASE_URL",
-		`the PostgreSQL COMRADARR_DATABASE_URL names refused the connection (${reasonOf(error)})`,
-	);
 }

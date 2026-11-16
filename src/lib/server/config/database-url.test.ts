@@ -38,30 +38,42 @@ async function failure(env: DatabaseUrlEnv): Promise<ConfigError> {
 
 describe("readDatabaseUrl", () => {
 	it("returns COMRADARR_DATABASE_URL as it is", async () => {
-		expect(await readDatabaseUrl({ COMRADARR_DATABASE_URL: URL_TEXT })).toBe(URL_TEXT);
+		expect(await readDatabaseUrl({ COMRADARR_DATABASE_URL: URL_TEXT })).toEqual({
+			url: URL_TEXT,
+			variable: "COMRADARR_DATABASE_URL",
+		});
 	});
 
 	it("reads the file COMRADARR_DATABASE_URL_FILE names, without its trailing newline", async () => {
 		const path = await urlFile(`${URL_TEXT}\n`);
 
-		expect(await readDatabaseUrl({ COMRADARR_DATABASE_URL_FILE: path })).toBe(URL_TEXT);
+		expect(await readDatabaseUrl({ COMRADARR_DATABASE_URL_FILE: path })).toEqual({
+			url: URL_TEXT,
+			variable: "COMRADARR_DATABASE_URL_FILE",
+		});
 	});
 
 	it("accepts postgresql:// and a URL without a password or port", async () => {
 		const url = "postgresql://comradarr@localhost/comradarr";
 
-		expect(await readDatabaseUrl({ COMRADARR_DATABASE_URL: url })).toBe(url);
+		expect((await readDatabaseUrl({ COMRADARR_DATABASE_URL: url })).url).toBe(url);
 	});
 
 	it("counts an empty variable as unset", async () => {
 		const path = await urlFile(URL_TEXT);
 
 		expect(
-			await readDatabaseUrl({ COMRADARR_DATABASE_URL: "", COMRADARR_DATABASE_URL_FILE: path }),
+			(await readDatabaseUrl({ COMRADARR_DATABASE_URL: "", COMRADARR_DATABASE_URL_FILE: path }))
+				.url,
 		).toBe(URL_TEXT);
 	});
 
-	const refusals: { label: string; env: () => Promise<DatabaseUrlEnv>; says: string }[] = [
+	const refusals: {
+		label: string;
+		env: () => Promise<DatabaseUrlEnv>;
+		says: string;
+		variable?: string;
+	}[] = [
 		{
 			label: "neither variable",
 			env: async () => ({}),
@@ -79,6 +91,7 @@ describe("readDatabaseUrl", () => {
 			label: "an unreadable file",
 			env: async () => ({ COMRADARR_DATABASE_URL_FILE: join(dir, "missing") }),
 			says: "COMRADARR_DATABASE_URL_FILE names a file that can't be read (ENOENT)",
+			variable: "COMRADARR_DATABASE_URL_FILE",
 		},
 		{
 			label: "text that isn't a URL",
@@ -111,14 +124,16 @@ describe("readDatabaseUrl", () => {
 				COMRADARR_DATABASE_URL_FILE: await urlFile("postgres://db.internal/comradarr"),
 			}),
 			says: "the URL in COMRADARR_DATABASE_URL_FILE's file names no user",
+			variable: "COMRADARR_DATABASE_URL_FILE",
 		},
 	];
 
-	for (const { label, env, says } of refusals) {
+	for (const { label, env, says, variable = "COMRADARR_DATABASE_URL" } of refusals) {
 		it(`refuses ${label}, without echoing the URL`, async () => {
 			const error = await failure(await env());
 
 			expect(error.message).toBe(says);
+			expect(error.variable).toBe(variable);
 			expect(error.message).not.toContain(password);
 			expect(error.message).not.toContain(dir);
 		});

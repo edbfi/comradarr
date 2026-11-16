@@ -155,7 +155,12 @@ export async function createDatabase(adminUrl: string): Promise<TestDatabase> {
 	const admin = new SQL(adminUrl, { max: 1 });
 	try {
 		await admin.unsafe(`create role ${quote(name)} login createrole password '${password}'`);
+		// A role that isn't a superuser may give a database only to a role it can SET ROLE to.
+		await admin.unsafe(`grant ${quote(name)} to current_user`);
 		await admin.unsafe(`create database ${quote(name)} owner ${quote(name)}`);
+	} catch (error) {
+		await admin.unsafe(`drop role if exists ${quote(name)}`).catch(() => {});
+		throw error;
 	} finally {
 		await admin.close();
 	}

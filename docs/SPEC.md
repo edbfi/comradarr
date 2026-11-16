@@ -112,7 +112,7 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Open decisions each module closes
 
-- `setup`: D15 (Drizzle versions for Bun SQL), D16 (with the roles of D17), the oldest PostgreSQL
+- `setup`: D16 (with the roles of D17), the oldest PostgreSQL
   version (D17) and the logging library half of D14; and how the inline `style` attributes that Ark
   UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup
   and restore test of D18 goes with the Compose example. [SPEC-setup.md](SPEC-setup.md) answers

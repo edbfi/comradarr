@@ -87,11 +87,55 @@ describe("openDatabase", () => {
 
 		expect(error).toBeInstanceOf(ConfigError);
 		expect((error as Error).message).toBe(
-			"the PostgreSQL COMRADARR_DATABASE_URL names could not be reached within 0.6 seconds (ERR_POSTGRES_CONNECTION_REFUSED)",
+			"PostgreSQL at COMRADARR_DATABASE_URL could not be reached within 0.6 seconds (ERR_POSTGRES_CONNECTION_REFUSED)",
 		);
 		expect((error as Error).message).not.toContain("secret-word");
 		expect(waits.length).toBeGreaterThanOrEqual(2);
 		expect(Date.now() - started).toBeLessThan(3000);
+	});
+
+	it("waits for a host name that doesn't resolve yet, as a Compose service's before it starts", async () => {
+		const waits: number[] = [];
+
+		const error = await openDatabase("postgres://comradarr:secret-word@no-such-host.invalid/c", {
+			waitMs: 600,
+			intervalMs: 200,
+			onWaiting: (attempt) => waits.push(attempt),
+		}).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(ConfigError);
+		expect((error as Error).message).toMatch(
+			/^PostgreSQL at COMRADARR_DATABASE_URL could not be reached within 0\.6 seconds \(/,
+		);
+		expect(waits.length).toBeGreaterThanOrEqual(2);
+	});
+
+	it("gives up on a server that accepts the connection and then never answers", async () => {
+		const server = silentServer();
+		const started = Date.now();
+
+		const error = await openDatabase(
+			`postgres://comradarr:secret-word@127.0.0.1:${server.port}/comradarr?sslmode=disable`,
+			{ waitMs: 500, intervalMs: 100 },
+		).catch((caught: unknown) => caught);
+		server.stop(true);
+
+		expect(error).toBeInstanceOf(ConfigError);
+		expect((error as Error).message).toMatch(/could not be reached within 0\.5 seconds/);
+		expect(Date.now() - started).toBeLessThan(2000);
+	});
+
+	it("names the file variable when the URL came from it", async () => {
+		const error = await openDatabase("postgres://comradarr:secret-word@127.0.0.1:1/comradarr", {
+			waitMs: 200,
+			intervalMs: 100,
+			variable: "COMRADARR_DATABASE_URL_FILE",
+		}).catch((caught: unknown) => caught);
+
+		expect((error as ConfigError).variable).toBe("COMRADARR_DATABASE_URL_FILE");
+		expect((error as Error).message).toMatch(
+			/^PostgreSQL at the URL in COMRADARR_DATABASE_URL_FILE's file could not be reached/,
+		);
 	});
 
 	it("fails at once when PostgreSQL refuses the owner role's password", async () => {
@@ -105,7 +149,7 @@ describe("openDatabase", () => {
 
 		expect(error).toBeInstanceOf(ConfigError);
 		expect((error as Error).message).toBe(
-			`the PostgreSQL COMRADARR_DATABASE_URL names refused the connection (28P01: password authentication failed for user "${database.name}")`,
+			`PostgreSQL at COMRADARR_DATABASE_URL refused the connection (28P01: password authentication failed for user "${database.name}")`,
 		);
 		expect((error as Error).message).not.toContain("not-the-password");
 		expect(Date.now() - started).toBeLessThan(5000);
@@ -132,3 +176,29 @@ describe("isWorthWaiting", () => {
 		expect(isWorthWaiting(new Error("other"))).toBe(false);
 	});
 });
+
+/**
+ * A server that speaks just enough of PostgreSQL's protocol to accept a connection (refusing TLS,
+ * then authentication OK and ready for a query) and then never answers a query.
+ */
+function silentServer() {
+	return Bun.listen({
+		hostname: "127.0.0.1",
+		port: 0,
+		socket: {
+			data(socket, data) {
+				const sslRequest = data.length === 8 && data.readInt32BE(4) === 80877103;
+				if (sslRequest) {
+					socket.write("N");
+					return;
+				}
+				if (data[0] === 0) {
+					// The startup message: AuthenticationOk, then ReadyForQuery (idle).
+					const ok = Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0]);
+					const ready = Buffer.from([0x5a, 0, 0, 0, 5, 0x49]);
+					socket.write(Buffer.concat([ok, ready]));
+				}
+			},
+		},
+	});
+}

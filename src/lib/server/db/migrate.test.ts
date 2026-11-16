@@ -76,6 +76,25 @@ describe("migrateDatabase", () => {
 		}
 	});
 
+	it("names the bookkeeping when it fails before any migration starts", async () => {
+		const { database } = await freshDatabase();
+		const db = await openDatabase(database.url);
+		const owner = new URL(database.url).username;
+		await db.execute(
+			sql`revoke create on database ${sql.identifier(database.name)} from ${sql.identifier(owner)}`,
+		);
+		await db.$client.close();
+
+		const error = await migrateDatabase(await openDatabase(database.url)).catch(
+			(caught: unknown) => caught,
+		);
+
+		expect(error).toBeInstanceOf(MigrationError);
+		expect((error as Error).message).toMatch(
+			/^the migrations' bookkeeping failed: permission denied/,
+		);
+	});
+
 	it("stops at a failed migration, naming it and PostgreSQL's reason, and applies none", async () => {
 		const { db: target } = await freshDatabase();
 		const last = migrations.at(-1) as Migration;

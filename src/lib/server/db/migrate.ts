@@ -25,19 +25,26 @@ type Journal = { entries: { tag: string; when: number; breakpoints: boolean }[] 
  * The migrations in the journal's order, built as Drizzle's `readMigrationFiles` builds them from
  * the folder: the statements split at each breakpoint, and the file's sha256 as its hash.
  */
-export const migrations: readonly Migration[] = (
-	JSON.parse(files["/drizzle/meta/_journal.json"] ?? '{"entries":[]}') as Journal
-).entries.map((entry) => {
-	const text = files[`/drizzle/${entry.tag}.sql`];
-	if (text === undefined) throw new Error(`the migration ${entry.tag} isn't bundled`);
-	return {
-		tag: entry.tag,
-		sql: text.split("--> statement-breakpoint"),
-		bps: entry.breakpoints,
-		folderMillis: entry.when,
-		hash: createHash("sha256").update(text).digest("hex"),
-	};
-});
+export const migrations: readonly Migration[] = (JSON.parse(journalText()) as Journal).entries.map(
+	(entry) => {
+		const text = files[`/drizzle/${entry.tag}.sql`];
+		if (text === undefined) throw new Error(`the migration ${entry.tag} isn't bundled`);
+		return {
+			tag: entry.tag,
+			sql: text.split("--> statement-breakpoint"),
+			bps: entry.breakpoints,
+			folderMillis: entry.when,
+			hash: createHash("sha256").update(text).digest("hex"),
+		};
+	},
+);
+
+/** The journal's text; a build without it would apply nothing and serve an empty database. */
+function journalText(): string {
+	const text = files["/drizzle/meta/_journal.json"];
+	if (text === undefined) throw new Error("the migration journal isn't bundled");
+	return text;
+}
 
 /**
  * Applies the migrations `db` hasn't recorded yet, in one transaction, and returns their names.
@@ -49,21 +56,23 @@ export async function migrateDatabase(
 	db: Database,
 	list: readonly Migration[] = migrations,
 ): Promise<string[]> {
-	await db.execute(sql`create schema if not exists drizzle`);
-	await db.execute(
-		sql`create table if not exists drizzle.__drizzle_migrations (id serial primary key, hash text not null, created_at bigint)`,
-	);
-	const [last] = await db.execute<{ created_at: string }>(
-		sql`select created_at from drizzle.__drizzle_migrations order by created_at desc limit 1`,
-	);
-	const pending = list.filter(
-		(migration) => last === undefined || Number(last.created_at) < migration.folderMillis,
-	);
-	let current = "";
+	// What failed: the bookkeeping until a migration starts, then that migration.
+	let current = "the migrations' bookkeeping";
+	let pending: readonly Migration[] = [];
 	try {
+		await db.execute(sql`create schema if not exists drizzle`);
+		await db.execute(
+			sql`create table if not exists drizzle.__drizzle_migrations (id serial primary key, hash text not null, created_at bigint)`,
+		);
+		const [last] = await db.execute<{ created_at: string }>(
+			sql`select created_at from drizzle.__drizzle_migrations order by created_at desc limit 1`,
+		);
+		pending = list.filter(
+			(migration) => last === undefined || Number(last.created_at) < migration.folderMillis,
+		);
 		await db.transaction(async (tx) => {
 			for (const migration of pending) {
-				current = migration.tag;
+				current = `the migration ${migration.tag}`;
 				for (const statement of migration.sql) await tx.execute(sql.raw(statement));
 				await tx.execute(
 					sql`insert into drizzle.__drizzle_migrations (hash, created_at) values (${migration.hash}, ${migration.folderMillis})`,
@@ -71,7 +80,7 @@ export async function migrateDatabase(
 			}
 		});
 	} catch (error) {
-		throw new MigrationError(`the migration ${current} failed: ${serverMessage(error)}`);
+		throw new MigrationError(`${current} failed: ${serverMessage(error)}`);
 	}
 	return pending.map((migration) => migration.tag);
 }
