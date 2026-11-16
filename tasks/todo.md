@@ -111,21 +111,21 @@ secret-shaped values, an empty allowlist, `COMRADARR_LOG_DEBUG`, the request id 
 A failed startup step is logged, then thrown.
 
 **Acceptance criteria:**
-- [ ] `server/logging/redact.test.ts` first fails, then passes: obzorarr's cases, ported, and
+- [x] `server/logging/redact.test.ts` first fails, then passes: obzorarr's cases, ported, and
   comradarr's (argon2 hashes, three-part tokens, `v1.` ciphertexts), with the linear-time growth
   check.
-- [ ] `server/logging/logger.test.ts`: the entry's shape, one line per entry, debug behind the
+- [x] `server/logging/logger.test.ts`: the entry's shape, one line per entry, debug behind the
   switch, entries during a request carrying its id, and the request line (query values removed,
   `/healthz` at debug).
-- [ ] `server/config/log-debug.test.ts`: `true`, `false`, empty as unset, anything else refused
+- [x] `server/config/log-debug.test.ts`: `true`, `false`, empty as unset, anything else refused
   before the database, without the value.
-- [ ] `handleError`, unit-tested: an unexpected error becomes one redacted JSON entry with the
+- [x] `handleError`, unit-tested: an unexpected error becomes one redacted JSON entry with the
   request id from `event.locals`, and the answer carries the generic message and the id. No route
   that throws ships in the build.
-- [ ] A startup failure is one entry and the thrown error; `secret-key.test.ts` still passes. A
+- [x] A startup failure is one entry and the thrown error; `secret-key.test.ts` still passes. A
   pending migration logs its name with the backup reminder, a failed one is one entry, and the
   wait for PostgreSQL logs its first failure at warning.
-- [ ] No verifier, password or database URL in a log entry (a test searches startup's output).
+- [x] No verifier, password or database URL in a log entry (a test searches startup's output).
 
 **Verification:** the gates; the built server logs one line per request.
 

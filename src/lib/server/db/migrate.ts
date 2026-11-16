@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { MigrationMeta } from "drizzle-orm/migrator";
+import { createLogger } from "#lib/server/logging/logger.ts";
 import type { Database } from "./client.ts";
 import { serverMessage } from "./server-message.ts";
+
+const log = createLogger("database");
 
 /** A migration as Drizzle's migrator takes it, with the name Drizzle Kit gave it. */
 export type Migration = MigrationMeta & { readonly tag: string };
@@ -71,6 +74,11 @@ export async function migrateDatabase(
 		pending = list.filter(
 			(migration) => last === undefined || Number(last.created_at) < migration.folderMillis,
 		);
+		if (pending.length > 0) {
+			log.info("applying migrations: a backup of the database comes before an upgrade", {
+				migrations: pending.map((migration) => migration.tag),
+			});
+		}
 		await db.transaction(async (tx) => {
 			for (const migration of pending) {
 				current = `the migration ${migration.tag}`;

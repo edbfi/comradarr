@@ -85,6 +85,36 @@ async function runToExit(cwd: string, env: Record<string, string>) {
 	}
 }
 
+/** The JSON log entries among a server's output lines. */
+function logEntries(output: string): Record<string, unknown>[] {
+	return output.split("\n").flatMap((line) => {
+		try {
+			const entry = JSON.parse(line) as unknown;
+			return typeof entry === "object" && entry !== null ? [entry as Record<string, unknown>] : [];
+		} catch {
+			return [];
+		}
+	});
+}
+
+/** A database role's password as D17 derives it from `key`, to search the output for. */
+async function rolePassword(key: string, role: "app" | "audit-admin"): Promise<string> {
+	const base = await crypto.subtle.importKey("raw", Uint8Array.fromBase64(key), "HKDF", false, [
+		"deriveBits",
+	]);
+	const bits = await crypto.subtle.deriveBits(
+		{
+			name: "HKDF",
+			hash: "SHA-256",
+			salt: new Uint8Array(0),
+			info: new TextEncoder().encode(`edbfi:database-role:v1:${role}`),
+		},
+		base,
+		256,
+	);
+	return new Uint8Array(bits).toBase64({ alphabet: "base64url", omitPadding: true });
+}
+
 let root: string;
 const databases: TestDatabase[] = [];
 
@@ -127,6 +157,11 @@ test.describe("the database", () => {
 				expect(await server.stop()).toBe(0);
 			}
 			expect(await recorded(), `${start} start`).toBe(migrations);
+			// The first start logs the migrations it applies, with the reminder; the second, none.
+			const applying = logEntries(server.output()).filter((entry) =>
+				String(entry.message).startsWith("applying migrations"),
+			);
+			expect(applying.length, `${start} start`).toBe(start === "first" ? 1 : 0);
 		}
 	});
 
@@ -177,6 +212,89 @@ test.describe("the roles (D17)", () => {
 			`the owner role "${database.name}" may not create roles: it needs CREATEROLE`,
 		);
 		expect(output).not.toContain(new URL(database.url).password);
+	});
+});
+
+test.describe("the logs", () => {
+	test("are JSON lines, with one line per request carrying its id", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		try {
+			await fetch(`${server.url}/?page=2`);
+		} finally {
+			await server.stop();
+		}
+		const lines = server
+			.output()
+			.split("\n")
+			.filter((line) => line.trim() !== "" && !line.startsWith("Listening on"));
+
+		for (const line of lines) expect(() => JSON.parse(line), line).not.toThrow();
+		const request = logEntries(server.output()).find(
+			(entry) =>
+				entry.message === "request" && (entry.metadata as { path: string }).path === "/?page=",
+		);
+		expect(request).toMatchObject({ level: "info", source: "http", metadata: { status: 200 } });
+		expect(request?.requestId).toMatch(/^[0-9a-f-]{36}$/);
+	});
+
+	test("log a conditional request SvelteKit answers with 304 as a 304 with no body", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		let etag: string | null = null;
+		let second = 0;
+		try {
+			etag = (await fetch(`${server.url}/?first`)).headers.get("etag");
+			const again = await fetch(`${server.url}/?second`, {
+				headers: { "if-none-match": etag ?? "" },
+			});
+			second = again.status;
+		} finally {
+			await server.stop();
+		}
+		const line = logEntries(server.output()).find(
+			(entry) =>
+				entry.message === "request" && (entry.metadata as { path: string }).path === "/?second=",
+		);
+
+		expect(etag).not.toBeNull();
+		expect(second).toBe(304);
+		expect(line?.metadata).toMatchObject({ status: 304, size: 0 });
+	});
+
+	test("hold no password, verifier or database URL from startup", async () => {
+		const database = await newDatabase();
+		const key = crypto.getRandomValues(new Uint8Array(32)).toBase64();
+		const server = await startServer(root, {
+			COMRADARR_SECRET_KEY: key,
+			COMRADARR_DATABASE_URL: database.url,
+			COMRADARR_LOG_DEBUG: "true",
+		});
+		await server.stop();
+		const output = server.output();
+
+		expect(output).not.toContain(new URL(database.url).password);
+		expect(output).not.toContain(database.url);
+		expect(output).not.toContain(key);
+		for (const role of ["app", "audit-admin"] as const) {
+			expect(output).not.toContain(await rolePassword(key, role));
+		}
+		expect(output).not.toContain("SCRAM-SHA-256");
+	});
+
+	test("refuse a debug switch that isn't true or false in one entry, without echoing it", async () => {
+		const database = await newDatabase();
+
+		const { exitCode, output } = await runToExit(root, {
+			COMRADARR_DATABASE_URL: database.url,
+			COMRADARR_LOG_DEBUG: "verbose-please",
+		});
+
+		expect(exitCode).not.toBe(0);
+		const failures = logEntries(output).filter((entry) => entry.message === "startup failed");
+		expect(failures).toHaveLength(1);
+		expect(JSON.stringify(failures[0])).toContain("COMRADARR_LOG_DEBUG must be true or false");
+		expect(output).not.toContain("verbose-please");
 	});
 });
 

@@ -112,16 +112,15 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Open decisions each module closes
 
-- `setup`: D16 (with the roles of D17), the oldest PostgreSQL
-  version (D17) and the logging library half of D14; and how the inline `style` attributes that Ark
-  UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup
-  and restore test of D18 goes with the Compose example. [SPEC-setup.md](SPEC-setup.md) answers
-  each; they close when it is built.
+- `setup`: how the inline `style` attributes that Ark UI and Svelte write fit the content security
+  policy, which allows no `unsafe-inline` ([SPEC-setup.md](SPEC-setup.md) answers it; it closes when
+  built); the backup and restore test of D18 goes with the Compose example. D15, D16, D17's oldest
+  PostgreSQL version and D14's logging half are closed.
 - `sign-in`: how long an owner session lasts.
 - `sign-in`: how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
   where the app's approved docs allow one). The password's length and the common-password list are
   `setup`'s ([SPEC-setup.md](SPEC-setup.md#the-claim)).
-- The first module with a background job closes the job half of D14: `sign-in` if its session
+- The first module with a background job closes D14, the job lifecycle: `sign-in` if its session
   cleanup is a job, otherwise `sync`.
 - `budgets`: whether the daily cap counts a rolling 24 hours or the day in the owner's time zone.
 - `indexer-budget`: whether a disabled indexer leaves the budget at once or after a debounce; and
@@ -801,8 +800,12 @@ export const GET: RequestHandler = () => healthResponse();
   the migrations, a failed one, and the records against Drizzle Kit's own migrator's;
   `preflight.test.ts` and `roles.test.ts`, on PostgreSQL 16 and 18, the owner role's checks, the
   roles, their verifiers and the privilege matrix (D16), a real `pg_hba.conf` rejection and the
-  statement log; `parameterised.test.ts`, no SQL built from strings), and in
-  `src/lib/shared/i18n/`:
+  statement log; `parameterised.test.ts`, no SQL built from strings), logging
+  (`config/log-debug.test.ts`, and in `logging/`: `redact.test.ts`, every redaction rule on its own
+  and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the
+  entry's shape, the debug switch, the request id across awaits and concurrent requests, and
+  `flushLogs`; `request-line.test.ts`, the request line), `services/unexpected-error.test.ts`
+  (`handleError`), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -820,7 +823,9 @@ export const GET: RequestHandler = () => healthResponse();
   - `setup.test.ts` starts its own servers, each on a new database: the migrations on a new
     database and nothing on a second start, a failed migration stopping startup, the database URL
     required, readable from a file, and never echoed, the two roles set up with no owner-role
-    session left, and an owner role without `CREATEROLE` refused.
+    session left, an owner role without `CREATEROLE` refused, the logs as JSON lines with one line
+    per request carrying its id, no password, verifier or database URL in startup's output, and a
+    bad `COMRADARR_LOG_DEBUG` refused in one entry.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

@@ -119,9 +119,16 @@ Why: one token source and one primitive library keep the design system (DESIGN.m
 
 ### D12. Structured logs to standard output
 
-Logs are structured, one entry per line, written to standard output. The library is open (D14).
+Logs are structured, one JSON entry per line, written to standard output. The app writes them
+with its own small logger in `logging/`, with no library, and redacts each entry before it is
+written; the entry's shape, the request id and the redaction rules are in SPEC-setup.md,
+"Logging". This closes D14's logging half.
 
 Why: the container runtime collects stdout; structured lines can be filtered without parsing prose.
+The redaction rules replace any key that looks like a credential at any depth and any value shaped
+like a secret, which path-based redaction in logging libraries doesn't do, and the entry's shape
+is fixed by the spec, so a library would add a dependency while doing neither. The logger is
+obzorarr's, ported.
 
 ### D15. The Drizzle pair on Bun SQL
 
@@ -407,10 +414,10 @@ How the OpenAPI document is generated from SvelteKit endpoints isn't chosen. The
 validated with the pinned TypeScript 6 and Bun versions. Closes when the first JSON endpoint needs a
 generated client.
 
-### D14. Logging library and job lifecycle
+### D14. Job lifecycle
 
-The logging library (D12) and the concrete job lifecycle implementation (D8) aren't chosen. Close
-before the first background job lands.
+The concrete job lifecycle implementation (D8) isn't chosen. Closes before the first background job
+lands. The logging half closed with D12.
 
 ### D18. Runtime validation gaps
 

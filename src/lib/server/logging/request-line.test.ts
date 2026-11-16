@@ -1,0 +1,130 @@
+import { error, redirect } from "@sveltejs/kit";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureLogging } from "./logger.ts";
+import {
+	clientAddress,
+	logRequest,
+	pathWithoutValues,
+	sentStatusAndSize,
+	thrownStatus,
+} from "./request-line.ts";
+
+let lines: string[];
+
+beforeEach(() => {
+	lines = [];
+	vi.spyOn(process.stdout, "write").mockImplementation((chunk, ...rest: unknown[]) => {
+		lines.push(String(chunk));
+		const done = rest.find((arg) => typeof arg === "function") as (() => void) | undefined;
+		done?.();
+		return true;
+	});
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
+	configureLogging({ debug: false });
+});
+
+const entries = () => lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+
+describe("pathWithoutValues", () => {
+	it("keeps the path and the parameters' names, and drops their values", () => {
+		expect(pathWithoutValues(new URL("http://x/content?page=2&q=the%20office&flag"))).toBe(
+			"/content?page=&q=&flag=",
+		);
+		expect(pathWithoutValues(new URL("http://x/setup"))).toBe("/setup");
+	});
+});
+
+describe("logRequest", () => {
+	const request = {
+		method: "GET",
+		url: new URL("http://x/setup?token=abc"),
+		status: 200,
+		size: 512,
+		ms: 12.345,
+		clientAddress: "192.0.2.7",
+	};
+
+	it("writes one info entry with the method, path, status, size, time and client address", () => {
+		logRequest(request);
+
+		expect(entries()).toEqual([
+			expect.objectContaining({
+				level: "info",
+				source: "http",
+				message: "request",
+				metadata: {
+					method: "GET",
+					path: "/setup?token=[redacted]",
+					status: 200,
+					size: 512,
+					ms: 12,
+					clientAddress: "192.0.2.7",
+				},
+			}),
+		]);
+	});
+
+	it("writes /healthz at debug, which is off unless debug logging is on", () => {
+		logRequest({ ...request, url: new URL("http://x/healthz") });
+		expect(entries()).toEqual([]);
+
+		configureLogging({ debug: true });
+		logRequest({ ...request, url: new URL("http://x/healthz") });
+		expect(entries()).toEqual([expect.objectContaining({ level: "debug", message: "request" })]);
+	});
+});
+
+describe("sentStatusAndSize", () => {
+	const ok = (headers: Record<string, string>) => new Response("body", { status: 200, headers });
+
+	it("is the response's own, with its declared size, when there is no matching ETag", () => {
+		expect(sentStatusAndSize(null, ok({ "content-length": "4" }))).toEqual({
+			status: 200,
+			size: 4,
+		});
+		expect(sentStatusAndSize('"b"', ok({ etag: '"a"', "content-length": "4" }))).toEqual({
+			status: 200,
+			size: 4,
+		});
+	});
+
+	it("is a 304 with no body when If-None-Match names the ETag, as SvelteKit answers it", () => {
+		expect(sentStatusAndSize('"a"', ok({ etag: '"a"', "content-length": "4" }))).toEqual({
+			status: 304,
+			size: 0,
+		});
+		expect(sentStatusAndSize('W/"a"', ok({ etag: '"a"' }))).toEqual({ status: 304, size: 0 });
+	});
+});
+
+describe("clientAddress", () => {
+	it("is the connection's address, or unknown when the adapter throws", () => {
+		expect(clientAddress({ getClientAddress: () => "192.0.2.7" })).toBe("192.0.2.7");
+		expect(
+			clientAddress({
+				getClientAddress: () => {
+					throw new Error("Address header was specified with ADDRESS_HEADER but is absent");
+				},
+			}),
+		).toBe("unknown");
+	});
+});
+
+describe("thrownStatus", () => {
+	const caught = (work: () => never) => {
+		try {
+			work();
+		} catch (thrown) {
+			return thrown;
+		}
+	};
+
+	it("is an error()'s status, a redirect()'s 3xx, and 500 for anything else", () => {
+		expect(thrownStatus(caught(() => error(404, "gone")))).toBe(404);
+		expect(thrownStatus(caught(() => redirect(303, "/setup")))).toBe(303);
+		expect(thrownStatus(new Error("boom"))).toBe(500);
+	});
+});

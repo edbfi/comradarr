@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { createDatabase, dropDatabase, type TestDatabase } from "../../../../tests/database.ts";
 import { ConfigError } from "../config/config-error.ts";
 import { type Database, isWorthWaiting, openDatabase } from "./client.ts";
@@ -92,6 +92,36 @@ describe("openDatabase", () => {
 		expect((error as Error).message).not.toContain("secret-word");
 		expect(waits.length).toBeGreaterThanOrEqual(2);
 		expect(Date.now() - started).toBeLessThan(3000);
+	});
+
+	it("logs the first failed attempt at warning, and no other", async () => {
+		const lines: string[] = [];
+		const spy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation((chunk, ...rest: unknown[]) => {
+				lines.push(String(chunk));
+				(rest.find((arg) => typeof arg === "function") as (() => void) | undefined)?.();
+				return true;
+			});
+		try {
+			await openDatabase("postgres://comradarr:secret-word@127.0.0.1:1/comradarr", {
+				waitMs: 600,
+				intervalMs: 150,
+			}).catch(() => {});
+		} finally {
+			spy.mockRestore();
+		}
+		const entries = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+
+		expect(entries).toEqual([
+			expect.objectContaining({
+				level: "warn",
+				source: "database",
+				message: "waiting for PostgreSQL",
+				metadata: { reason: "ERR_POSTGRES_CONNECTION_REFUSED", waitSeconds: 0.6 },
+			}),
+		]);
+		expect(lines.join("")).not.toContain("secret-word");
 	});
 
 	it("waits for a host name that doesn't resolve yet, as a Compose service's before it starts", async () => {

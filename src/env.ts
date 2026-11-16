@@ -1,5 +1,6 @@
 import { defineEnvVars, type EnvVarConfig } from "@sveltejs/kit/env";
 import type { DatabaseUrlEnv } from "#lib/server/config/database-url.ts";
+import type { LogDebugEnv } from "#lib/server/config/log-debug.ts";
 import type { SecretKeyVariable } from "#lib/server/config/secret-key.ts";
 
 // Optional and never throwing: SvelteKit's own validation would otherwise print its own message,
@@ -24,4 +25,11 @@ export const variables = defineEnvVars({
 		schema: optional,
 		description: "The path of a file holding the database URL, such as a Docker secret.",
 	},
-} satisfies Record<SecretKeyVariable | keyof DatabaseUrlEnv, EnvVarConfig<string | undefined>>);
+	COMRADARR_LOG_DEBUG: {
+		schema: optional,
+		description: "Whether debug log entries are written: true or false (off by default).",
+	},
+} satisfies Record<
+	SecretKeyVariable | keyof DatabaseUrlEnv | keyof LogDebugEnv,
+	EnvVarConfig<string | undefined>
+>);
