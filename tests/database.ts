@@ -1,7 +1,7 @@
 import { SQL } from "bun";
 
 /**
- * A PostgreSQL for the tests (SPEC-setup.md, "Testing strategy"): the server
+ * A PostgreSQL for the tests (SPEC.md, "Testing strategy"): the server
  * `COMRADARR_TEST_DATABASE_URL` names, or a throwaway `postgres:18` container started with Docker,
  * labelled and removed when the run ends. Each test file gets its own database, owned by its own
  * owner role, and the run drops exactly what it created.

@@ -2,8 +2,8 @@
 
 **Status:** the ground floor (skeleton) is specified here, approved by the orchestrator
 (2026-10-22) and built. The capability map below is approved; module 1, `secrets`
-([SPEC-secrets.md](SPEC-secrets.md)), and module 2, `i18n` ([SPEC-i18n.md](SPEC-i18n.md)), are
-built; module 3, `setup` ([SPEC-setup.md](SPEC-setup.md)), is approved.
+([SPEC-secrets.md](SPEC-secrets.md)), module 2, `i18n` ([SPEC-i18n.md](SPEC-i18n.md)), and module
+3, `setup` ([SPEC-setup.md](SPEC-setup.md)), are built.
 
 ## Objective
 
@@ -36,11 +36,30 @@ adds in that layout, and review checks them. In short:
 **Every module writes its text in English and Danish** through `i18n` (D21): no user-facing text in
 components or services, and dates and numbers formatted for the viewer's language.
 
+**Every module's audit entries, logs and jobs** follow `setup`'s audit trail and logger
+([SPEC-setup.md](SPEC-setup.md#the-audit-trail)):
+- **Audit or log, never both.** Each module's notes below name the actions it audits; changes to
+  settings and stored secrets are audited too. Routine sync and rotation ticks, health probes,
+  single dispatches and single notification deliveries go to the log instead: an action is
+  recorded in exactly one of the two. Who changed what, and any user's identity, go to the audit
+  trail, not the log.
+- **Log levels:** debug is internal state, info routine events (a sync finished with its counts, a
+  rotation tick's summary), warning a recoverable surprise and error an actual failure; there is
+  no fatal level, because an unrecoverable condition exits. Context such as the connector or the
+  sync type is bound once per boundary, as the request id is, and event names form a hierarchy
+  that is easy to search. Request and response bodies are never logged.
+- **Background jobs** (D8, D14) do nothing until first run is complete. A job catches every error
+  in a tick, logs it with its context and carries on; a lasting failure shows as a deduplicated
+  error and a health badge, not as restarts. A loop logs one summary per tick, and a repeated error
+  is logged once when it starts, then rarely, then once when it clears: the first module with a job
+  builds that, with an error fingerprint to recognise the repeat. Everything that matters is in the
+  database, so a crash loses nothing: `sync` and `rotation` say how each resumes.
+
 | # | Module id | Responsibility | Depends on | Surfaces |
 |---|---|---|---|---|
 | 1 | `secrets` | **Built.** Encrypts stored secrets (connector API keys, notification channel settings, two-factor secrets, the OIDC client secret) before they reach the database (D20), and the secret wrapper that shows only a redaction marker and opens at one named call | — | — |
 | 2 | `i18n` | **Built.** The translation groundwork (D21) with Paraglide JS (D22): message files in English and Danish, choosing each request's language, the language switcher, formatting dates and numbers for the viewer's language, and a check that every message exists in both languages | — | the language switcher in each shell |
-| 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), `ORIGIN` and the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner, with the owner's password rules and hashing. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: the claim and account (brief: `/setup`); `/healthz` |
+| 3 | `setup` | **Built.** Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), `ORIGIN` and the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner, with the owner's password rules and hashing. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: the claim and account (brief: `/setup`); `/healthz` |
 | 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits (the claim's included), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts, and the sessions list with revoking | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
 | 5 | `two-factor` | Optional but strongly recommended (D20): authenticator codes, backup codes and the challenge after every way the owner signs in (except the optional OIDC skip, D20), with replay protection and a limit on failed attempts. Recovery turns it off. Adds the offer to first-run setup, right after the owner account is created and before any connection step, and the reminder in the app shell while it is off | `sign-in` | the two-factor offer in first-run setup; its section of `/settings/access` (no brief yet); the reminder in the app shell |
 | 6 | `http-boundary` | Verifying access from the operator's own browser: proxy trust by socket peer, observed, proposed, tested there and only then saved; and the address check, which only diagnoses: comparing the address the browser uses with the `Host` the app receives, `ORIGIN` when set and the forwarded address, classifying the forwarded headers and the source address, suggesting `ORIGIN=<address>` or the proxy line `proxy_set_header Host $http_host`, and the header recipes for common reverse proxies. The address check never blocks and saves nothing, and its suggestion also shows on the claim and owner sign-in pages, so someone without a session can recover. A mandatory first-run step after the two-factor offer (D20): until it passes, the setup gate sends every signed-in page back to it; the address check never stops it passing. The same tests run after setup | `sign-in` | the Verify access step of first-run setup (no brief yet); the Public access section of `/settings/access`; the address hint on the claim and owner sign-in pages |
@@ -235,7 +254,8 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   constant-time. The password rules and the hashing are `setup`'s
   ([SPEC-setup.md](SPEC-setup.md#the-claim)), and `sign-in` reuses them.
 - **Password change** (comradarr) needs the current password, and in one transaction stores the new
-  hash, replaces the current session and ends every other one.
+  hash, replaces the current session and ends every other one. It is audited, as recovery is
+  (D20).
 - **Sessions** (comradarr). A session token has at least 256 bits of randomness, and only a fast
   cryptographic hash of it is stored and looked up, unique per session. A session ends at its idle
   or its absolute lifetime, whichever comes first. Both lifetimes can be changed (the legacy app's
@@ -389,9 +409,11 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   authenticated call to the instance's system status; the response's shape (a failure means "this is
   not a Sonarr", Radarr or Prowlarr); and the version, which only warns (D23). There is no
   API-version negotiation: an incompatible upstream API gets a new client. Only then is the
-  connector saved, its key encrypted, and audited. Editing the URL or the key runs every check
-  again, so a connector is never pointed at an address nobody checked. The stored key is used, for a
-  test or a save, only while the URL is unchanged: a changed URL needs the key typed again.
+  connector saved and its key encrypted. Editing the URL or the key runs every check again, so a
+  connector is never pointed at an address nobody checked. The stored key is used, for a test or a
+  save, only while the URL is unchanged: a changed URL needs the key typed again. Adding, editing
+  and deleting a connector are audited with its URL and type, and only whether the key changed,
+  never the key.
 - **The stored key** enters only through adding or editing, whose request bodies are never logged.
   It is opened only by the cipher and at the moment it goes into an outbound request's header, it
   shows only as a receipt with its last four characters, and a forgotten key is replaced, never
@@ -477,6 +499,7 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   logs one line. When first run completes, connectors never synced get a full sync at once.
 - **Sync state** per connector: the last full, deep and incremental sync, the stored fingerprint,
   its status (idle, running or failed), the last error, the items synced and how long it took.
+  After a restart, sync resumes from these times and fingerprints.
 - **Syncing by hand** (full, deep or incremental) is audited.
 - **Targets** (legacy app's design, never measured): a deep or full sync of a 500-series library in
   about a minute, an incremental one in under a second.
@@ -646,10 +669,10 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   of 256 bits. Only a fast hash of the random part is stored, with the prefix and the last four
   characters for display; a value without the prefix is ignored without a database lookup. A key
   comes in its own header or as a bearer token.
-- **Creating** a key takes a name, an optional expiry and an optional narrower scope, and records
-  when it was created. The key is shown exactly once, with a copy action and a warning that it won't
-  be shown again, and never goes into page data that survives navigation, storage, a URL, the logs
-  or the audit trail; closing the dialog discards it.
+- **Creating** a key takes a name, an optional expiry and an optional narrower scope, records
+  when it was created, and is audited. The key is shown exactly once, with a copy action and a
+  warning that it won't be shown again, and never goes into page data that survives navigation,
+  storage, a URL, the logs or the audit trail; closing the dialog discards it.
 - **Using:** an expired key is refused when it is checked, and a key outside its scope gets a 403
   naming the action. The last use is recorded, best effort, on every use, and the first use is
   audited once, so the owner sees when an integration came online.
@@ -686,13 +709,14 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   advertises an end-session endpoint, goes there to end the provider's session too.
 - **The provider's settings** are set and edited in the app (row 23) and tested through discovery
   before they are saved; the client secret is encrypted (`secrets`), never shown again and
-  replaceable. Every call the app makes to the provider (discovery, the signing keys and the token
-  exchange, at the issuer or wherever discovery points) follows `connectors`' address rules,
-  `http://` and its opt-in included, and never follows a redirect; an endpoint never drops from
-  `https://` to `http://`, and the browser is sent only to `https://` endpoints, or `http://` ones
-  under the same opt-in. The stored client secret is used, for a test or a save, only while the
-  issuer is unchanged: a changed issuer needs the secret typed again. A failed OIDC sign-in shows
-  the owner a generic failure and logs the specific reason.
+  replaceable; changes to them are audited. Every call the app makes to the provider (discovery,
+  the signing keys and the token exchange, at the issuer or wherever discovery points) follows
+  `connectors`' address rules, `http://` and its opt-in included, and never follows a redirect; an
+  endpoint never drops from `https://` to `http://`, and the browser is sent only to `https://`
+  endpoints, or `http://` ones under the same opt-in. The stored client secret is used, for a test
+  or a save, only while the issuer is unchanged: a changed issuer needs the secret typed again. A
+  failed OIDC sign-in shows the owner a generic failure and logs the specific reason. Every OIDC
+  sign-in attempt is audited with its method, as every sign-in attempt is (`sign-in`).
 
 ## Tech stack
 
