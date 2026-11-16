@@ -84,13 +84,13 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 ### Phase 2: the request checks
 
 - [x] Task 6: `ORIGIN`, the security headers, the CSP and its report endpoint
-- [ ] Task 7: the cross-origin check and the error format
+- [x] Task 7: the cross-origin check and the error format
 
 ### Checkpoint: after task 7
 
-- [ ] Every page carries the headers and the nonce CSP with no violation; a provoked violation is
+- [x] Every page carries the headers and the nonce CSP with no violation; a provoked violation is
   logged through the report endpoint.
-- [ ] A cross-site POST gets the "Access denied" page or the JSON error, in the viewer's language.
+- [x] A cross-site POST gets the "Access denied" page or the JSON error, in the viewer's language.
 
 ### Phase 3: first run
 

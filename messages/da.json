@@ -2,5 +2,8 @@
 	"placeholder_title": "{{name}} bliver bygget om.",
 	"placeholder_body": "Rotationen, oversigten og indstillingerne for forbindelser er på vej tilbage. Der søges ikke i dine biblioteker endnu.",
 	"language_switcher_label": "Sprog",
-	"error_internal_error_title": "Noget gik galt"
+	"error_internal_error_title": "Noget gik galt",
+	"error_internal_error_description": "Prøv igen. Sker det igen, så find anmodningens id i serverens log.",
+	"error_access_denied_title": "Adgang nægtet",
+	"error_access_denied_description": "Anmodningen blev afvist, fordi den ikke kom fra dette websted."
 }
