@@ -1,14 +1,4 @@
-import {
-	afterAll,
-	afterEach,
-	beforeAll,
-	beforeEach,
-	describe,
-	expect,
-	inject,
-	it,
-	vi,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { auditLog } from "#lib/server/db/audit.ts";
 import { type Database, openDatabase } from "#lib/server/db/client.ts";
 import { migrateDatabase } from "#lib/server/db/migrate.ts";
@@ -37,10 +27,6 @@ afterAll(async () => {
 	await dropDatabase(adminUrl, database);
 });
 
-beforeEach(async () => {
-	await db.delete(auditLog);
-});
-
 afterEach(() => {
 	stopFirstRun();
 	vi.useRealTimers();
@@ -58,8 +44,6 @@ const tokenIn = (banner: string | undefined) =>
 		.exec(banner ?? "")
 		?.slice(1)
 		.join("");
-
-const printedEntries = () => db.select().from(auditLog).orderBy(auditLog.id);
 
 describe("first run's bootstrap token", () => {
 	it("is printed as the banner while unclaimed, with the path to open at Comradarr's address", async () => {
@@ -97,32 +81,43 @@ describe("first run's bootstrap token", () => {
 	});
 
 	it("records every printing in the audit trail, with its expiry and never the token", async () => {
-		const printed: string[] = [];
-		fakeClock();
-		vi.setSystemTime(new Date("2026-11-16T14:30:00.000Z"));
-		await startFirstRun({
-			db,
-			origin: undefined,
-			print: (banner) => printed.push(banner),
-			lifetimeMs: 60_000,
-		});
-		expect(await printedEntries()).toEqual([
-			expect.objectContaining({
-				action: "setup.token_printed",
-				actor: "app",
-				context: { expiresAt: "2026-11-16T14:31:00.000Z" },
-				clientAddress: null,
-				userAgent: null,
-				requestId: null,
-			}),
-		]);
+		// A database of its own: another test's renewal may still be writing to the shared one.
+		const own = await createDatabase(adminUrl);
+		const db = await openDatabase(own.url);
+		await migrateDatabase(db);
+		const printedEntries = () => db.select().from(auditLog).orderBy(auditLog.id);
+		try {
+			const printed: string[] = [];
+			fakeClock();
+			vi.setSystemTime(new Date("2026-11-16T14:30:00.000Z"));
+			await startFirstRun({
+				db,
+				origin: undefined,
+				print: (banner) => printed.push(banner),
+				lifetimeMs: 60_000,
+			});
+			expect(await printedEntries()).toEqual([
+				expect.objectContaining({
+					action: "setup.token_printed",
+					actor: "app",
+					context: { expiresAt: "2026-11-16T14:31:00.000Z" },
+					clientAddress: null,
+					userAgent: null,
+					requestId: null,
+				}),
+			]);
 
-		vi.advanceTimersByTime(60_000);
-		expect(printed).toHaveLength(2);
-		await expect.poll(async () => (await printedEntries()).length).toBe(2);
+			vi.advanceTimersByTime(60_000);
+			expect(printed).toHaveLength(2);
+			await expect.poll(async () => (await printedEntries()).length).toBe(2);
 
-		const stored = JSON.stringify(await printedEntries());
-		for (const banner of printed) expect(stored).not.toContain(tokenIn(banner));
+			const stored = JSON.stringify(await printedEntries());
+			for (const banner of printed) expect(stored).not.toContain(tokenIn(banner));
+		} finally {
+			stopFirstRun();
+			await db.$client.close();
+			await dropDatabase(adminUrl, own);
+		}
 	});
 
 	it("is printed again with a new token at expiry", async () => {

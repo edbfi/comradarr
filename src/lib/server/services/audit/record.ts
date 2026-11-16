@@ -1,5 +1,6 @@
 import { auditLog } from "#lib/server/db/audit.ts";
 import type { Database } from "#lib/server/db/client.ts";
+import { serverMessage } from "#lib/server/db/server-message.ts";
 import { createLogger } from "#lib/server/logging/logger.ts";
 import { redact } from "#lib/server/logging/redact.ts";
 import type { AuditAction, AuditContexts } from "./actions.ts";
@@ -48,12 +49,16 @@ export async function writeAuditEntry(db: AuditWriter, entry: AuditEntry): Promi
 
 /**
  * Writes `entry` on its own. A failed write is logged as an error and not thrown, so the request
- * or the timer goes on as it would have.
+ * or the timer goes on as it would have. The entry holds the database's own message, not Drizzle's,
+ * which repeats the insert's parameters: the request's fields would be copied into the log.
  */
 export async function recordAudit(db: AuditWriter, entry: AuditEntry): Promise<void> {
 	try {
 		await writeAuditEntry(db, entry);
 	} catch (error) {
-		log.error("writing an audit entry failed", { action: entry.action, error });
+		log.error("writing an audit entry failed", {
+			action: entry.action,
+			reason: serverMessage(error),
+		});
 	}
 }

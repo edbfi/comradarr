@@ -123,7 +123,7 @@ describe("recordAudit", () => {
 		expect(entry?.userAgent).toBe(`${"a".repeat(511)}😀`);
 	});
 
-	it("logs a failed write as an error with its action, and doesn't throw", async () => {
+	it("logs a failed write as an error with its action and reason, never the entry's fields", async () => {
 		const closed = drizzle({ client: new SQL(database.url, { max: 1 }) });
 		await closed.$client.close();
 
@@ -140,9 +140,11 @@ describe("recordAudit", () => {
 				level: "error",
 				source: "audit",
 				message: "writing an audit entry failed",
-				metadata: expect.objectContaining({ action: "setup.claim_attempted" }),
+				metadata: { action: "setup.claim_attempted", reason: expect.any(String) },
 			}),
 		]);
+		expect(lines.join("")).not.toContain("192.0.2.7");
+		expect(lines.join("")).not.toContain("req-1");
 	});
 });
 

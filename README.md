@@ -126,7 +126,9 @@ This output is a setup secret: don't paste it into chats or issue trackers.
 
 With `ORIGIN` set, the link is a full address. A token lasts 15 minutes, and a new one is printed
 when it expires and at every start. Anyone who can read this output can claim a new Comradarr, so
-keep it to yourself. Tokens are never written to the logs.
+keep it to yourself. The token appears only in this banner, never in Comradarr's JSON log entries.
+
+## Health
 
 `/healthz` answers without signing in, for a container's health check: `{"status":"healthy",
 "components":{"database":"healthy"}}` with 200, or `unavailable` with 503 when the database fails
