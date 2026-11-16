@@ -115,7 +115,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 | Drizzle 0.45's migrator can't apply migrations from text | Medium | Task 1 tries its dialect's `migrate` with the journal's hashes and compares the records with Drizzle Kit's file migrator; otherwise `drizzle/` ships beside `build/` (the spec's fallback) |
 | Drizzle's `bun-sql` adapter or Bun SQL misbehaves (transactions, types, TLS parameters) | High | Task 1's rollback-isolation and round-trip tests run in the built server; a failure stops the build and goes to the owner (another driver is a new dependency) |
 | Docker isn't usable in CI's jobs or in prek's `tests` hook | High | Task 1 runs CI on the PR before anything depends on it; a needed CI change goes to the owner first (the spec) |
-| prek gets slow with a container per run | Medium | One container per run, a database per test file from a template; task 1 records the time added |
+| prek gets slow with containers per run | Medium | Two containers per run (18, and 16 for the role and privilege tests), a database per test file from a template; tasks 1 and 2 record the time each adds |
 | `CREATEROLE` behaves differently on 16 and 18, or the owner role can't set a SCRAM verifier | High | Task 2's role and privilege tests run on both versions |
 | A grant the matrix misses, or one `PUBLIC` still holds, lets the app role change the schema or the audit trail | High | Task 2 checks effective privileges, also on a database whose `public` schema still grants `CREATE` |
 | An audit code used in the migration that adds it fails the whole migration | Medium | The spec's authoring rule, noted in `actions.ts` (task 8); no `setup` migration uses a code, and startup's enum check catches a missing one |

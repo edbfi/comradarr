@@ -75,11 +75,15 @@ and requests on the app role's pool. `tests/database.ts` gains `postgres:16`.
   salt, 4096 iterations; the app role logs in with the derived password, and again after a new
   key), and the D16 privilege checks of the spec's Validation, effective privileges included,
   also on a database whose `public` schema still grants `CREATE` to `PUBLIC`; a database name with
-  a `"` and capitals still gets correctly quoted roles; a `pg_hba.conf`-style refusal of the app
-  role fails with an error naming the role.
-- [ ] `parameterised.test.ts` exempts `db/roles.ts` and only it.
-- [ ] No verifier or password in a thrown error or PostgreSQL's statement log (a test searches
-  both; task 3 adds the log entries).
+  a `"` and capitals still gets correctly quoted roles; a real `pg_hba.conf` rejection of the app
+  role (a rejecting line written into the test container, then `pg_reload_conf()`) fails with
+  PostgreSQL's `28000` and an error naming the role.
+- [ ] `parameterised.test.ts` exempts exactly `db/roles.ts` (the role statements) and
+  `db/migrate.ts` (the reviewed migrations).
+- [ ] No password or verifier in a thrown error, and no plaintext password in PostgreSQL's statement
+  log, which shows the verifier the app sends by design (a test searches both; task 3 adds the
+  log entries).
+- [ ] The PR body records the time the 16 container adds to a run.
 - [ ] e2e: the built server serves as the app role with the owner connection closed (the server's
   PostgreSQL sessions), and refuses to start with an owner role without `CREATEROLE`, echoing no
   value.
