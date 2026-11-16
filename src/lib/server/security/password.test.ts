@@ -1,9 +1,62 @@
 import { describe, expect, it } from "vitest";
-import { passwordRules } from "#lib/shared/password-rules.ts";
+import { MIN_PASSWORD_LENGTH, passwordRules } from "#lib/shared/password-rules.ts";
 import { checkPassword, checkUsername, hashPassword, verifyPassword } from "./password.ts";
 
 // A long password nothing else here refuses: it holds neither the app's name nor a username.
 const GOOD = "violet harbour lanterns";
+
+/** "é" written decomposed: "e" and a combining accent, two code points before NFC, one after. */
+const E_ACUTE = "e\u0301";
+
+/** Passwords every rule accepts. */
+const ACCEPTED = [
+	GOOD,
+	// The last "x" keeps each from being a repeat, which `pattern` refuses.
+	`${E_ACUTE.repeat(14)}x`,
+	`${"😀".repeat(127)}x`,
+	"  spaces count too  ",
+];
+
+/** Passwords refused by their length in code points. */
+const TOO_SHORT_OR_LONG: [string, string][] = [
+	["a".repeat(14), "too-short"],
+	// 28 code points as written, but 14 after NFC: too few.
+	[E_ACUTE.repeat(14), "too-short"],
+	["😀".repeat(129), "too-long"],
+];
+
+/** Whole-password repeats and straight runs. */
+const PATTERNS = [
+	"bbbbbbbbbbbbbbb",
+	"999999999999999",
+	"abababababababab",
+	"abcabcabcabcabc",
+	"AbcDabcdABCDabcd",
+	// A last repeat may be cut short.
+	"wxyzwxyzwxyzwxy",
+	"abcdefghijklmnop",
+	"ZYXWVUTSRQPONMLK",
+	// Digits run on from 9 to 0, and back.
+	"567890123456789",
+	"987654321098765",
+	"aaaaaaaaaaaaaaa",
+	// Case is ignored letter by letter: lower-casing the whole word would end it in "ς", and
+	// would turn "İ" into two code points.
+	"ΣΣΣΣΣΣΣΣΣΣΣΣΣΣΣ",
+	"İabcİabcİabcİabc",
+];
+
+/** Close to a pattern, but not one. */
+const NOT_PATTERNS = [
+	// The rule covers the whole password, never a part of it.
+	"aaaaaaaaaaaaaaa-terrace",
+	"abcdefghijklmnop!",
+	// A unit of 5 is out of scope; the list and length carry the rest.
+	"abcdeabcdeabcde",
+	// Runs that change direction, or skip, are not straight.
+	"abcdefghgfedcbab",
+	"acegikmoqsuwyace",
+];
 
 describe("checkUsername", () => {
 	it("trims and normalises to NFC, keeping the case", () => {
@@ -30,23 +83,11 @@ describe("checkUsername", () => {
 });
 
 describe("checkPassword", () => {
-	it("normalises to NFC and accepts 15 to 128 code points of any characters", () => {
-		expect(checkPassword(GOOD, "owner")).toEqual({ ok: true, password: GOOD });
-		// The last "x" keeps each from being a repeat, which `pattern` refuses.
-		expect(checkPassword(`${"é".repeat(14)}x`, "owner")).toEqual({
-			ok: true,
-			password: `${"é".repeat(14)}x`,
-		});
-		expect(checkPassword(`${"😀".repeat(127)}x`, "owner").ok).toBe(true);
-		expect(checkPassword("  spaces count too  ", "owner").ok).toBe(true);
+	it.each(ACCEPTED)("accepts %j: 15 to 128 code points of any characters, after NFC", (raw) => {
+		expect(checkPassword(raw, "owner")).toEqual({ ok: true, password: raw.normalize("NFC") });
 	});
 
-	it.each([
-		["a".repeat(14), "too-short"],
-		// 30 code units, but 15 code points after NFC would be 15 "é"; 14 are too few.
-		["é".repeat(14), "too-short"],
-		["😀".repeat(129), "too-long"],
-	])("refuses %j by its length in code points: %s", (raw, error) => {
+	it.each(TOO_SHORT_OR_LONG)("refuses %j by its length in code points: %s", (raw, error) => {
 		expect(checkPassword(raw, "owner")).toEqual({ ok: false, error });
 	});
 
@@ -68,40 +109,16 @@ describe("checkPassword", () => {
 		expect(checkPassword("terrace-\u0130ab-evenings", "\u0130ab").ok).toBe(true);
 	});
 
-	it.each([
-		"bbbbbbbbbbbbbbb",
-		"999999999999999",
-		"abababababababab",
-		"abcabcabcabcabc",
-		"AbcDabcdABCDabcd",
-		// A last repeat may be cut short.
-		"wxyzwxyzwxyzwxy",
-		"abcdefghijklmnop",
-		"ZYXWVUTSRQPONMLK",
-		// Digits run on from 9 to 0, and back.
-		"567890123456789",
-		"987654321098765",
-		"aaaaaaaaaaaaaaa",
-		// Case is ignored letter by letter: lower-casing the whole word would end it in "ς", and
-		// would turn "İ" into two code points.
-		"ΣΣΣΣΣΣΣΣΣΣΣΣΣΣΣ",
-		"İabcİabcİabcİabc",
-	])("refuses %j: the whole password is a repeat or a straight run", (raw) => {
+	it.each(PATTERNS)("refuses %j: the whole password is a repeat or a straight run", (raw) => {
 		expect(checkPassword(raw, "owner")).toEqual({ ok: false, error: "pattern" });
 	});
 
-	it.each([
-		// The rule covers the whole password, never a part of it.
-		"aaaaaaaaaaaaaaa-terrace",
-		"abcdefghijklmnop!",
-		// A unit of 5 is out of scope; the list and length carry the rest.
-		"abcdeabcdeabcde",
-		// Runs that change direction, or skip, are not straight.
-		"abcdefghgfedcbab",
-		"acegikmoqsuwyace",
-	])("accepts %j: not a whole-password repeat of up to 4 or a straight run", (raw) => {
-		expect(checkPassword(raw, "owner").ok).toBe(true);
-	});
+	it.each(NOT_PATTERNS)(
+		"accepts %j: not a whole-password repeat of up to 4 or a straight run",
+		(raw) => {
+			expect(checkPassword(raw, "owner").ok).toBe(true);
+		},
+	);
 
 	it("refuses an entry of the bundled list, after NFC and lower-casing", () => {
 		expect(checkPassword("1qaz2wsx3edc4rfv", "owner")).toEqual({ ok: false, error: "common" });
@@ -119,27 +136,19 @@ describe("hashPassword and verifyPassword", () => {
 });
 
 describe("the browser's rules and checkPassword", () => {
-	// Every password and username the tests above use, plus usernames the page sees untrimmed.
+	// Every password the tests above check, with the username each uses, plus a username the page
+	// sees untrimmed.
 	const CASES: [string, string][] = [
-		[GOOD, "owner"],
-		[`${"é".repeat(14)}x`, "owner"],
-		[`${"😀".repeat(127)}x`, "owner"],
-		["  spaces count too  ", "owner"],
-		["a".repeat(14), "owner"],
-		["é".repeat(14), "owner"],
-		["😀".repeat(129), "owner"],
+		...[...ACCEPTED, ...TOO_SHORT_OR_LONG.map(([raw]) => raw), ...PATTERNS, ...NOT_PATTERNS].map(
+			(raw): [string, string] => [raw, "owner"],
+		),
 		["my-ComRadarr-password", "someone"],
 		["correct-Owner-horse-battery", "owner"],
 		["correct-Owner-horse-battery", "  Owner  "],
 		["correct-bob-horse-battery", "bob"],
 		["terrace-\u0130ab-evenings", "\u0130ab"],
-		["bbbbbbbbbbbbbbb", "owner"],
-		["ΣΣΣΣΣΣΣΣΣΣΣΣΣΣΣ", "owner"],
-		["İabcİabcİabcİabc", "owner"],
-		["567890123456789", "owner"],
-		["abcdeabcdeabcde", "owner"],
-		["acegikmoqsuwyace", "owner"],
 		["1qaz2wsx3edc4rfv", "owner"],
+		["1QAZ2WSX3EDC4RFV", "owner"],
 		["", "owner"],
 	];
 
@@ -153,7 +162,7 @@ describe("the browser's rules and checkPassword", () => {
 			expect(result.ok || result.error === "common").toBe(true);
 		} else {
 			const expected = !met.length
-				? length < 15
+				? length < MIN_PASSWORD_LENGTH
 					? "too-short"
 					: "too-long"
 				: !met.pattern
