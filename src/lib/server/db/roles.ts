@@ -198,6 +198,19 @@ export async function checkPrivileges(db: Executor, context: OwnerContext): Prom
 				has_database_privilege(${name}, current_database(), 'CREATE') as database_create,
 				has_database_privilege(${name}, current_database(), 'TEMPORARY') as temporary
 		`);
+		const sequences = await db.execute<{ sequencename: string; privilege: string }>(sql`
+			select s.sequencename, p.privilege
+			from pg_sequences s cross join (values ('UPDATE'), ('USAGE'), ('SELECT')) as p(privilege)
+			where s.schemaname = 'public'
+				and has_sequence_privilege(${name}, format('public.%I', s.sequencename), p.privilege)
+			order by s.sequencename, p.privilege
+		`);
+		// The matrix gives no sequence privilege: the identity column needs none.
+		extra.push(
+			...sequences.map(
+				({ sequencename, privilege }) => `${privilege} on the sequence ${sequencename}`,
+			),
+		);
 		if (elsewhere?.schema_create) extra.push("CREATE on the public schema");
 		if (elsewhere?.database_create) extra.push("CREATE on the database");
 		if (elsewhere?.temporary) extra.push("TEMPORARY on the database");

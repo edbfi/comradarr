@@ -231,14 +231,14 @@ roles. Startup uses it once, then closes it.
   the tables of the `public` schema only (Drizzle's own migration records stay the owner role's):
   the app role gets exactly `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table, except
   `audit_log`, where it may only insert and read; the audit-admin role may only read and delete
-  `audit_log` entries. Neither gets `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN`, a
-  membership in another role, or anything it owns, so neither can change the schema. Before
-  granting, startup revokes from `PUBLIC` and both roles every privilege on the `public` schema's
-  tables and sequences, `CREATE` on the schema, and `CREATE` and `TEMPORARY` on comradarr's
-  database, which an older or upgraded database or an earlier grant may have given. After
-  granting, it reads the roles' effective privileges (column grants included) and refuses to serve
-  if either has one the matrix doesn't give, such as a grant another table owner made. A table a
-  later migration adds gets the app role's privileges without a new rule.
+  `audit_log` entries. Neither gets `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN`, a membership
+  in another role, or anything it owns, so neither can change the schema. Before granting, startup
+  revokes from `PUBLIC` and both roles every privilege on the `public` schema's tables and
+  sequences, `CREATE` on the schema, and `CREATE` and `TEMPORARY` on comradarr's database, which an
+  older or upgraded database or an earlier grant may have given. After granting, it reads the roles'
+  effective privileges on tables (column grants included) and sequences, and refuses to serve if
+  either has one the matrix doesn't give, such as a grant another table owner made. A table a later
+  migration adds gets the app role's privileges without a new rule.
 - **At runtime** requests and jobs use the app role's pool, built from the owner URL with the user
   and password replaced, so host, port and TLS parameters carry over. `audit-log`'s retention sweep
   later connects as the audit-admin role on a short connection of its own. Each role logs in

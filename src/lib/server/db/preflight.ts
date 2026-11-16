@@ -72,9 +72,10 @@ type ExistingRole = Record<keyof typeof ATTRIBUTES, boolean> & {
 /**
  * Checks, before anything migrates or changes, that the owner role can set up the database (D17),
  * and names every missing requirement at once: the server's version, `CREATEROLE`, owning the
- * database, role names that fit and differ from the owner's, and for a role that already exists
- * under one of the names, that the owner role administers it, that it has no attribute the owner
- * role may not remove, and that it belongs to no other role.
+ * database, a `public` schema that exists and that the owner role controls, role names that fit
+ * and differ from the owner's, and for a role that already exists under one of the names, that the
+ * owner role administers it directly, that it has no attribute the owner role may not remove, owns
+ * nothing in the database and belongs to no other role.
  */
 export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 	const [self] = await db.execute<{

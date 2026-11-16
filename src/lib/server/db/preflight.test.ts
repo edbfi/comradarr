@@ -127,6 +127,36 @@ for (const version of [18, 16] as const) {
 			await asAdmin(server, `drop role "${role}"`);
 		});
 
+		it("refuses a database with no public schema", async () => {
+			const { database, db } = await ownerOf(server);
+			const admin = new URL(server.adminUrl);
+			admin.pathname = `/${database.name}`;
+			await asAdminOn(admin.toString(), "drop schema public");
+
+			expect(await problemsOf(db)).toEqual([
+				`the database "${database.name}" has no public schema, which Comradarr's tables use`,
+			]);
+		});
+
+		it("refuses an existing role that owns something other than a table", async () => {
+			const { database, db } = await ownerOf(server);
+			const role = `${database.name}_audit_admin`;
+			await asAdmin(server, `create role "${role}" login`);
+			await asAdmin(server, `grant "${role}" to "${database.name}" with admin option`);
+			const admin = new URL(server.adminUrl);
+			admin.pathname = `/${database.name}`;
+			await asAdminOn(
+				admin.toString(),
+				`create type leftover as enum ('x'); alter type leftover owner to "${role}"`,
+			);
+
+			expect(await problemsOf(db)).toEqual([
+				`the role "${role}" owns objects in the database, which would let it change them`,
+			]);
+			await asAdminOn(admin.toString(), "drop type leftover");
+			await asAdmin(server, `drop role "${role}"`);
+		});
+
 		it("refuses an existing role that belongs to another role", async () => {
 			const { database, db } = await ownerOf(server);
 			const role = `${database.name}_app`;
