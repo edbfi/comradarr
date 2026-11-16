@@ -36,9 +36,10 @@ export default defineConfig({
 
 		tokens: {
 			fonts: {
-				// System fallbacks until the first surface bundles the font files locally.
-				display: { value: '"Source Sans 3", system-ui, sans-serif' },
-				body: { value: '"Source Sans 3", system-ui, sans-serif' },
+				// The family names the fontsource packages register (src/routes/+layout.svelte), with
+				// system fallbacks after them.
+				display: { value: '"Source Sans 3 Variable", system-ui, sans-serif' },
+				body: { value: '"Source Sans 3 Variable", system-ui, sans-serif' },
 				mono: { value: '"IBM Plex Mono", monospace' },
 			},
 			fontSizes: {

@@ -322,7 +322,8 @@ src/
                                  through the logger, answered as `internal_error`
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
-    +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
+    +layout.svelte               loads the bundled fonts and app.css; marks <html data-hydrated>
+                                 once mounted
     (public)/+page.svelte        `/`: placeholder page, its text from the messages, and the
                                  language switcher
     healthz/+server.ts           `/healthz`: the public health check, overall and per component

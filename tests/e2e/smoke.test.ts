@@ -19,6 +19,27 @@ test("/ serves the placeholder page, hydrated and styled, without console errors
 	// Panda tokens: the dark-mode background and the h1 text style.
 	await expect(page.locator("body")).toHaveCSS("background-color", "rgb(16, 28, 53)");
 	await expect(heading).toHaveCSS("font-size", "32px");
+	// DESIGN.md's typefaces, bundled with the app: the heading renders in Source Sans 3, and both
+	// families load from the app's own address, never a remote font service.
+	await expect(heading).toHaveCSS("font-family", /^"Source Sans 3 Variable"/);
+	const fonts = await page.evaluate(async () => {
+		await document.fonts.ready;
+		return {
+			// `load` finds the registered faces; `check` would pass with none registered at all.
+			sans: await document.fonts
+				.load('600 32px "Source Sans 3 Variable"')
+				.then((faces) => faces.length > 0),
+			mono: await document.fonts.load('400 16px "IBM Plex Mono"').then((faces) => faces.length > 0),
+			sources: performance
+				.getEntriesByType("resource")
+				.map((entry) => entry.name)
+				.filter((name) => name.endsWith(".woff2"))
+				.map((name) => new URL(name).origin),
+		};
+	});
+	expect(fonts.sans).toBe(true);
+	expect(fonts.mono).toBe(true);
+	expect(new Set(fonts.sources)).toEqual(new Set([new URL(page.url()).origin]));
 
 	expect(errors).toEqual([]);
 });

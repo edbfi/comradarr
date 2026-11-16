@@ -942,8 +942,10 @@ Choices 1–3 were settled for the first rewrite app's skeleton and are reused h
 design doesn't call for anything different; choices 4 and 5 are comradarr's own.
 
 1. **Fonts.** DESIGN.md wants Source Sans 3 and IBM Plex Mono from locally bundled files, not remote
-   font requests. The skeleton defines the font tokens with system fallbacks; the first surface adds
-   the font files (a dependency the owner approves then).
+   font requests. They are fontsource packages (`@fontsource-variable/source-sans-3` and
+   `@fontsource/ibm-plex-mono`, OFL), approved by the owner after `setup`'s claim page, as zondarr
+   and zimuarr bundle theirs; the root layout imports them, and the font tokens name their families
+   ahead of the system fallbacks.
 2. **Ark UI before its first use.** The skeleton installs `@ark-ui/svelte`, so the Panda and Ark
    pairing and `check-peers` are settled early; the first `ui/` wrapper comes with the first surface
    that needs one.
