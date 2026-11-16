@@ -2,9 +2,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from
 import { auditLog } from "#lib/server/db/audit.ts";
 import { type Database, openDatabase } from "#lib/server/db/client.ts";
 import { migrateDatabase } from "#lib/server/db/migrate.ts";
+import { insertOwner } from "#lib/server/db/owner.ts";
+import { writeSetting } from "#lib/server/db/settings.ts";
 import { createDatabase, dropDatabase, type TestDatabase } from "../../../../../tests/database.ts";
 import {
+	FIRST_RUN_COMPLETE,
+	FIRST_RUN_STEP_KEY,
 	isClaimed,
+	isFirstRunComplete,
 	markClaimed,
 	startFirstRun,
 	stopFirstRun,
@@ -142,9 +147,9 @@ describe("first run's bootstrap token", () => {
 		const token = tokenIn(printed[0]) ?? "";
 
 		await withClaimInProgress(async () => {
-			expect(useToken("aaaa-bbbb-cccc")).toBe(false);
-			expect(useToken(token.toUpperCase())).toBe(true);
-			expect(useToken(token)).toBe(false);
+			expect(useToken("aaaa-bbbb-cccc")).toBe("wrong");
+			expect(useToken(token.toUpperCase())).toBe("used");
+			expect(useToken(token)).toBe("expired");
 		});
 	});
 
@@ -160,8 +165,24 @@ describe("first run's bootstrap token", () => {
 
 		await withClaimInProgress(async () => {
 			vi.advanceTimersByTime(60);
-			expect(useToken(tokenIn(printed[0]) ?? "")).toBe(false);
+			expect(useToken(tokenIn(printed[0]) ?? "")).toBe("expired");
 		});
+	});
+
+	it("calls the token a renewal replaced expired, not wrong, as an old link would hold", async () => {
+		const printed: string[] = [];
+		fakeClock();
+		await startFirstRun({
+			db,
+			origin: undefined,
+			print: (banner) => printed.push(banner),
+			lifetimeMs: 60,
+		});
+		vi.advanceTimersByTime(60);
+
+		expect(printed).toHaveLength(2);
+		expect(useToken(tokenIn(printed[0]) ?? "")).toBe("expired");
+		expect(useToken(tokenIn(printed[1]) ?? "")).toBe("used");
 	});
 
 	it("waits to print a new one while a claim is in progress", async () => {
@@ -185,7 +206,7 @@ describe("first run's bootstrap token", () => {
 		await startFirstRun({ db, origin: undefined, print: (banner) => printed.push(banner) });
 
 		await withClaimInProgress(async () => {
-			expect(useToken(tokenIn(printed[0]) ?? "")).toBe(true);
+			expect(useToken(tokenIn(printed[0]) ?? "")).toBe("used");
 			throw new Error("the claim's transaction failed");
 		}).catch(() => {});
 
@@ -228,5 +249,56 @@ describe("first run's bootstrap token", () => {
 
 		expect(isClaimed()).toBe(true);
 		expect(printed).toHaveLength(1);
+	});
+});
+
+describe("first run after a restart", () => {
+	it("reads the step pointer back: a claimed instance starts complete and prints nothing", async () => {
+		const own = await createDatabase(adminUrl);
+		const ownDb = await openDatabase(own.url);
+		try {
+			await migrateDatabase(ownDb);
+			// First a fresh instance, so the flags start false and must be read back.
+			await startFirstRun({ db: ownDb, origin: undefined, print: () => {} });
+			expect(isFirstRunComplete()).toBe(false);
+			stopFirstRun();
+
+			await writeSetting(ownDb, FIRST_RUN_STEP_KEY, FIRST_RUN_COMPLETE, new Date());
+			const printed: string[] = [];
+			await startFirstRun({
+				db: ownDb,
+				origin: undefined,
+				print: (banner) => printed.push(banner),
+			});
+
+			expect(isClaimed()).toBe(true);
+			expect(isFirstRunComplete()).toBe(true);
+			expect(printed).toEqual([]);
+		} finally {
+			await ownDb.$client.close();
+			await dropDatabase(adminUrl, own);
+		}
+	});
+
+	it("infers nothing from an owner row without the pointer: the instance is still unclaimed", async () => {
+		const own = await createDatabase(adminUrl);
+		const ownDb = await openDatabase(own.url);
+		try {
+			await migrateDatabase(ownDb);
+			await insertOwner(ownDb, { username: "owner", passwordHash: "h", createdAt: new Date() });
+			const printed: string[] = [];
+			await startFirstRun({
+				db: ownDb,
+				origin: undefined,
+				print: (banner) => printed.push(banner),
+			});
+
+			expect(isClaimed()).toBe(false);
+			expect(printed).toHaveLength(1);
+		} finally {
+			stopFirstRun();
+			await ownDb.$client.close();
+			await dropDatabase(adminUrl, own);
+		}
 	});
 });

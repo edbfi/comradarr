@@ -128,6 +128,10 @@ With `ORIGIN` set, the link is a full address. A token lasts 15 minutes, and a n
 when it expires and at every start. Anyone who can read this output can claim a new Comradarr, so
 keep it to yourself. The token appears only in this banner, never in Comradarr's JSON log entries.
 
+Open the link, choose the owner's username and a password of 15 to 128 characters, and claim. The
+page shows which password rules are met as you type; common passwords are checked when you claim.
+Once claimed, `/setup` is gone, and no token is printed again.
+
 ## Health
 
 `/healthz` answers without signing in, for a container's health check: `{"status":"healthy",

@@ -34,6 +34,17 @@ Use the shared [design system](../../DESIGN.md). Match hierarchy, density and pa
 - Works without JavaScript: no Show control, no live rules list, and the token is typed.
 - States: initial, token filled from the link, field errors, token refused, common password refused, failed, submitting. After success the browser leaves the page.
 
+## Direction contract
+
+Claim and account step, development only.
+
+- **THESIS:** the claim is a quiet operator form, not a welcome screen. The token reads like the console line it came from, and the password shows the rules it meets, never a score.
+- **OWN-WORLD:** Aurora Observatory as DESIGN.md has it. The navy ground and one flat `surface` panel with a 1px `border`. One solid `primary` action. `secondary` only for the focus ring. The aurora appears only as the banner's static green and violet wash.
+- **STORY:** the installer opens the console's link, finds the token already filled in, picks a username and a password while the rules tick over, and claims. A refusal says what to fix beside the field.
+- **FIRST VIEWPORT:** a 64px banner with the logo, the wordmark and the language switcher. Below it, the panel in the 672px form width: `h1`, one intro line, then token, username and password. The rules list sits below the password, and the full-width primary button comes last.
+- **FORM:** the brief's own composition (flat panel, labelled fields, one primary button), first and only, pinned by this brief. seed: none (pinned)
+- **SIGNATURE:** the live rules list, with a drawn check or circle plus text for each rule, announced politely only when a rule changes.
+
 ## Connect step
 
 **Required content.** 'Connect your media library', type Sonarr selected, name Sonarr Main, address https://sonarr.example, API key masked, Test connection, status Connection verified, Save connector.

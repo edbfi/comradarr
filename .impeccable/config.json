@@ -2,6 +2,21 @@
   "telemetry": false,
   "updateCheck": false,
   "detector": {
-    "extensions": [{ "ext": ".svelte", "engine": "html" }]
+    "extensions": [
+      {
+        "ext": ".svelte",
+        "engine": "html"
+      }
+    ],
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "mono",
+        "createdAt": "2026-11-16T15:16:20.095Z",
+        "reason": "agent: false positive; 'mono' is the Panda font token for DESIGN.md's IBM Plex Mono (typography.code), used for the setup token as the brief's xxxx-xxxx-xxxx code"
+      }
+    ]
   }
 }

@@ -326,7 +326,11 @@ src/
                                  language switcher
     healthz/+server.ts           `/healthz`: the public health check, overall and per component
     api/csp-report/+server.ts    the CSP's report endpoint
-    setup/ login/ dashboard/ …   later: one folder per surface brief; api/ for JSON endpoints
+    setup/                       `/setup`, first run's claim step: +page.server.ts the claim
+                                 action (404 once first run is complete), +page.svelte the page
+                                 (the token from the link's fragment, the live password rules),
+                                 token-format.ts the token field's dashes and caret
+    login/ dashboard/ …          later: one folder per surface brief; api/ for JSON endpoints
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
                                  `#lib/server/services/health.ts`
     paraglide/                   the compiled messages (generated, gitignored)
@@ -349,14 +353,17 @@ src/
                                  checks; roles.ts: the two roles, their SCRAM verifiers and the
                                  privilege matrix; server-message.ts: PostgreSQL's own message
                                  from Drizzle's wrapper; settings.ts, owner.ts, audit.ts: one
-                                 schema per aggregate; parameterised.test.ts: no SQL built from
-                                 strings
+                                 schema per aggregate, with its reads and writes;
+                                 parameterised.test.ts: no SQL built from strings
       services/setup/startup.ts  startup's steps: the key, the configuration, the database and its
                                  audit actions; the app role's pool; first run; shutdown on the
                                  signals, with its deadline
       services/setup/first-run.ts
-                                 first run's state in memory: the bootstrap token, its banner,
-                                 renewal held during a claim, and each printing audited
+                                 first run's state in memory, read back from the step pointer:
+                                 the bootstrap token, its banner, renewal held during a claim,
+                                 and each printing audited
+      services/setup/claim.ts    the claim: fields, token, hash, then one transaction with the
+                                 owner, the pointer and the grant's audit entries
       services/audit/            actions.ts: the action codes, each one's context, and startup's
                                  check that the database knows them; record.ts: the one writer
                                  of every entry
