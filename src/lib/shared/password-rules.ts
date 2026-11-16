@@ -22,8 +22,10 @@ export type PasswordRulesMet = {
 	username: boolean;
 };
 
-/** One step of a straight run: the next code point, with digits running on from 9 to 0. */
+/** Digits run on from 9 to 0, so "7890123…" is a straight run. */
 const DIGIT_WRAP: Record<string, string> = { "9": "0" };
+
+/** Whether `b` is one step of a straight run after `a`: the next code point, or 9 then 0. */
 const follows = (a: string, b: string) =>
 	DIGIT_WRAP[a] === b || b.codePointAt(0) === (a.codePointAt(0) ?? 0) + 1;
 
