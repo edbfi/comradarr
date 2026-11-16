@@ -30,6 +30,7 @@
 	"setup_password_common": "This password is on a list of common passwords. Choose another.",
 	"setup_rules_label": "What your password meets so far",
 	"setup_rule_length": "15 to 128 characters ({{count}} so far)",
+	"setup_rule_length_spoken": "15 to 128 characters",
 	"setup_rule_pattern": "Not a repeat or a straight run",
 	"setup_rule_app_name": "Without the word {{name}}",
 	"setup_rule_username": "Without your username",

@@ -5,7 +5,7 @@ import { m } from "#lib/paraglide/messages.js";
 import { type PasswordRulesMet, passwordRules } from "#lib/shared/password-rules.ts";
 import { css } from "#styled-system/css";
 import { enhance } from "$app/forms";
-import { replaceState } from "$app/navigation";
+import { goto } from "$app/navigation";
 import type { PageProps, SubmitFunction } from "./$types";
 import { deleteAcrossDash, formatTokenInput } from "./token-format.ts";
 
@@ -28,17 +28,25 @@ let passwordInput = $state<HTMLInputElement>();
 let usernameValue = $state(untrack(() => form?.username ?? ""));
 let passwordValue = $state("");
 
-onMount(() => {
-	// The console's link carries the token in its fragment, which never reaches the server: fill
-	// it in, then take it out of the address bar at once (SPEC-setup.md, "The link").
+/**
+ * The console's link carries the token in its fragment, which never reaches the server: fill it
+ * in, then take it out of the address bar at once (SPEC-setup.md, "The link"). On load, and when a
+ * link is opened in a tab already showing the page, which changes only the fragment.
+ */
+function takeTokenFromLink() {
 	const token = new URLSearchParams(location.hash.slice(1)).get("token");
-	if (token !== null) {
-		replaceState(location.pathname + location.search, {});
-		if (tokenInput) {
-			tokenInput.value = formatTokenInput(token, token.length).value;
-			edited.token = true;
-		}
+	if (token === null) return;
+	goto(location.pathname + location.search, { state: {}, shallow: true, replace: true }).catch(() =>
+		history.replaceState(history.state, "", location.pathname + location.search),
+	);
+	if (tokenInput) {
+		tokenInput.value = formatTokenInput(token, token.length).value;
+		edited.token = true;
 	}
+}
+
+onMount(() => {
+	takeTokenFromLink();
 	hydrated = true;
 });
 
@@ -94,7 +102,9 @@ const announcement = $derived(
 	RULES.map(({ key }) => {
 		const status = rules.met[key] ? m.setup_rule_met() : m.setup_rule_unmet();
 		const text =
-			key === "length" ? m.setup_password_help() : RULES.find((rule) => rule.key === key)?.text();
+			key === "length"
+				? m.setup_rule_length_spoken()
+				: RULES.find((rule) => rule.key === key)?.text();
 		return `${status} ${text}`;
 	}).join(" "),
 );
@@ -180,6 +190,8 @@ const control = css({
 	"&[aria-invalid=true]": { borderColor: "danger" },
 });
 </script>
+
+<svelte:window onhashchange={takeTokenFromLink} />
 
 <svelte:head>
 	<title>{m.setup_page_title({ name: NAME })}</title>

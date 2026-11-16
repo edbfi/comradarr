@@ -820,7 +820,9 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   code the database lacks, named), `security/bootstrap-token.test.ts` (the token's alphabet,
   bias, format, comparison and expiry), `services/setup/first-run.test.ts` (the banner with and
   without `ORIGIN`, each printing audited without the token, renewal at expiry and held during a
-  claim, the token used once, none after stopping or once claimed), `security/password.test.ts`
+  claim, the token used once, a replaced token read as expired, none after stopping or once
+  claimed, a restart reading the step pointer back, an owner row without the pointer still
+  unclaimed), `security/password.test.ts`
   (the username and password rules, the list, hashing, and agreement with the browser's rules on
   every case), `lib/shared/password-rules.test.ts` (the length in code points and each rule),
   `services/setup/claim.test.ts` (a claim with its three audit entries in its transaction; field

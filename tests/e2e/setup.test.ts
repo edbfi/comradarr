@@ -494,6 +494,13 @@ test.describe("the claim", () => {
 			await expect(page.locator("#token")).toHaveValue(shown);
 			expect(new URL(page.url()).hash).toBe("");
 
+			// A link opened in a tab already showing the page changes only the fragment: it is
+			// filled in and taken out of the address bar all the same.
+			await page.fill("#token", "");
+			await page.goto(`${server.url}/setup#token=${shown}`);
+			await expect(page.locator("#token")).toHaveValue(shown);
+			await expect.poll(() => new URL(page.url()).hash).toBe("");
+
 			// The rules say what the password meets as it is typed.
 			await page.fill("#username", "owner");
 			await page.fill("#password", "violet");
@@ -531,7 +538,9 @@ test.describe("the claim", () => {
 			});
 			expect(action.status).toBe(404);
 
-			// After a restart too, and no token is printed.
+			// After a restart too, and no token is printed. The first server's log is kept for the
+			// secrets check below.
+			const firstLog = logEntries(server.output());
 			await server.stop();
 			server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
 			expect(server.output()).not.toContain("Comradarr setup");
@@ -550,7 +559,7 @@ test.describe("the claim", () => {
 			]);
 			const token = shown.replaceAll("-", "");
 			for (const [where, text] of [
-				["a log entry", JSON.stringify(logEntries(server.output()))],
+				["a log entry", JSON.stringify([...firstLog, ...logEntries(server.output())])],
 				["a response", answers.join("\n")],
 				["the audit trail", JSON.stringify(entries)],
 			] as const) {
