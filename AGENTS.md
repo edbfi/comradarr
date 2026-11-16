@@ -308,11 +308,15 @@ src/
   app.html                       document shell; `class="dark"` sets the default colour mode,
                                  and `handle` writes the request's language into `<html lang>`
   app.css                        Panda layer order; the Vite plugin appends the generated CSS
-  app.d.ts                       SvelteKit ambient types
-  env.ts                         declares `COMRADARR_SECRET_KEY`, `COMRADARR_DATABASE_URL` and
-                                 their `_FILE` forms: private, read at runtime, optional
+  app.d.ts                       SvelteKit ambient types: the request id in `locals` and in an
+                                 error's answer
+  env.ts                         declares `COMRADARR_SECRET_KEY`, `COMRADARR_DATABASE_URL`, their
+                                 `_FILE` forms and `COMRADARR_LOG_DEBUG`: private, read at runtime,
+                                 optional
   hooks.server.ts                the `init` hook: runs startup, except while building;
-                                 `handle`: each request's language, through Paraglide's middleware
+                                 `handle`: each request's id and log line, then its language,
+                                 through Paraglide's middleware; `handleError`: unexpected errors
+                                 through the logger
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
     +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
@@ -323,13 +327,18 @@ src/
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
                                  `#lib/server/services/health.ts`
     paraglide/                   the compiled messages (generated, gitignored)
-    server/                      server-only: services/health.ts; later providers/<sonarr|radarr|
-                                 prowlarr>/, services/<domain>/, jobs/, http/ (SSRF-safe fetch),
-                                 logging/
+    server/                      server-only: services/health.ts; services/unexpected-error.ts:
+                                 `handleError`'s log entry and generic answer; later
+                                 providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
+                                 http/ (SSRF-safe fetch)
+      logging/                   logger.ts: JSON lines on standard output, the debug switch, the
+                                 request id, `flushLogs`; redact.ts: the redaction rules;
+                                 request-line.ts: one line per request
       config/                    each variable read and checked once; `ConfigError` names it and
                                  never its value; secret-variable.ts: a secret from its variable
                                  or the file its `_FILE` form names; secret-key.ts: the master
-                                 key's text; database-url.ts: the owner role's URL
+                                 key's text; database-url.ts: the owner role's URL; log-debug.ts:
+                                 `COMRADARR_LOG_DEBUG`
       db/                        client.ts: the pool, after waiting for PostgreSQL; migrate.ts:
                                  applies the bundled migrations; preflight.ts: the owner role's
                                  checks; roles.ts: the two roles, their SCRAM verifiers and the

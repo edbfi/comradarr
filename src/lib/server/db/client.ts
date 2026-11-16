@@ -2,6 +2,9 @@ import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
 import { ConfigError } from "#lib/server/config/config-error.ts";
 import { type DatabaseUrlVariable, databaseUrlSubject } from "#lib/server/config/database-url.ts";
+import { createLogger } from "#lib/server/logging/logger.ts";
+
+const log = createLogger("database");
 
 /** The pool's size: one process (D19) serving one owner needs few connections. */
 const POOL_SIZE = 10;
@@ -89,6 +92,10 @@ export async function openDatabase(url: string, options: OpenOptions = {}): Prom
 					variable,
 					`${options.as === undefined ? at : `PostgreSQL, for ${options.as},`} could not be reached within ${waitMs / 1000} seconds (${reason})`,
 				);
+			}
+			// Only the first failure: the wait ends either way, and every try would drown the log.
+			if (attempt === 1) {
+				log.warn("waiting for PostgreSQL", { reason, waitSeconds: waitMs / 1000, as: options.as });
 			}
 			onWaiting?.(attempt, reason);
 			await Bun.sleep(intervalMs);

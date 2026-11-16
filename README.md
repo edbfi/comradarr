@@ -111,6 +111,14 @@ so there is nothing to store: a new key sets new passwords at the next start. If
 role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
 
+## Logs
+
+Comradarr writes its log to standard output, one JSON object per line, which the container
+runtime collects. Each entry has a time, a level, a source, a message and its details, and an entry
+written while answering a request carries that request's id. Passwords, tokens, keys, cookies and
+anything shaped like them are replaced with `[redacted]` before an entry is written. To send debug
+entries with a bug report, set `COMRADARR_LOG_DEBUG=true` (`true` or `false`, off by default).
+
 ## Working on it
 
 Start with [AGENTS.md](AGENTS.md): the house rules, the workflow and where each document lives.
