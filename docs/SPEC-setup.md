@@ -1,12 +1,13 @@
 # Spec: `setup`
 
-**Status:** proposed for the owner's approval. Module 3 of the capability map
-([docs/SPEC.md](SPEC.md)). Ported from obzorarr, the reference app for `setup`
+**Status:** approved by the owner (2026-11-16) with PR #222's nine changes to the approved notes,
+`drizzle-orm` 0.45.4 and `drizzle-kit` 0.31.11, and PostgreSQL 16 or later. Module 3 of the
+capability map ([docs/SPEC.md](SPEC.md)). Ported from obzorarr, the reference app for `setup`
 ([Shared groundwork](../AGENTS.md#shared-groundwork)): from its spec before the cut
-(`0fb3565:docs/SPEC-setup.md`), its spec, code and tests at `b59b909`, which include the
-follow-ups #337–#342, and the build PRs #324–#333. Once built it closes D15, D16, the oldest
-PostgreSQL version (D17), D14's logging half, the CSP's inline-style question, ground-floor choices
-3 and 5, and the minimum length and common-password parts of `sign-in`'s password rules.
+(`0fb3565:docs/SPEC-setup.md`), its spec, code and tests at `b59b909`, which include the follow-ups
+#337–#342, and the build PRs #324–#333. Once built it closes D15, D16, the oldest PostgreSQL version
+(D17), D14's logging half, the CSP's inline-style question, ground-floor choices 3 and 5, and the
+minimum length and common-password parts of `sign-in`'s password rules.
 
 **What differs from obzorarr:**
 - **The database** is PostgreSQL through Drizzle and Bun SQL (D5), not embedded Turso: one owner
@@ -432,7 +433,11 @@ HTTP.
   a rebind, and those are gated by a console token or rate-limited.
 
 `security/cross-origin.ts` is one pure module, copied from obzorarr as D20 shares the opening
-modules; comradarr's machine routes join its "neither header" branch when `api-keys` adds them.
+modules. **For `api-keys`:** obzorarr's module, copied unchanged, refuses a request with neither
+header on its `ORIGIN` branch, before the "neither header" rule is reached, so once `ORIGIN` is set
+it would refuse every machine-to-machine request (an API key, a webhook). When `api-keys` adds
+comradarr's machine routes, their rule runs first, whether or not `ORIGIN` is set, as zimuarr's
+port does.
 
 ### Security headers
 
