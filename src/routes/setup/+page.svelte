@@ -172,8 +172,10 @@ const submit: SubmitFunction = () => {
 
 const field = css({ display: "flex", flexDirection: "column", gap: "sm" });
 const label = css({ textStyle: "label" });
-const help = css({ textStyle: "caption", color: "muted" });
-const error = css({ textStyle: "caption", color: "danger", fontWeight: "semibold" });
+// Helpers and errors share the rules list's 14px tier: a refusal is never quieter than what the
+// password already meets.
+const help = css({ textStyle: "table", color: "muted" });
+const error = css({ textStyle: "label", color: "danger" });
 const control = css({
 	minHeight: "controlHeight",
 	paddingInline: "md",
@@ -408,6 +410,8 @@ const control = css({
 										gap: "sm",
 										textStyle: "label",
 										fontWeight: "regular",
+										// The count changes as the owner types; tabular digits keep the text after it still.
+										fontVariantNumeric: "tabular-nums",
 										color: met ? "text" : "muted",
 										transitionProperty: "color",
 										transitionDuration: "feedback",
