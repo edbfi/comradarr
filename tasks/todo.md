@@ -289,17 +289,17 @@ and the rules the browser can check moved into `lib/shared/password-rules.ts`.
 with the brief's claim step, and startup reading the pointer back. No gate yet.
 
 **Acceptance criteria:**
-- [ ] `server/services/setup/claim.test.ts` (obzorarr's cases, ported): success with its three
+- [x] `server/services/setup/claim.test.ts` (obzorarr's cases, ported): success with its three
   audit entries in the transaction; a field error leaving the token unused; a wrong and an expired
   token never reaching the hash, each audited with its outcome; a second claim; two at once
   leaving one owner and one grant; a field error audited as `invalid`; a failed transaction
   printing a new token, none after shutdown, and audited as `failed` on its own with no entry of
   the grant; a restart reading the pointer back.
-- [ ] `routes/setup/token-format.test.ts` (obzorarr's) and the fragment filled in and removed.
-- [ ] The page meets the brief: checked at 360, 390, 768 and 1440 px, 200% zoom, the keyboard,
+- [x] `routes/setup/token-format.test.ts` (obzorarr's) and the fragment filled in and removed.
+- [x] The page meets the brief: checked at 360, 390, 768 and 1440 px, 200% zoom, the keyboard,
   reduced motion and every state the brief names, in English and Danish, with screenshots and
   Impeccable's finish review in the PR body, and DESIGN.md refreshed if the finish asks.
-- [ ] e2e: the link fills the token; a wrong token refused, keeping the typed username and
+- [x] e2e: the link fills the token; a wrong token refused, keeping the typed username and
   clearing the token and password; the rules list; the language switcher; the right token, upper
   case without dashes, claims and lands on `/`; `/setup` and its action 404, also after a restart;
   neither secret in the output, a response or `audit_log`.

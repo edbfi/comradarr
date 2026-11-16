@@ -820,9 +820,15 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   code the database lacks, named), `security/bootstrap-token.test.ts` (the token's alphabet,
   bias, format, comparison and expiry), `services/setup/first-run.test.ts` (the banner with and
   without `ORIGIN`, each printing audited without the token, renewal at expiry and held during a
-  claim, the token used once, none after stopping or once claimed), `security/password.test.ts`
+  claim, the token used once, a replaced token read as expired, none after stopping or once
+  claimed, a restart reading the step pointer back, an owner row without the pointer still
+  unclaimed), `security/password.test.ts`
   (the username and password rules, the list, hashing, and agreement with the browser's rules on
   every case), `lib/shared/password-rules.test.ts` (the length in code points and each rule),
+  `services/setup/claim.test.ts` (a claim with its three audit entries in its transaction; field
+  errors leaving the token unused; wrong and expired tokens never reaching the hash, each audited
+  with its outcome; a second claim; two at once; a failed transaction printing a new token, none
+  after shutdown, audited as `failed`), `routes/setup/token-format.test.ts` (the token field),
   `services/setup/startup.test.ts` (a bad `ORIGIN` refused before the database URL is read; a
   missing audit code stopping startup; the banner printed and audited; a failed startup's entry
   flushed before the throw; shutdown's order, exit codes and deadline with its bounded flush, no
@@ -856,7 +862,9 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     a JSON caller's refusal in the error format with its request id, and the app's own form and a
     browser's CSP report passing, on `localhost` and on the plain-HTTP host name `app.test`, and
     the bootstrap token's banner before "Listening on", with the token in no log entry, response
-    or audit entry.
+    or audit entry, and the claim: the link filling the token in, a refused token keeping the
+    username, the rules list, the switcher, the right token in upper case without dashes, then
+    `/setup` and its action answering 404, also after a restart.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

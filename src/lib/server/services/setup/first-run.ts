@@ -1,4 +1,5 @@
 import type { Database } from "#lib/server/db/client.ts";
+import { readSetting } from "#lib/server/db/settings.ts";
 import {
 	type BootstrapToken,
 	formatToken,
@@ -8,6 +9,18 @@ import {
 	tokenMatches,
 } from "#lib/server/security/bootstrap-token.ts";
 import { recordAudit } from "#lib/server/services/audit/record.ts";
+
+/**
+ * The settings key of first run's step pointer, stored and compared exactly: the claim writes it,
+ * so a pointer means the instance is claimed, and nothing is inferred from an owner row existing
+ * (SPEC-setup.md, "The step pointer"). The claim is the only step until `two-factor` adds the
+ * next, so the claim moves it straight to `complete`.
+ */
+export const FIRST_RUN_STEP_KEY = "setup.first_run.step";
+export const FIRST_RUN_COMPLETE = "complete";
+
+/** What a typed token did: claimed the instance's token, matched none, or matched an expired one. */
+export type TokenUse = "used" | "wrong" | "expired";
 
 export type FirstRunOptions = {
 	readonly db: Database;
@@ -20,7 +33,10 @@ export type FirstRunOptions = {
 
 /** First run's state, in memory (one process, D19): startup loads it, the claim updates it. */
 let claimed = false;
+let complete = false;
 let token: BootstrapToken | undefined;
+/** The last token a renewal replaced or a claim used, so an old link counts as expired. */
+let previous: BootstrapToken | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let claimsInProgress = 0;
 let renewalWaiting = false;
@@ -32,9 +48,10 @@ let settings: Required<FirstRunOptions> | undefined;
 const toStandardOutput = (banner: string) => process.stdout.write(banner);
 
 /**
- * Loads first run's state at startup and, while the instance is unclaimed, prints a bootstrap
- * token, and a new one every time it expires; once the instance is claimed, none is printed again
- * (SPEC-setup.md, "The bootstrap token"). It returns once the first printing is audited.
+ * Loads first run's state at startup, the step pointer from `settings`, and, while the instance is
+ * unclaimed, prints a bootstrap token, and a new one every time it expires; once the instance is
+ * claimed, none is printed again (SPEC-setup.md, "The bootstrap token"). It returns once the first
+ * printing is audited.
  */
 export async function startFirstRun(options: FirstRunOptions): Promise<void> {
 	stopFirstRun();
@@ -45,8 +62,11 @@ export async function startFirstRun(options: FirstRunOptions): Promise<void> {
 		print: options.print ?? toStandardOutput,
 		lifetimeMs: options.lifetimeMs ?? TOKEN_LIFETIME_MS,
 	};
-	claimed = false;
+	const step = await readSetting(options.db, FIRST_RUN_STEP_KEY);
+	claimed = step !== undefined;
+	complete = step === FIRST_RUN_COMPLETE;
 	token = undefined;
+	previous = undefined;
 	await renewToken();
 }
 
@@ -63,20 +83,35 @@ export function isClaimed(): boolean {
 	return claimed;
 }
 
-/**
- * Checks what someone typed against the current token and, if it matches and is still valid,
- * uses it up, with nothing awaited in between, so two claims can't both use one token.
- */
-export function useToken(entry: string): boolean {
-	if (token === undefined || !isTokenValid(token, Date.now())) return false;
-	if (!tokenMatches(token.value, entry)) return false;
-	token = undefined;
-	return true;
+/** Whether first run is complete, after which its steps answer "not found". */
+export function isFirstRunComplete(): boolean {
+	return complete;
 }
 
-/** Records a claim its transaction committed: the instance is claimed, and no token is printed. */
+/**
+ * Checks what someone typed against the current token and, if it matches and is still valid,
+ * uses it up, with nothing awaited in between, so two claims can't both use one token. A match
+ * with the current token past its lifetime, or with the last one a renewal replaced or a claim
+ * used, is `expired`, so the audit trail can tell an old link from a guess.
+ */
+export function useToken(entry: string): TokenUse {
+	if (token !== undefined && tokenMatches(token.value, entry)) {
+		if (!isTokenValid(token, Date.now())) return "expired";
+		previous = token;
+		token = undefined;
+		return "used";
+	}
+	if (previous !== undefined && tokenMatches(previous.value, entry)) return "expired";
+	return "wrong";
+}
+
+/**
+ * Records a claim its transaction committed: the instance is claimed, and first run complete
+ * while the claim is its only step; no token is printed again.
+ */
 export function markClaimed(): void {
 	claimed = true;
+	complete = true;
 	stopFirstRun();
 }
 
@@ -106,6 +141,7 @@ export async function withClaimInProgress<T>(work: () => Promise<T>): Promise<T>
 async function renewToken(): Promise<void> {
 	if (settings === undefined || claimed || stopped) return;
 	clearTimeout(timer);
+	if (token !== undefined) previous = token;
 	token = issueToken(Date.now(), settings.lifetimeMs);
 	const expiresAt = new Date(token.issuedAt + token.lifetimeMs);
 	settings.print(banner(formatToken(token.value), expiresAt, settings.origin));

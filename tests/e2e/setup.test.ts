@@ -467,6 +467,113 @@ test.describe("the bootstrap token", () => {
 	});
 });
 
+test.describe("the claim", () => {
+	const PASSWORD = "violet harbour lanterns";
+
+	test("the console's link, a refused token, the rules, the switcher, then the claim, which leaves no secret behind and outlives a restart", async ({
+		browser,
+	}) => {
+		const database = await newDatabase();
+		let server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		const context = await browser.newContext({ locale: "en-GB" });
+		const answers: string[] = [];
+		try {
+			const page = await context.newPage();
+			page.on("response", async (response) => {
+				answers.push(
+					`${JSON.stringify(response.headers())}${await response.text().catch(() => "")}`,
+				);
+			});
+			const shown =
+				/Setup token: ([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}) /.exec(server.output())?.[1] ?? "";
+			expect(shown).not.toBe("");
+
+			// The link fills the token in and takes it out of the address bar.
+			await page.goto(`${server.url}/setup#token=${shown}`);
+			await expect(page.locator("html[data-hydrated]")).toBeAttached();
+			await expect(page.locator("#token")).toHaveValue(shown);
+			expect(new URL(page.url()).hash).toBe("");
+
+			// A link opened in a tab already showing the page changes only the fragment: it is
+			// filled in and taken out of the address bar all the same.
+			await page.fill("#token", "");
+			await page.goto(`${server.url}/setup#token=${shown}`);
+			await expect(page.locator("#token")).toHaveValue(shown);
+			await expect.poll(() => new URL(page.url()).hash).toBe("");
+
+			// The rules say what the password meets as it is typed.
+			await page.fill("#username", "owner");
+			await page.fill("#password", "violet");
+			await expect(page.getByText("15 to 128 characters (6 so far)")).toBeVisible();
+
+			// A wrong token is refused: the username stays, the token and the password go.
+			await page.fill("#token", "aaaa-bbbb-cccc");
+			await page.fill("#password", PASSWORD);
+			await page.getByRole("button", { name: "Claim and create owner" }).click();
+			await expect(page.locator("#token-error")).toHaveText(
+				"That setup token isn't valid. Use the newest one printed in the server console.",
+			);
+			await expect(page.locator("#username")).toHaveValue("owner");
+			await expect(page.locator("#token")).toHaveValue("");
+			await expect(page.locator("#password")).toHaveValue("");
+			await expect(page.locator("#token")).toBeFocused();
+
+			// The switcher reloads the page in Danish.
+			await page.getByRole("button", { name: "Dansk" }).click();
+			await expect(page.locator("h1")).toHaveText("Tag denne Comradarr i brug");
+
+			// The right token, in upper case without dashes, claims and lands on /.
+			await page.fill("#token", shown.replaceAll("-", "").toUpperCase());
+			await page.fill("#username", "owner");
+			await page.fill("#password", PASSWORD);
+			await page.getByRole("button", { name: "Tag i brug og opret ejer" }).click();
+			await page.waitForURL(`${server.url}/`);
+
+			// The claim no longer exists: the page and its action answer 404.
+			expect((await fetch(`${server.url}/setup`)).status).toBe(404);
+			const action = await fetch(`${server.url}/setup`, {
+				method: "POST",
+				headers: { origin: server.url, "content-type": "application/x-www-form-urlencoded" },
+				body: "token=x&username=y&password=z",
+			});
+			expect(action.status).toBe(404);
+
+			// After a restart too, and no token is printed. The first server's whole log, its
+			// shutdown included, is kept for the secrets check below.
+			await server.stop();
+			const firstLog = logEntries(server.output());
+			server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+			expect(server.output()).not.toContain("Comradarr setup");
+			expect((await fetch(`${server.url}/setup`)).status).toBe(404);
+
+			// Neither secret anywhere: not in a log entry, a response or the audit trail.
+			const sql = new SQL(database.url);
+			const entries = [...(await sql`select action, actor, context from audit_log order by id`)];
+			await sql.close();
+			expect(entries.map((entry) => entry.action)).toEqual([
+				"setup.token_printed",
+				"setup.claim_attempted",
+				"setup.claim_attempted",
+				"setup.owner_created",
+				"setup.first_run_completed",
+			]);
+			const token = shown.replaceAll("-", "");
+			for (const [where, text] of [
+				["a log entry", JSON.stringify([...firstLog, ...logEntries(server.output())])],
+				["a response", answers.join("\n")],
+				["the audit trail", JSON.stringify(entries)],
+			] as const) {
+				expect(text.includes(token), `the token in ${where}`).toBe(false);
+				expect(text.includes(shown), `the shown token in ${where}`).toBe(false);
+				expect(text.includes(PASSWORD), `the password in ${where}`).toBe(false);
+			}
+		} finally {
+			await context.close();
+			await server.stop();
+		}
+	});
+});
+
 test.describe("the cross-origin check", () => {
 	const REFUSAL_POLICY =
 		"default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
