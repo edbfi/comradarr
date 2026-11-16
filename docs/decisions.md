@@ -123,6 +123,29 @@ Logs are structured, one entry per line, written to standard output. The library
 
 Why: the container runtime collects stdout; structured lines can be filtered without parsing prose.
 
+### D15. The Drizzle pair on Bun SQL
+
+`drizzle-orm` 0.45.4 and `drizzle-kit` 0.31.11, the newest stable releases (D25), with
+`drizzle-orm/bun-sql` on Bun's built-in `SQL` client, passed D5's validation in `setup` with no
+`node`, `npm` or `npx` on `PATH`. `package.json` holds the current versions, and the tests below
+rerun on every update:
+- **Migrations:** Drizzle Kit generates them into `drizzle/`. The built server applies them from its
+  own bundle: Vite imports each migration and Drizzle Kit's journal as text, and `db/migrate.ts`
+  applies the pending ones in one transaction, keeping Drizzle's own bookkeeping
+  (`drizzle.__drizzle_migrations`), so that a failure names its migration. `db/migrate.test.ts`
+  compares its records with Drizzle's own migrator's on every run, and a second start applies
+  nothing.
+- **Type checking** passes with the schema, client and migrator.
+- **The production build** needs no `node_modules`: Bun's PostgreSQL client is built in, and
+  Drizzle is bundled, so `bun --no-install ./build` from a folder holding only `build/` migrates
+  and serves.
+- **Rollback isolation:** a transaction that rolls back leaves a concurrent, unrelated write in
+  place (`db/client.test.ts`).
+
+Why: D25 rules out a release candidate, and the stable pair has every part D5 needs. Applying the
+migrations in the app instead of through Drizzle's folder migrator keeps `drizzle/` out of the
+deployment and lets startup name a failed migration.
+
 ### D17. PostgreSQL in its own container; the app creates its roles
 
 PostgreSQL runs as its own service, never inside the app image (D4). The documented Docker Compose
@@ -371,12 +394,6 @@ generated client.
 
 The logging library (D12) and the concrete job lifecycle implementation (D8) aren't chosen. Close
 before the first background job lands.
-
-### D15. Drizzle versions for Bun SQL
-
-The exact Drizzle ORM and Drizzle Kit pair for `drizzle-orm/bun-sql` is still to be chosen and
-validated in the app: migrations, type checking and production builds. Closes with the first
-database module.
 
 ### D16. Privilege matrix and append-only audit
 

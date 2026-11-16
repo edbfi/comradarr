@@ -86,11 +86,38 @@ backups, apart from the database, and restore the database with the key it was w
 Without it, stored secrets can't be read. The key also derives the passwords of the database
 roles Comradarr creates; it sets those again when it starts, so they need no backup of their own.
 
+## Database
+
+Comradarr keeps its data in PostgreSQL 16 or later, run as its own service: a container next to
+Comradarr, or a server you already have. Give Comradarr one database and a role that owns it and
+may create roles; at every start Comradarr migrates that database with it.
+
+Set exactly one of these variables, as for the master key:
+
+| Variable | Holds |
+| --- | --- |
+| `COMRADARR_DATABASE_URL` | the owner role's URL, such as `postgres://comradarr:<password>@db:5432/comradarr` |
+| `COMRADARR_DATABASE_URL_FILE` | the path of a file holding that URL, such as a Docker or Compose secret |
+
+The URL is a secret: Comradarr never prints the URL or its password; its errors name the variable
+and PostgreSQL's reason. When
+PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
+
 ## Working on it
 
 Start with [AGENTS.md](AGENTS.md): the house rules, the workflow and where each document lives.
 The product and design context is in [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md) and
 [docs/](docs/).
+
+The tests need a PostgreSQL: they start a throwaway one with Docker, or use the server
+`COMRADARR_TEST_DATABASE_URL` names (a role that may create databases and roles). To run the app
+itself, a local PostgreSQL in Docker is enough:
+
+```sh
+docker run -d --name comradarr-db -p 127.0.0.1:5432:5432 \
+  -e POSTGRES_USER=comradarr -e POSTGRES_PASSWORD=comradarr postgres:18
+# then in .env: COMRADARR_DATABASE_URL=postgres://comradarr:comradarr@127.0.0.1:5432/comradarr
+```
 
 ## License
 

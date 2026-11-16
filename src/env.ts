@@ -1,8 +1,9 @@
 import { defineEnvVars, type EnvVarConfig } from "@sveltejs/kit/env";
+import type { DatabaseUrlEnv } from "#lib/server/config/database-url.ts";
 import type { SecretKeyVariable } from "#lib/server/config/secret-key.ts";
 
-// Optional and never throwing: SvelteKit's own validation would otherwise print its own message
-// before `secrets` checks the key (SPEC-secrets.md, "Declaring the variables").
+// Optional and never throwing: SvelteKit's own validation would otherwise print its own message,
+// which may hold a value, before the app checks it (SPEC-secrets.md, "Declaring the variables").
 const optional = (value: string | undefined) => value;
 
 /** Private and read when the app starts, never inlined into the build. */
@@ -15,4 +16,12 @@ export const variables = defineEnvVars({
 		schema: optional,
 		description: "The path of a file holding the master key, such as a Docker secret.",
 	},
-} satisfies Record<SecretKeyVariable, EnvVarConfig<string | undefined>>);
+	COMRADARR_DATABASE_URL: {
+		schema: optional,
+		description: "The URL of the PostgreSQL role that owns Comradarr's database (D17).",
+	},
+	COMRADARR_DATABASE_URL_FILE: {
+		schema: optional,
+		description: "The path of a file holding the database URL, such as a Docker secret.",
+	},
+} satisfies Record<SecretKeyVariable | keyof DatabaseUrlEnv, EnvVarConfig<string | undefined>>);
