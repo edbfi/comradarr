@@ -111,6 +111,23 @@ so there is nothing to store: a new key sets new passwords at the next start. If
 role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
 
+## First run
+
+Until its owner claims it, Comradarr prints a setup token to its console output (`docker logs`, for
+a container) when it starts:
+
+```text
+==================== Comradarr setup ====================
+Setup token: abcd-1234-wxyz (valid until 2026-11-16 14:45:00 UTC)
+Open /setup#token=abcd-1234-wxyz at the address you reach Comradarr at, to claim it.
+This output is a setup secret: don't paste it into chats or issue trackers.
+=========================================================
+```
+
+With `ORIGIN` set, the link is a full address. A token lasts 15 minutes, and a new one is printed
+when it expires and at every start. Anyone who can read this output can claim a new Comradarr, so
+keep it to yourself. The token appears only in this banner, never in Comradarr's JSON log entries.
+
 ## Health
 
 `/healthz` answers without signing in, for a container's health check: `{"status":"healthy",

@@ -8,6 +8,8 @@ import { checkOwnerRole } from "#lib/server/db/preflight.ts";
 import { setUpRoles } from "#lib/server/db/roles.ts";
 import { configureLogging, createLogger, flushLogs } from "#lib/server/logging/logger.ts";
 import { currentKeyring, loadKeyring } from "#lib/server/security/secrets/keyring.ts";
+import { checkAuditActions } from "#lib/server/services/audit/actions.ts";
+import { startFirstRun, stopFirstRun } from "./first-run.ts";
 
 /** Every variable startup reads. */
 export type StartupEnv = SecretKeyEnv & DatabaseUrlEnv & LogDebugEnv & OriginEnv;
@@ -34,8 +36,8 @@ let origin: string | undefined;
 
 /**
  * Runs startup's steps in order, before any request is served (SPEC-setup.md, "Startup and
- * shutdown"): the master key, the configuration, then the database. A step that fails is logged,
- * then thrown, so the built server exits before it listens.
+ * shutdown"): the master key, the configuration, the database, then first run. A step that fails
+ * is logged, then thrown, so the built server exits before it listens.
  */
 export async function startUp(env: StartupEnv, options: { dev: boolean }): Promise<void> {
 	try {
@@ -51,7 +53,9 @@ export async function startUp(env: StartupEnv, options: { dev: boolean }): Promi
 	// the app's handlers, which would swallow it; until then, Bun's default ends the process. `dev`
 	// gets none: Vite never emits `sveltekit:shutdown`, and a `SIGINT` listener would stop Ctrl+C
 	// from ending it.
-	if (!options.dev) setImmediate(() => handleShutdown(process, closeServices));
+	if (!options.dev) {
+		setImmediate(() => handleShutdown(process, closeServices, { stopWork: stopFirstRun }));
+	}
 }
 
 /**
@@ -106,11 +110,12 @@ export function handleShutdown(
 }
 
 /**
- * Closes what startup opened, then flushes the logs, so an error written while closing reaches the
- * output. A failed close is logged rather than thrown: the stop still exits 0 (SPEC-setup.md,
- * "Startup and shutdown"). Calling it again does nothing more.
+ * Closes what startup opened, the token's timer included, then flushes the logs, so an error
+ * written while closing reaches the output. A failed close is logged rather than thrown: the stop
+ * still exits 0 (SPEC-setup.md, "Startup and shutdown"). Calling it again does nothing more.
  */
 export async function closeServices(): Promise<void> {
+	stopFirstRun();
 	const db = database;
 	database = undefined;
 	try {
@@ -128,8 +133,8 @@ async function runSteps(env: StartupEnv): Promise<void> {
 	configureLogging({ debug: readLogDebug(env) });
 	origin = readOrigin(env);
 	const { url, variable } = await readDatabaseUrl(env);
-	// 3. The database (D17): as the owner role, the pre-flight check, the migrations and the
-	// roles; the owner role's pool closes, and requests use the app role's.
+	// 3. The database (D17): as the owner role, the pre-flight check, the migrations, the roles
+	// and the audit actions; the owner role's pool closes, and requests use the app role's.
 	const owner = await openDatabase(url, { variable });
 	let app: { name: string; password: string };
 	try {
@@ -137,6 +142,7 @@ async function runSteps(env: StartupEnv): Promise<void> {
 		await migrateDatabase(owner);
 		const passwords = currentKeyring().rolePasswords;
 		await setUpRoles(owner, context, passwords);
+		await checkAuditActions(owner);
 		app = { name: context.names.app, password: passwords.app.reveal() };
 	} finally {
 		await owner.$client.close();
@@ -145,6 +151,8 @@ async function runSteps(env: StartupEnv): Promise<void> {
 		variable,
 		as: `the app role "${app.name}"`,
 	});
+	// 4. Each module's startup work: `setup` prints the bootstrap token while unclaimed.
+	await startFirstRun({ db: database, origin });
 }
 
 /** The browser's address from `ORIGIN`, which startup checked, or undefined when it is unset. */

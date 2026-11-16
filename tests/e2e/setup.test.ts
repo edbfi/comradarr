@@ -224,10 +224,14 @@ test.describe("the logs", () => {
 		} finally {
 			await server.stop();
 		}
+		// The setup banner and adapter-bun's line are console output for whoever runs the server,
+		// not log entries (SPEC-setup.md, "Logging").
 		const lines = server
 			.output()
+			.replace(/^=+ Comradarr setup =+\n[\s\S]*?\n=+\n/m, "")
 			.split("\n")
 			.filter((line) => line.trim() !== "" && !line.startsWith("Listening on"));
+		expect(server.output()).toContain("Comradarr setup");
 
 		for (const line of lines) expect(() => JSON.parse(line), line).not.toThrow();
 		const request = logEntries(server.output()).find(
@@ -417,6 +421,50 @@ test.describe("security headers and the CSP", () => {
 			expect(JSON.stringify(failures[0])).toContain(message);
 		});
 	}
+});
+
+test.describe("the bootstrap token", () => {
+	test("is printed in its banner before the server listens, and never reaches a log entry, a response or the audit trail", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, {
+			COMRADARR_DATABASE_URL: database.url,
+			ORIGIN: "http://comradarr.test",
+		});
+		try {
+			const output = server.output();
+			const shown = /Setup token: ([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}) \(valid until /.exec(
+				output,
+			)?.[1];
+			expect(shown).toBeDefined();
+			const token = shown?.replaceAll("-", "") ?? "";
+			expect(output.indexOf("Comradarr setup")).toBeLessThan(output.indexOf("Listening on"));
+			expect(output).toContain(`Open http://comradarr.test/setup#token=${shown} to claim`);
+
+			const bodies: string[] = [];
+			for (const path of ["/", "/healthz", "/setup", "/no-such-page"]) {
+				const response = await fetch(`${server.url}${path}`, { redirect: "manual" });
+				bodies.push(`${JSON.stringify([...response.headers])}${await response.text()}`);
+			}
+			const sql = new SQL(database.url);
+			const entries = [...(await sql`select action, actor, context from audit_log`)];
+			await sql.close();
+			expect(entries).toEqual([
+				expect.objectContaining({ action: "setup.token_printed", actor: "app" }),
+			]);
+
+			const logged = JSON.stringify(logEntries(server.output()));
+			for (const [where, text] of [
+				["a log entry", logged],
+				["a response", bodies.join("\n")],
+				["the audit trail", JSON.stringify(entries)],
+			] as const) {
+				expect(text.includes(token), `the token in ${where}`).toBe(false);
+				expect(text.includes(shown ?? ""), `the shown token in ${where}`).toBe(false);
+			}
+		} finally {
+			await server.stop();
+		}
+	});
 });
 
 test.describe("the cross-origin check", () => {

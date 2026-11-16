@@ -814,10 +814,18 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   `config/origin.test.ts` (`ORIGIN`'s accepted forms and each refusal), `security/headers.test.ts`
   (the headers over HTTPS, plain HTTP, `localhost` and loopback, and with `ORIGIN`),
   `services/csp-report.test.ts` (a report logged with bounded context, and 204 for anything else, an
-  oversized body read only to the cap), `services/setup/startup.test.ts` (a bad `ORIGIN` refused
-  before the database URL is read; a failed startup's entry flushed before the throw; shutdown's
-  order, exit codes and deadline with its bounded flush, no handlers in `dev`, handlers a turn after
-  `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
+  oversized body read only to the cap), `services/audit/record.test.ts` (an entry's fields, the
+  app's own entries with no request fields, the context redacted, the user agent cut, a failed
+  write logged, and a write that goes with its transaction), `services/audit/actions.test.ts` (a
+  code the database lacks, named), `security/bootstrap-token.test.ts` (the token's alphabet,
+  bias, format, comparison and expiry), `services/setup/first-run.test.ts` (the banner with and
+  without `ORIGIN`, each printing audited without the token, renewal at expiry and held during a
+  claim, the token used once, none after stopping or once claimed),
+  `services/setup/startup.test.ts` (a bad `ORIGIN` refused before the database URL is read; a
+  missing audit code stopping startup; the banner printed and audited; a failed startup's entry
+  flushed before the throw; shutdown's order, exit codes and deadline with its bounded flush, no
+  handlers in `dev`, handlers a turn after `init`, and closing the pool once), and in
+  `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -844,7 +852,9 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     with credentials or a path refused without echoing it, and the cross-origin check: another
     site's form refused with the "Access denied" page in the viewer's language and its own policy,
     a JSON caller's refusal in the error format with its request id, and the app's own form and a
-    browser's CSP report passing, on `localhost` and on the plain-HTTP host name `app.test`.
+    browser's CSP report passing, on `localhost` and on the plain-HTTP host name `app.test`, and
+    the bootstrap token's banner before "Listening on", with the token in no log entry, response
+    or audit entry.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

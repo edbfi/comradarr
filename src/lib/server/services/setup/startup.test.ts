@@ -1,5 +1,9 @@
 import { EventEmitter } from "node:events";
+import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
+import { auditLog } from "#lib/server/db/audit.ts";
+import { openDatabase } from "#lib/server/db/client.ts";
+import { migrateDatabase } from "#lib/server/db/migrate.ts";
 import { createLogger } from "#lib/server/logging/logger.ts";
 import { createDatabase, dropDatabase, type TestDatabase } from "../../../../../tests/database.ts";
 import {
@@ -65,6 +69,43 @@ describe("startUp", () => {
 		);
 
 		expect(failure).toBe("thrown after the write");
+	});
+});
+
+describe("startUp's database", () => {
+	it("stops when the database lacks an audit action code, naming it", async () => {
+		const env = await newEnv();
+		const owner = await openDatabase(env.COMRADARR_DATABASE_URL);
+		try {
+			await migrateDatabase(owner);
+			await owner.execute(
+				sql`alter type audit_action rename value 'setup.first_run_completed' to 'setup.renamed'`,
+			);
+		} finally {
+			await owner.$client.close();
+		}
+
+		const error = await startUp(env, { dev: true }).catch((caught: unknown) => caught);
+
+		expect((error as Error).message).toContain(
+			"the database's audit_action type lacks setup.first_run_completed;",
+		);
+		await closeServices();
+	});
+});
+
+describe("startUp's first run", () => {
+	it("prints the bootstrap token's banner on an unclaimed instance, and audits it as the app role", async () => {
+		await startUp(await newEnv(), { dev: true });
+		try {
+			const banners = lines.filter((line) => line.includes("Comradarr setup"));
+			expect(banners).toHaveLength(1);
+			expect(banners[0]).toMatch(/Setup token: [a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4} \(valid until /);
+			const entries = await currentDatabase().select().from(auditLog);
+			expect(entries).toEqual([expect.objectContaining({ action: "setup.token_printed" })]);
+		} finally {
+			await closeServices();
+		}
 	});
 });
 

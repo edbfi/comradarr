@@ -351,9 +351,19 @@ src/
                                  from Drizzle's wrapper; settings.ts, owner.ts, audit.ts: one
                                  schema per aggregate; parameterised.test.ts: no SQL built from
                                  strings
-      services/setup/startup.ts  startup's steps: the key, the configuration, the database; the
-                                 app role's pool; shutdown on the signals, with its deadline
+      services/setup/startup.ts  startup's steps: the key, the configuration, the database and its
+                                 audit actions; the app role's pool; first run; shutdown on the
+                                 signals, with its deadline
+      services/setup/first-run.ts
+                                 first run's state in memory: the bootstrap token, its banner,
+                                 renewal held during a claim, and each printing audited
+      services/audit/            actions.ts: the action codes, each one's context, and startup's
+                                 check that the database knows them; record.ts: the one writer
+                                 of every entry
       security/headers.ts        the security headers for a request, HSTS only over HTTPS
+      security/bootstrap-token.ts
+                                 the token: drawn without bias, formatted, compared in constant
+                                 time, and its expiry
       security/cross-origin.ts   the cross-origin check: whether a state-changing request came
                                  from the app itself, asking the browser
       security/access-denied.ts  the check's 403: the "Access denied" page, or `access_denied` in
