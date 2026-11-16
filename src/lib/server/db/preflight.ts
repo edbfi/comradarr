@@ -84,7 +84,8 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 		superuser: boolean;
 		createrole: boolean;
 		owns: boolean;
-		controls_public: boolean;
+		/** Null when the database has no public schema. */
+		controls_public: boolean | null;
 	}>(sql`
 		select current_setting('server_version_num')::int as version,
 			current_user as owner,
@@ -92,7 +93,7 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 			r.rolsuper as superuser,
 			r.rolcreaterole as createrole,
 			d.datdba = r.oid as owns,
-			pg_has_role(current_user, (select nspowner from pg_namespace where nspname = 'public'), 'MEMBER')
+			(select pg_has_role(current_user, nspowner, 'USAGE') from pg_namespace where nspname = 'public')
 				as controls_public
 		from pg_roles r, pg_database d
 		where r.rolname = current_user and d.datname = current_database()
@@ -108,6 +109,8 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 	}
 	if (!self.owns && !superuser) {
 		problems.push(`the owner role "${owner}" doesn't own the database "${database}"`);
+	} else if (self.controls_public === null) {
+		problems.push(`the database "${database}" has no public schema, which Comradarr's tables use`);
 	} else if (!self.controls_public && !superuser) {
 		// A database created from a template upgraded from PostgreSQL 14 or older keeps a public
 		// schema that belongs to the old superuser, so the owner role couldn't revoke CREATE on it.
@@ -119,9 +122,11 @@ export async function checkOwnerRole(db: Database): Promise<OwnerContext> {
 
 	const existing = await db.execute<ExistingRole>(sql`
 		select r.rolname, r.rolsuper, r.rolcreatedb, r.rolcreaterole, r.rolreplication, r.rolbypassrls,
-			exists (select 1 from pg_class where relowner = r.oid)
-				or exists (select 1 from pg_namespace where nspowner = r.oid)
-				or exists (select 1 from pg_proc where proowner = r.oid) as owns_objects,
+			exists (
+				select 1 from pg_shdepend
+				where refobjid = r.oid and deptype = 'o'
+					and dbid = (select oid from pg_database where datname = current_database())
+			) as owns_objects,
 			-- Only a direct grant with ADMIN counts: an inherited one would also work on 16, but
 			-- refusing it fails safe, and D17's owner role always holds ADMIN directly.
 			exists (

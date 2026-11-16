@@ -251,6 +251,40 @@ for (const version of [18, 16] as const) {
 			});
 		});
 
+		it("refuses to serve when a column grant it can't revoke would let the app role change audit entries", async () => {
+			const { database, owner, context, passwords } = await setUp(server);
+			const other = `${database.name}_other`;
+			const owners = new SQL(server.adminUrl, { max: 1 });
+			await owners.unsafe(`create role ${quoteIdentifier(other)}`);
+			await owners.close();
+			const admin = new SQL(adminOn(server, database), { max: 1 });
+			await admin.unsafe(`alter table audit_log owner to ${quoteIdentifier(other)}`);
+			await admin.unsafe(`set role ${quoteIdentifier(other)}`);
+			await admin.unsafe(
+				`grant all on audit_log, audit_log_id_seq to ${quoteIdentifier(context.owner)} with grant option`,
+			);
+			await admin.unsafe("grant update (actor) on audit_log to public");
+			await admin.close();
+
+			const error = await setUpRoles(owner, context, passwords).catch((caught: unknown) => caught);
+
+			expect(error).toBeInstanceOf(RoleSetupError);
+			expect((error as Error).message).toBe(
+				`the role "${context.names.app}" has privileges the matrix doesn't give it: UPDATE on audit_log`,
+			);
+			const cleanup = new SQL(adminOn(server, database), { max: 1 });
+			await cleanup.unsafe(`alter table audit_log owner to ${quoteIdentifier(context.owner)}`);
+			await cleanup.unsafe(`revoke all on audit_log from public`);
+			await cleanup.close();
+			const drop = new SQL(server.adminUrl, { max: 1 });
+			await drop.unsafe(`drop owned by ${quoteIdentifier(other)} cascade`).catch(() => {});
+			await drop.close();
+			const dropRole = new SQL(adminOn(server, database), { max: 1 });
+			await dropRole.unsafe(`drop owned by ${quoteIdentifier(other)}`);
+			await dropRole.unsafe(`drop role ${quoteIdentifier(other)}`);
+			await dropRole.close();
+		});
+
 		it("sets a leftover role's expiry and connection limit back, so it can sign in", async () => {
 			const { database, owner, context, passwords } = await setUp(server);
 			const admin = new SQL(server.adminUrl, { max: 1 });

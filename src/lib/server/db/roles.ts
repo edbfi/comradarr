@@ -70,10 +70,13 @@ export async function scramVerifier(password: Secret, iterations = 4096): Promis
 }
 
 /**
- * Creates the app and audit-admin roles when missing and sets their passwords every time, then
- * sets the privileges from the matrix, in one transaction, as the owner role after the pre-flight
- * check and the migrations (D7, D16, D17). It also revokes `PUBLIC`'s `CREATE` on the `public`
- * schema and `TEMPORARY` on the database, which an older or upgraded database may still grant.
+ * Creates the app and audit-admin roles when missing and sets their passwords, expiry and
+ * connection limit every time, then sets the privileges, in one transaction, as the owner role
+ * after the pre-flight check and the migrations (D7, D16, D17). It first revokes from `PUBLIC` and
+ * both roles every privilege on the `public` schema's tables and sequences, `CREATE` on the schema,
+ * and `CREATE` and `TEMPORARY` on the database, which an older or upgraded database or an earlier
+ * grant may have given; then it grants the matrix, and `checkPrivileges` refuses any effective
+ * privilege left beyond it.
  */
 export async function setUpRoles(
 	db: Database,
@@ -175,7 +178,12 @@ export async function checkPrivileges(db: Executor, context: OwnerContext): Prom
 			select t.tablename, p.privilege
 			from pg_tables t cross join (values ${values}) as p(privilege)
 			where t.schemaname = 'public'
-				and has_table_privilege(${name}, format('public.%I', t.tablename), p.privilege)
+				and case
+					-- A column grant gives these too, and has_table_privilege doesn't see one.
+					when p.privilege in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
+						then has_any_column_privilege(${name}, format('public.%I', t.tablename), p.privilege)
+					else has_table_privilege(${name}, format('public.%I', t.tablename), p.privilege)
+				end
 			order by t.tablename, p.privilege
 		`);
 		const extra = tables

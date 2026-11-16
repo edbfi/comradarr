@@ -207,11 +207,13 @@ D17 in practice: the URL names the **owner role**, which owns comradarr's databa
 roles. Startup uses it once, then closes it.
 - **The pre-flight check,** before anything migrates or changes, names every missing requirement
   at once: the server's version, `CREATEROLE` (or superuser), owning the database (needed to create
-  tables in its `public` schema and to grant `CONNECT`), role names that fit PostgreSQL's 63 bytes
-  and differ from the owner role's own name, and, for a role that already exists under one of the
-  two names, that the owner role administers it (on 16, one it created) and that it has no
-  attribute the owner role may not remove (superuser, `CREATEDB`, `CREATEROLE`, replication,
-  `BYPASSRLS`). Each refusal names the role.
+  tables in its `public` schema and to grant `CONNECT`), control of the `public` schema (a database
+  made from a template upgraded from PostgreSQL 14 or older keeps one the old superuser owns; the
+  refusal names the fix), role names that fit PostgreSQL's 63 bytes and differ from the owner
+  role's own name, and, for a role that already exists under one of the two names, that the owner
+  role administers it directly (on 16, one it created), that it has no attribute the owner role may
+  not remove (superuser, `CREATEDB`, `CREATEROLE`, replication, `BYPASSRLS`), owns nothing in the
+  database and belongs to no other role. Each refusal names the role.
 - **The two roles** are named after the database, `<database>_app` and `<database>_audit_admin`
   (`comradarr_app` for a database named `comradarr`), because roles belong to the whole PostgreSQL
   server: a second comradarr on the same server, with its own database and key, must not reset the
@@ -219,20 +221,24 @@ roles. Startup uses it once, then closes it.
   creation, no replication, no row-level-security bypass).
 - **Their passwords** are derived from the master key (D17, D24), one HKDF label per role
   (`edbfi:database-role:v1:app` and `edbfi:database-role:v1:audit-admin`), as 43 characters of
-  base64url. Startup creates a missing role and sets both passwords every time, so a restored
-  database or a new master key needs nothing by hand. A password is sent as a SCRAM-SHA-256
-  verifier computed in the app (a fresh random salt and PostgreSQL's 4096 iterations), never as
-  text, so a server that logs its statements never logs a password (what `psql`'s `\password`
-  does). Verifiers are never logged either.
+  base64url. Startup creates a missing role and sets both passwords every time, with no expiry and
+  no connection limit, so a restored database, a leftover role or a new master key needs nothing by
+  hand. A password is sent as a SCRAM-SHA-256 verifier computed in the app (a fresh random salt and
+  PostgreSQL's 4096 iterations), never as text, so a server that logs its statements never logs a
+  password (what `psql`'s `\password` does). comradarr never logs a verifier either; the server's
+  statement log shows the one sent.
 - **The privileges** (D7, D16) are set after every migration from one matrix in `db/roles.ts`, on
   the tables of the `public` schema only (Drizzle's own migration records stay the owner role's):
   the app role gets exactly `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table, except
   `audit_log`, where it may only insert and read; the audit-admin role may only read and delete
   `audit_log` entries. Neither gets `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN`, a
-  membership in another role, or anything it owns, so neither can change the schema. Startup also
-  revokes `PUBLIC`'s `CREATE` on the `public` schema and `TEMPORARY` on comradarr's database, which
-  an older or upgraded database may still grant. A table a later migration adds gets the app role's
-  privileges without a new rule.
+  membership in another role, or anything it owns, so neither can change the schema. Before
+  granting, startup revokes from `PUBLIC` and both roles every privilege on the `public` schema's
+  tables and sequences, `CREATE` on the schema, and `CREATE` and `TEMPORARY` on comradarr's
+  database, which an older or upgraded database or an earlier grant may have given. After
+  granting, it reads the roles' effective privileges (column grants included) and refuses to serve
+  if either has one the matrix doesn't give, such as a grant another table owner made. A table a
+  later migration adds gets the app role's privileges without a new rule.
 - **At runtime** requests and jobs use the app role's pool, built from the owner URL with the user
   and password replaced, so host, port and TLS parameters carry over. `audit-log`'s retention sweep
   later connects as the audit-admin role on a short connection of its own. Each role logs in
