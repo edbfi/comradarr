@@ -822,9 +822,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   without `ORIGIN`, each printing audited without the token, renewal at expiry and held during a
   claim, the token used once, a replaced token read as expired, none after stopping or once
   claimed, a restart reading the step pointer back, an owner row without the pointer still
-  unclaimed, the gate's decision for each path and its answer to a page and to a JSON caller), `security/password.test.ts`
-  (the username and password rules, the list, hashing, and agreement with the browser's rules on
-  every case), `lib/shared/password-rules.test.ts` (the length in code points and each rule),
+  unclaimed, the gate's decision for each path and its answer to a page and to a JSON caller),
+  `security/password.test.ts` (the username and password rules, the list, hashing, and agreement
+  with the browser's rules on every case), `lib/shared/password-rules.test.ts` (the length in code
+  points and each rule),
   `services/setup/claim.test.ts` (a claim with its three audit entries in its transaction; field
   errors leaving the token unused; wrong and expired tokens never reaching the hash, each audited
   with its outcome; a second claim; two at once; a failed transaction printing a new token, none

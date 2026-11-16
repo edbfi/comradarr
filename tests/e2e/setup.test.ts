@@ -72,8 +72,9 @@ async function startServer(cwd: string, env: Record<string, string>): Promise<Se
 /**
  * Claims a fresh server's instance with the token its banner printed, through the form's action
  * as a browser without script would, so a test of a page doesn't silently test the setup gate.
+ * `origin` is the browser's address: `ORIGIN` when the server has one.
  */
-async function claimServer(server: Server): Promise<void> {
+async function claimServer(server: Server, origin = server.url): Promise<void> {
 	const token = /Setup token: ([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}) /.exec(server.output())?.[1];
 	if (token === undefined) throw new Error(`no setup token in:\n${server.output()}`);
 	const response = await fetch(`${server.url}/setup`, {
@@ -81,7 +82,7 @@ async function claimServer(server: Server): Promise<void> {
 		redirect: "manual",
 		// A page's Accept: with fetch's `*/*`, SvelteKit answers as to `enhance`, in JSON with a 200.
 		headers: {
-			origin: server.url,
+			origin,
 			accept: "text/html",
 			"content-type": "application/x-www-form-urlencoded",
 		},
@@ -240,8 +241,8 @@ test.describe("the logs", () => {
 	test("are JSON lines, with one line per request carrying its id", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		try {
+			await claimServer(server);
 			await fetch(`${server.url}/?page=2`);
 		} finally {
 			await server.stop();
@@ -329,8 +330,8 @@ test.describe("security headers and the CSP", () => {
 	test("every response that passes through handle carries them, with no HSTS over plain HTTP and no server banner", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		try {
+			await claimServer(server);
 			const statuses: Record<string, number> = {};
 			for (const path of ["/", "/healthz", "/no-such-page"]) {
 				const response = await fetch(`${server.url}${path}`, { redirect: "manual" });
@@ -354,8 +355,8 @@ test.describe("security headers and the CSP", () => {
 	}) => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		try {
+			await claimServer(server);
 			const response = await fetch(`${server.url}/`);
 			const policy = response.headers.get("content-security-policy") ?? "";
 			const html = await response.text();
@@ -505,16 +506,24 @@ test.describe("the bootstrap token", () => {
 			expect(output).toContain(`Open http://comradarr.test/setup#token=${shown} to claim`);
 
 			const bodies: string[] = [];
-			for (const path of ["/", "/healthz", "/setup", "/no-such-page"]) {
+			const read = async (path: string) => {
 				const response = await fetch(`${server.url}${path}`, { redirect: "manual" });
 				bodies.push(`${JSON.stringify([...response.headers])}${await response.text()}`);
-			}
+				return response.status;
+			};
+			await read("/healthz");
+			await read("/setup");
 			const sql = new SQL(database.url);
 			const entries = [...(await sql`select action, actor, context from audit_log`)];
 			await sql.close();
 			expect(entries).toEqual([
 				expect.objectContaining({ action: "setup.token_printed", actor: "app" }),
 			]);
+			// The gate answers every other page with an empty redirect: claimed, they serve their
+			// real bodies, a page and a 404, to search.
+			await claimServer(server, "http://comradarr.test");
+			expect(await read("/")).toBe(200);
+			expect(await read("/no-such-page")).toBe(404);
 
 			const logged = JSON.stringify(logEntries(server.output()));
 			for (const [where, text] of [
@@ -661,9 +670,9 @@ test.describe("the cross-origin check", () => {
 	}) => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		const context = await browser.newContext({ locale: "da-DK" });
 		try {
+			await claimServer(server);
 			const page = await context.newPage();
 			const response = await postFromAnotherSite(page, `${server.url}/`);
 			expect(response.status()).toBe(403);
@@ -684,8 +693,8 @@ test.describe("the cross-origin check", () => {
 	test("on localhost, a same-origin POST without Sec-Fetch headers passes, and a JSON caller from another site gets the error format with its request id", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		try {
+			await claimServer(server);
 			const url = server.url.replace("127.0.0.1", "localhost");
 			const own = await fetch(`${url}/`, {
 				method: "POST",
@@ -722,13 +731,13 @@ test.describe("the cross-origin check", () => {
 	test("on a plain-HTTP host name that isn't loopback, the app's own form and a CSP report pass and another site's form is refused", async () => {
 		const database = await newDatabase();
 		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		await claimServer(server);
 		// Chromium sends no Sec-Fetch headers to app.test over plain HTTP, so the check compares
 		// Origin with Host there.
 		const browser = await chromium.launch({
 			args: ["--host-resolver-rules=MAP app.test 127.0.0.1"],
 		});
 		try {
+			await claimServer(server);
 			const page = await browser.newPage();
 			const appUrl = server.url.replace("127.0.0.1", "app.test");
 			await page.goto(`${appUrl}/`);
