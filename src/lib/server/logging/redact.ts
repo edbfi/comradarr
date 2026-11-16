@@ -91,12 +91,20 @@ const TOKEN_RUN = /[A-Za-z0-9_.-]+/g;
 
 /**
  * Whether a run is shaped like a secret: a stored ciphertext (`v1.<key id>.<nonce>.<ciphertext>`,
- * SPEC-secrets.md), or holds a three-part token such as a JWT, three dot-separated parts of at
- * least 16 characters in a row, long enough that host names and versions never match.
+ * SPEC-secrets.md); a JWT, three parts whose first starts with `eyJ` (every JWT header is
+ * base64url JSON, `{"`), however short its payload; or another three-part token, three parts of
+ * 16 characters or more in a row in a run with capitals and small letters, as base64url has. Host
+ * names have no capitals, so one with three long labels is kept: it is the part of a "can't
+ * connect" line an operator needs.
  */
 function secretShaped(run: string): boolean {
 	const parts = run.split(".");
 	if (parts.length === 4 && parts[0] === "v1" && parts[1]?.length === 22) return true;
+	for (let index = 0; index + 2 < parts.length; index++) {
+		const header = parts[index] as string;
+		if (header.startsWith("eyJ") && header.length >= 10 && parts[index + 1] !== "") return true;
+	}
+	if (!/[A-Z]/.test(run) || !/[a-z]/.test(run)) return false;
 	let long = 0;
 	for (const part of parts) {
 		long = part.length >= 16 ? long + 1 : 0;

@@ -13,6 +13,22 @@ export type RequestLine = {
 	readonly clientAddress: string;
 };
 
+/**
+ * The status and size the client gets. SvelteKit turns a 200 whose `ETag` matches the request's
+ * `If-None-Match` (a `W/` prefix ignored) into a 304 with no body after `handle` returns, so the
+ * line follows the same rule (`@sveltejs/kit`, `runtime/server/respond.js`).
+ */
+export function sentStatusAndSize(
+	ifNoneMatch: string | null,
+	response: Response,
+): { status: number; size: number | undefined } {
+	const etag = response.headers.get("etag");
+	const asked = ifNoneMatch?.startsWith('W/"') ? ifNoneMatch.slice(2) : ifNoneMatch;
+	if (response.status === 200 && etag !== null && asked === etag) return { status: 304, size: 0 };
+	const length = response.headers.get("content-length");
+	return { status: response.status, size: length === null ? undefined : Number(length) };
+}
+
 /** The URL's path with its parameters' names but none of their values. */
 export function pathWithoutValues(url: URL): string {
 	const names = [...url.searchParams.keys()];

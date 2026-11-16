@@ -238,6 +238,30 @@ test.describe("the logs", () => {
 		expect(request?.requestId).toMatch(/^[0-9a-f-]{36}$/);
 	});
 
+	test("log a conditional request SvelteKit answers with 304 as a 304 with no body", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		let etag: string | null = null;
+		let second = 0;
+		try {
+			etag = (await fetch(`${server.url}/?first`)).headers.get("etag");
+			const again = await fetch(`${server.url}/?second`, {
+				headers: { "if-none-match": etag ?? "" },
+			});
+			second = again.status;
+		} finally {
+			await server.stop();
+		}
+		const line = logEntries(server.output()).find(
+			(entry) =>
+				entry.message === "request" && (entry.metadata as { path: string }).path === "/?second=",
+		);
+
+		expect(etag).not.toBeNull();
+		expect(second).toBe(304);
+		expect(line?.metadata).toMatchObject({ status: 304, size: 0 });
+	});
+
 	test("hold no password, verifier or database URL from startup", async () => {
 		const database = await newDatabase();
 		const key = crypto.getRandomValues(new Uint8Array(32)).toBase64();

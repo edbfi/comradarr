@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLogging } from "./logger.ts";
-import { logRequest, pathWithoutValues } from "./request-line.ts";
+import { logRequest, pathWithoutValues, sentStatusAndSize } from "./request-line.ts";
 
 let lines: string[];
 
@@ -67,5 +67,28 @@ describe("logRequest", () => {
 		configureLogging({ debug: true });
 		logRequest({ ...request, url: new URL("http://x/healthz") });
 		expect(entries()).toEqual([expect.objectContaining({ level: "debug", message: "request" })]);
+	});
+});
+
+describe("sentStatusAndSize", () => {
+	const ok = (headers: Record<string, string>) => new Response("body", { status: 200, headers });
+
+	it("is the response's own, with its declared size, when there is no matching ETag", () => {
+		expect(sentStatusAndSize(null, ok({ "content-length": "4" }))).toEqual({
+			status: 200,
+			size: 4,
+		});
+		expect(sentStatusAndSize('"b"', ok({ etag: '"a"', "content-length": "4" }))).toEqual({
+			status: 200,
+			size: 4,
+		});
+	});
+
+	it("is a 304 with no body when If-None-Match names the ETag, as SvelteKit answers it", () => {
+		expect(sentStatusAndSize('"a"', ok({ etag: '"a"', "content-length": "4" }))).toEqual({
+			status: 304,
+			size: 0,
+		});
+		expect(sentStatusAndSize('W/"a"', ok({ etag: '"a"' }))).toEqual({ status: 304, size: 0 });
 	});
 });

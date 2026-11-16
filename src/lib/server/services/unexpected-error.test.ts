@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { reportUnexpectedError } from "./unexpected-error.ts";
+import { answerCaughtError, reportUnexpectedError } from "./unexpected-error.ts";
 
 let lines: string[];
 
@@ -39,5 +39,32 @@ describe("reportUnexpectedError", () => {
 		expect((entry.metadata as { error: { message: string } }).error.message).toBe(
 			"fetch http://[redacted]@db.internal/x failed",
 		);
+	});
+});
+
+describe("answerCaughtError", () => {
+	const url = new URL("http://x/missing");
+
+	it("leaves an error the app or SvelteKit raised unlogged, adding only the request id", () => {
+		expect(answerCaughtError({ kind: "framework", error: {}, requestId: "req-1", url })).toEqual({
+			requestId: "req-1",
+		});
+		expect(answerCaughtError({ kind: "app", error: {}, requestId: "req-2", url })).toEqual({
+			requestId: "req-2",
+		});
+		expect(lines).toEqual([]);
+	});
+
+	it("reports an unknown error, and makes up an id when the request has none", () => {
+		const answer = answerCaughtError({
+			kind: "unknown",
+			error: new Error("boom"),
+			requestId: undefined,
+			url,
+		});
+
+		expect(answer.requestId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(lines).toHaveLength(1);
+		expect(JSON.parse(lines[0] as string)).toMatchObject({ requestId: answer.requestId });
 	});
 });

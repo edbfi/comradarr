@@ -77,6 +77,9 @@ describe("redact", () => {
 			["encoded values behind semicolons", (size) => `/x?${"a=%3F;".repeat(size)}`],
 			// Splitting a name into words must not backtrack through a run of capitals.
 			["a parameter name in capitals", (size) => `/x?${"A".repeat(size)}=1`],
+			["argon2 prefixes again and again", (size) => "$argon2i".repeat(size)],
+			["long dotted parts", (size) => `${"Ab".repeat(8)}.`.repeat(size)],
+			["JWT headers without a payload", (size) => "eyJhbGciOi.".repeat(size)],
 		])("scans %s in linear time", { retry: 2 }, (_, input) => {
 			const smallText = input(5_000);
 			const largeText = input(40_000);
@@ -249,6 +252,20 @@ describe("redact", () => {
 			expect(redact({ column: stored })).toEqual({ column: R });
 		});
 
+		it("redacts a signed JWT whose payload is short", async () => {
+			const jwt = await signedToken({ sub: "1" });
+
+			expect(jwt.split(".")[1]?.length).toBeLessThan(16);
+			expect(redact(`token ${jwt} refused`)).toBe(`token ${R} refused`);
+		});
+
+		it("keeps a host name with three long labels, which has no capitals", () => {
+			const text =
+				"connect ECONNREFUSED comradarr-postgres-01.production-cluster.internal-services:5432";
+
+			expect(redact(text)).toBe(text);
+		});
+
 		it("keeps host names, versions and ordinary dotted text", () => {
 			const text = "sonarr.media.home.arpa answered 4.0.15.2941 at 2026-11-16T10:00:00.000Z";
 
@@ -310,3 +327,15 @@ describe("redact", () => {
 		});
 	});
 });
+
+/** An HS256 JWT signed with a key made for the test, as a client would send one. */
+async function signedToken(payload: Record<string, unknown>): Promise<string> {
+	const encode = (value: unknown) =>
+		new TextEncoder()
+			.encode(JSON.stringify(value))
+			.toBase64({ alphabet: "base64url", omitPadding: true });
+	const body = `${encode({ alg: "HS256", typ: "JWT" })}.${encode(payload)}`;
+	const key = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+	const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+	return `${body}.${new Uint8Array(signature).toBase64({ alphabet: "base64url", omitPadding: true })}`;
+}
