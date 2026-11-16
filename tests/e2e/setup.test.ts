@@ -128,14 +128,22 @@ function logEntries(output: string): Record<string, unknown>[] {
 
 /**
  * Runs a PostgreSQL client tool, `pg_dump` or `psql`, with `args` and `input` on its standard
- * input: the one on PATH, or else the `postgres:18` image's, on the host's network so it reaches
- * the tests' servers on 127.0.0.1. Its standard output, or a throw with what it printed.
+ * input, as the README runs it: from the `postgres:18` image, on the host's network so it reaches
+ * the tests' servers on 127.0.0.1. Without Docker, the one on PATH, if it is version 18 or later:
+ * an older `pg_dump` refuses a newer server. Its standard output, or a throw with what it printed.
  */
 function postgresTool(tool: "pg_dump" | "psql", args: string[], input?: string): string {
-	const command =
-		Bun.which(tool) !== null
-			? [tool, ...args]
-			: ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args];
+	const docker = Bun.spawnSync(["docker", "info"], { stdout: "ignore", stderr: "ignore" }).success;
+	if (!docker) {
+		const version = Bun.spawnSync([tool, "--version"], { stdout: "pipe", stderr: "ignore" });
+		const major = Number(/ (\d+)/.exec(version.stdout.toString())?.[1] ?? 0);
+		if (!version.success || major < 18) {
+			throw new Error(`the restore test needs Docker, or ${tool} 18 or later on PATH`);
+		}
+	}
+	const command = docker
+		? ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args]
+		: [tool, ...args];
 	const result = Bun.spawnSync(command, {
 		stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
 		stdout: "pipe",
@@ -706,13 +714,20 @@ test.describe("backup and restore (D18)", () => {
 			target.adminUrl,
 			target.containerId === undefined ? undefined : database.name.slice("t_".length),
 		);
+		const admin = new SQL(target.adminUrl, { max: 1 });
+		const inRestored = new URL(target.adminUrl);
+		inRestored.pathname = `/${restored.name}`;
+		const adminThere = new SQL(inRestored.toString(), { max: 1 });
 		let server: Awaited<ReturnType<typeof startServer>> | undefined;
 		try {
-			const admin = new SQL(target.adminUrl, { max: 1 });
 			const before =
 				await admin`select rolname from pg_roles where rolname like ${`${restored.name}_%`}`;
 			expect([...before]).toEqual([]);
-			postgresTool("psql", ["-v", "ON_ERROR_STOP=1", "--quiet", `--dbname=${restored.url}`], dump);
+			postgresTool(
+				"psql",
+				["-v", "ON_ERROR_STOP=1", "--single-transaction", "--quiet", `--dbname=${restored.url}`],
+				dump,
+			);
 
 			server = await startServer(root, {
 				COMRADARR_DATABASE_URL: restored.url,
@@ -730,36 +745,45 @@ test.describe("backup and restore (D18)", () => {
 				`${restored.name}_audit_admin`,
 			]);
 			const app = `${restored.name}_app`;
-			const inRestored = new URL(target.adminUrl);
-			inRestored.pathname = `/${restored.name}`;
-			const adminThere = new SQL(inRestored.toString(), { max: 1 });
+			const auditAdmin = `${restored.name}_audit_admin`;
 			const [privileges] = await adminThere`
-				select has_table_privilege(${app}, 'public.owner', 'SELECT') as owner_read,
-					has_table_privilege(${app}, 'public.audit_log', 'INSERT') as audit_insert,
-					has_table_privilege(${app}, 'public.audit_log', 'UPDATE') as audit_update,
-					has_table_privilege(${app}, 'public.audit_log', 'DELETE') as audit_delete`;
+				select has_table_privilege(${app}, 'public.owner', 'SELECT') as app_owner_read,
+					has_table_privilege(${app}, 'public.audit_log', 'INSERT') as app_audit_insert,
+					has_table_privilege(${app}, 'public.audit_log', 'UPDATE') as app_audit_update,
+					has_table_privilege(${app}, 'public.audit_log', 'DELETE') as app_audit_delete,
+					has_table_privilege(${auditAdmin}, 'public.audit_log', 'SELECT') as admin_audit_read,
+					has_table_privilege(${auditAdmin}, 'public.audit_log', 'DELETE') as admin_audit_delete,
+					has_table_privilege(${auditAdmin}, 'public.audit_log', 'INSERT') as admin_audit_insert,
+					has_table_privilege(${auditAdmin}, 'public.audit_log', 'UPDATE') as admin_audit_update,
+					has_table_privilege(${auditAdmin}, 'public.owner', 'SELECT') as admin_owner_read`;
 			expect(privileges).toEqual({
-				owner_read: true,
-				audit_insert: true,
-				audit_update: false,
-				audit_delete: false,
+				app_owner_read: true,
+				app_audit_insert: true,
+				app_audit_update: false,
+				app_audit_delete: false,
+				admin_audit_read: true,
+				admin_audit_delete: true,
+				admin_audit_insert: false,
+				admin_audit_update: false,
+				admin_owner_read: false,
 			});
-			await adminThere.close();
-			await admin.close();
 
 			// The owner and the audit history came back, read as the app role.
 			const appUrl = new URL(restored.url);
 			appUrl.username = app;
 			appUrl.password = await rolePassword(key, "app");
 			const asApp = new SQL(appUrl.toString(), { max: 1 });
-			const owners = [...(await asApp`select username from owner`)];
-			const restoredHistory = [
-				...(await asApp`select action, actor, context from audit_log order by id`),
-			];
-			await asApp.close();
-			expect(owners).toEqual([{ username: "owner" }]);
-			expect(restoredHistory).toEqual(history);
+			try {
+				expect([...(await asApp`select username from owner`)]).toEqual([{ username: "owner" }]);
+				expect([
+					...(await asApp`select action, actor, context from audit_log order by id`),
+				]).toEqual(history);
+			} finally {
+				await asApp.close();
+			}
 		} finally {
+			await adminThere.close();
+			await admin.close();
 			await server?.stop();
 			if (target.containerId === undefined) await dropDatabase(target.adminUrl, restored);
 			stopPostgres(target);

@@ -13,6 +13,8 @@ project.inlang/cache/
 # Local data
 *.db*
 /data/
+# The Compose example's secrets (README, "Running it with Compose")
+/secrets/
 
 # Test output
 test-results/

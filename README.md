@@ -81,10 +81,9 @@ secrets:
 secret fails with an error saying it was written under another master key. Enter it again, or set
 the old key back, which still reads everything.
 
-**Backups:** back up Comradarr's database with `pg_dump`, keep a copy of the key with your
-backups, apart from the database, and restore the database with the key it was written with.
-Without it, stored secrets can't be read. The key also derives the passwords of the database
-roles Comradarr creates; it sets those again when it starts, so they need no backup of their own.
+**Backups:** keep a copy of the key with your backups, apart from the database, and restore the
+database with the key it was written with: without it, stored secrets can't be read. The commands
+are in [Backups](#backups).
 
 ## Database
 
@@ -120,16 +119,21 @@ next to PostgreSQL 18. In a clone of this repository, build it once:
 bun ci && bun run --bun build
 ```
 
-Then make the three secrets, each in its own file. The database URL repeats the database password:
+Then make the three secrets, each in its own file that only you can read. The database URL repeats
+the database password:
 
 ```sh
-mkdir -p secrets
-openssl rand -base64 32 > secrets/master-key
-openssl rand -hex 24 > secrets/db-password
-printf 'postgres://comradarr:%s@db:5432/comradarr' "$(cat secrets/db-password)" > secrets/database-url
+(
+  umask 077
+  mkdir -p secrets
+  openssl rand -base64 32 > secrets/master-key
+  openssl rand -hex 24 > secrets/db-password
+  printf 'postgres://comradarr:%s@db:5432/comradarr' "$(cat secrets/db-password)" > secrets/database-url
+)
 ```
 
-Keep a copy of `secrets/master-key` with your backups. Save this as `compose.yaml` next to them:
+Keep a copy of `secrets/master-key` with your backups. The clone's `.gitignore` leaves `secrets/` out
+of git. Save this as `compose.yaml` next to them:
 
 ```yaml
 services:
@@ -143,7 +147,9 @@ services:
     volumes:
       - db:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "pg_isready", "--username=comradarr", "--dbname=comradarr"]
+      # Over TCP: the image's temporary server, while it first sets the database up, answers only
+      # on its socket.
+      test: ["CMD", "pg_isready", "--host=127.0.0.1", "--username=comradarr", "--dbname=comradarr"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -190,16 +196,20 @@ needs both: the key derives the passwords of its two database roles and decrypts
 With the Compose example:
 
 ```sh
-docker compose exec -T db pg_dump --no-owner --no-privileges --username=comradarr --dbname=comradarr > comradarr.sql
+docker compose exec -T db pg_dump --no-owner --no-privileges --username=comradarr --dbname=comradarr > comradarr.sql.tmp \
+  && mv comradarr.sql.tmp comradarr.sql
 ```
 
+A failed dump leaves the last good `comradarr.sql` in place.
+
 The dump leaves out the two roles; Comradarr creates them again at its next start. To restore,
-start PostgreSQL on an empty volume, load the dump into its new database, then start Comradarr with
-the same master key:
+start PostgreSQL on an empty volume and wait until it is ready, load the dump into its new database
+in one transaction, so a failure leaves nothing behind, then start Comradarr with the same master
+key:
 
 ```sh
-docker compose up -d db
-docker compose exec -T db psql -v ON_ERROR_STOP=1 --quiet --username=comradarr --dbname=comradarr < comradarr.sql
+docker compose up -d --wait db
+docker compose exec -T db psql -v ON_ERROR_STOP=1 --single-transaction --quiet --username=comradarr --dbname=comradarr < comradarr.sql
 docker compose up -d comradarr
 ```
 

@@ -425,8 +425,8 @@ Not yet validated for this stack: production containers, realistic load, and job
 restart. Hydration is validated: the e2e smoke test waits for the hydrated app in Chromium against
 the built server, with no console errors. So is browser interaction with a real component:
 `i18n.test.ts` presses the language switcher and follows the reload it causes.
-A crash test doesn't prove recovery from power loss or storage faults. Each closes with the work that
-first depends on it.
+A crash test doesn't prove recovery from power loss or storage faults. Each closes with the work
+that first depends on it.
 
 Validated by `setup`: PostgreSQL backup and restore (D17). A dump with `pg_dump --no-owner
 --no-privileges`, restored as a new owner role on a new PostgreSQL with no comradarr roles and
