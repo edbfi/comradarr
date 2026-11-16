@@ -43,8 +43,9 @@ export function clientAddress(event: { getClientAddress: () => string }): string
 }
 
 /**
- * The status SvelteKit answers with when a `handle` stage throws: an `error()` keeps its status and
- * a `redirect()` its 3xx; anything else is a 500.
+ * The status SvelteKit answers a page or endpoint request with when a `handle` stage throws: an
+ * `error()` keeps its status and a `redirect()` its 3xx; anything else is a 500. (A data request's
+ * redirect is answered as a 200 JSON body instead; no stage throws one yet.)
  */
 export function thrownStatus(thrown: unknown): number {
 	if (isHttpError(thrown) || isRedirect(thrown)) return thrown.status;

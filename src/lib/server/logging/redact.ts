@@ -102,7 +102,10 @@ const LONG_HEX = /^[0-9a-f]{16,}$/;
  *   or each lowercase hex. A part is the whole run between dots, so a prefix such as `token-`
  *   joined to it doesn't hide it.
  * Host names are kept: their labels are rarely 22 random characters with both cases, or 16 of hex,
- * and a host is the part of a "can't connect" line an operator needs. One pass over the parts.
+ * and a host is the part of a "can't connect" line an operator needs. A long dotted .NET type name,
+ * as Sonarr, Radarr and Prowlarr put in their errors, is redacted too, which hides text but leaks
+ * nothing; the first provider module that logs one narrows the rule (a digit, `-` or `_` in the
+ * signature, say). One pass over the parts.
  */
 function secretShaped(run: string): boolean {
 	const parts = run.split(".");
