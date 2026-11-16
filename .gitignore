@@ -13,8 +13,9 @@ project.inlang/cache/
 # Local data
 *.db*
 /data/
-# The Compose example's secrets (README, "Running it with Compose")
+# The Compose example's secrets and its backup (README, "Running it with Compose", "Backups")
 /secrets/
+/comradarr.sql*
 
 # Test output
 test-results/

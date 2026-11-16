@@ -196,11 +196,16 @@ needs both: the key derives the passwords of its two database roles and decrypts
 With the Compose example:
 
 ```sh
-docker compose exec -T db pg_dump --no-owner --no-privileges --username=comradarr --dbname=comradarr > comradarr.sql.tmp \
-  && mv comradarr.sql.tmp comradarr.sql
+(
+  umask 077
+  docker compose exec -T db pg_dump --no-owner --no-privileges --username=comradarr --dbname=comradarr > comradarr.sql.tmp \
+    && mv comradarr.sql.tmp comradarr.sql
+)
 ```
 
-A failed dump leaves the last good `comradarr.sql` in place.
+A failed dump leaves the last good `comradarr.sql` in place. The dump holds the owner's password
+hash and the audit history, so only you can read it, and the clone's `.gitignore` leaves it out of
+git.
 
 The dump leaves out the two roles; Comradarr creates them again at its next start. To restore,
 start PostgreSQL on an empty volume and wait until it is ready, load the dump into its new database

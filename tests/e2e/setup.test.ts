@@ -6,6 +6,7 @@ import { chromium, expect, type Page, test } from "@playwright/test";
 import { SQL } from "bun";
 import {
 	createDatabase,
+	dockerAvailable,
 	dropDatabase,
 	startServer as startPostgres,
 	stopServer as stopPostgres,
@@ -128,22 +129,16 @@ function logEntries(output: string): Record<string, unknown>[] {
 
 /**
  * Runs a PostgreSQL client tool, `pg_dump` or `psql`, with `args` and `input` on its standard
- * input, as the README runs it: from the `postgres:18` image, on the host's network so it reaches
- * the tests' servers on 127.0.0.1. Without Docker, the one on PATH, if it is version 18 or later:
- * an older `pg_dump` refuses a newer server. Its standard output, or a throw with what it printed.
+ * input: the one on PATH if it is version 18 or later (an older `pg_dump` refuses a newer server),
+ * otherwise the `postgres:18` image's, as the README runs it, on the host's network so it reaches
+ * the tests' servers on 127.0.0.1. Its standard output, or a throw with what it printed.
  */
 function postgresTool(tool: "pg_dump" | "psql", args: string[], input?: string): string {
-	const docker = Bun.spawnSync(["docker", "info"], { stdout: "ignore", stderr: "ignore" }).success;
-	if (!docker) {
-		const version = Bun.spawnSync([tool, "--version"], { stdout: "pipe", stderr: "ignore" });
-		const major = Number(/ (\d+)/.exec(version.stdout.toString())?.[1] ?? 0);
-		if (!version.success || major < 18) {
-			throw new Error(`the restore test needs Docker, or ${tool} 18 or later on PATH`);
-		}
-	}
-	const command = docker
-		? ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args]
-		: [tool, ...args];
+	let command: string[];
+	if (Bun.which(tool) !== null && majorVersion(tool) >= 18) command = [tool, ...args];
+	else if (dockerAvailable()) {
+		command = ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args];
+	} else throw new Error(`the restore test needs ${tool} 18 or later on PATH, or Docker`);
 	const result = Bun.spawnSync(command, {
 		stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
 		stdout: "pipe",
@@ -151,6 +146,12 @@ function postgresTool(tool: "pg_dump" | "psql", args: string[], input?: string):
 	});
 	if (!result.success) throw new Error(`${tool} failed: ${result.stderr.toString().trim()}`);
 	return result.stdout.toString();
+}
+
+/** The major version a PostgreSQL client tool on PATH reports, or 0 when it reports none. */
+function majorVersion(tool: string): number {
+	const version = Bun.spawnSync([tool, "--version"], { stdout: "pipe", stderr: "ignore" });
+	return Number(/ (\d+)/.exec(version.stdout.toString())?.[1] ?? 0);
 }
 
 /** A database role's password as D17 derives it from `key`, to search the output for. */
