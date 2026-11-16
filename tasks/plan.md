@@ -95,7 +95,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 ### Phase 3: first run
 
 - [x] Task 8: the audit trail and the bootstrap token
-- [ ] Task 9: the owner's credentials
+- [x] Task 9: the owner's credentials
 - [ ] Task 10: the claim at `/setup`
 - [ ] Task 11: the setup gate
 - [ ] Task 12: the Compose example and the restore (D18)

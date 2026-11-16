@@ -269,9 +269,9 @@ first-run state, ported, printed in comradarr's banner and audited at every prin
 and the rules the browser can check moved into `lib/shared/password-rules.ts`.
 
 **Acceptance criteria:**
-- [ ] `server/security/password.test.ts` (obzorarr's, ported, the #337 and #342 cases included).
-- [ ] `lib/shared/password-rules.test.ts`, and a test that the two agree on every case.
-- [ ] The list is obzorarr's file, its source and rebuild recipe named in `password.ts`; gitleaks
+- [x] `server/security/password.test.ts` (obzorarr's, ported, the #337 and #342 cases included).
+- [x] `lib/shared/password-rules.test.ts`, and a test that the two agree on every case.
+- [x] The list is obzorarr's file, its source and rebuild recipe named in `password.ts`; gitleaks
   passes.
 
 **Verification:** the gates.

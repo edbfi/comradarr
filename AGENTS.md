@@ -364,6 +364,9 @@ src/
       security/bootstrap-token.ts
                                  the token: drawn without bias, formatted, compared in constant
                                  time, and its expiry
+      security/password.ts       the owner's username and password checks, the common-password
+                                 list (common-passwords.txt, its source and rebuild recipe named
+                                 here), and argon2id hashing
       security/cross-origin.ts   the cross-origin check: whether a state-changing request came
                                  from the app itself, asking the browser
       security/access-denied.ts  the check's 403: the "Access denied" page, or `access_denied` in
@@ -383,6 +386,8 @@ src/
       i18n/messages.test.ts      the message check: every problem in `messages/*.json`
       errors/problem.ts          the error format: one shape for every error answered in JSON,
                                  its title and detail from `error_<type>_*` in the messages
+      password-rules.ts          the password rules the browser checks as the owner types, which
+                                 security/password.ts applies too
 static/                          served as is (comradarr-icon.svg, also the favicon)
 tests/
   database.ts                    PostgreSQL 18 and 16 for the tests (Docker, or
