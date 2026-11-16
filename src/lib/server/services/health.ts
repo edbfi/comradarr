@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "#lib/server/db/client.ts";
+import { type Database, probeDatabase } from "#lib/server/db/client.ts";
+import { createLogger } from "#lib/server/logging/logger.ts";
 
 /** A component's status, and the overall one: the worst of its components'. */
 export type Status = "healthy" | "degraded" | "unavailable";
@@ -11,6 +11,14 @@ const ORDER: Status[] = ["healthy", "degraded", "unavailable"];
 
 /** How long the database may take to answer before it counts as unavailable. */
 const DATABASE_TIMEOUT_MS = 2000;
+
+const log = createLogger("health");
+
+/**
+ * The database's status as last logged. The log says why it became unavailable, and when it is
+ * back, once each: probes come every few seconds, and each failure would drown the log.
+ */
+let reported: Status = "healthy";
 
 /**
  * Checks each component and returns the overall status, the worst of theirs. `setup` has one, the
@@ -28,21 +36,15 @@ export async function checkHealth(
 	return { status: worst, components };
 }
 
-/** `select 1` on the app role's pool, within the limit. */
 async function databaseStatus(db: Database, timeoutMs: number): Promise<Status> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const timedOut = new Promise<Status>((resolve) => {
-		timer = setTimeout(() => resolve("unavailable"), timeoutMs);
-	});
-	const answered = db.execute(sql`select 1`).then(
-		(): Status => "healthy",
-		(): Status => "unavailable",
-	);
-	try {
-		return await Promise.race([answered, timedOut]);
-	} finally {
-		clearTimeout(timer);
+	const reason = await probeDatabase(db, timeoutMs);
+	const status: Status = reason === undefined ? "healthy" : "unavailable";
+	if (status !== reported) {
+		if (reason === undefined) log.info("the database is back");
+		else log.warn("the database is unavailable", { reason });
+		reported = status;
 	}
+	return status;
 }
 
 /** The `/healthz` answer: 200 while healthy or degraded, 503 once unavailable, never cached. */

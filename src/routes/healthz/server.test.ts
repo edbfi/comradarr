@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("#lib/server/services/setup/startup.ts", () => ({
-	currentDatabase: () => ({ execute: async () => [{ "?column?": 1 }] }),
-}));
+vi.mock("#lib/server/db/client.ts", () => ({ probeDatabase: async () => undefined }));
+vi.mock("#lib/server/services/setup/startup.ts", () => ({ currentDatabase: () => ({}) }));
 
 const { GET } = await import("./+server.ts");
 

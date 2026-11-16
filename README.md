@@ -114,8 +114,9 @@ PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before
 ## Health
 
 `/healthz` answers without signing in, for a container's health check: `{"status":"healthy",
-"components":{"database":"healthy"}}` with 200, or `unavailable` with 503 when the database doesn't
-answer within 2 seconds. It never shows versions, timings or errors; the log says what failed.
+"components":{"database":"healthy"}}` with 200, or `unavailable` with 503 when the database fails
+or doesn't answer within 2 seconds. It never shows versions, timings or errors: the log says why,
+once when the database becomes unavailable and once when it is back.
 
 ## Stopping and the server's limits
 

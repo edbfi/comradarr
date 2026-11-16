@@ -794,7 +794,9 @@ export const GET: RequestHandler = () => healthResponse();
 
 - **Unit (Vitest, `node` environment):** the `/healthz` handler and `services/health.test.ts`
   (healthy, unavailable when the database fails or takes over 2 seconds, 200 or 503, JSON with no
-  version, timing or error, never cached), the `secrets` module (`config/secret-key.test.ts`, and
+  version, timing or error, never cached, and one log entry when the database becomes unavailable
+  and one when it is back), `db/client.test.ts`'s probe (a stalled query cancelled at the limit),
+  the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
   `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
   in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
