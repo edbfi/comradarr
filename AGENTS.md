@@ -276,10 +276,11 @@ owner-approved `docs/SPEC-<id>.md`. Module 1, `secrets`
 ([`docs/SPEC-secrets.md`](docs/SPEC-secrets.md)), is built and ready for consumers. Nothing stores
 a secret yet. Module 2, `i18n` ([`docs/SPEC-i18n.md`](docs/SPEC-i18n.md)), is built: pages are
 served in English or Danish, with a language switcher, number and date formatters, and a check of
-the message files. Module 3, `setup` ([`docs/SPEC-setup.md`](docs/SPEC-setup.md)), is being built
-from [`tasks/todo.md`](tasks/todo.md): startup waits for PostgreSQL, checks the owner role,
-migrates, sets up the app and audit-admin roles with their privileges, and serves as the app
-role.
+the message files. Module 3, `setup` ([`docs/SPEC-setup.md`](docs/SPEC-setup.md)), is built:
+startup migrates PostgreSQL and serves as its own least-privileged role, with redacted JSON logs,
+the security headers, the CSP and the cross-origin check; until its owner claims it at `/setup`
+with the console's bootstrap token, every page goes there, and every claim attempt is audited.
+Module 4, `sign-in`, comes next.
 
 **Commands:** the table in [docs/SPEC.md](docs/SPEC.md#commands); for the master key and the
 database that `dev` and `preview` need, see the README's [Master key](README.md#master-key) and

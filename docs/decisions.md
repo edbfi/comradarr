@@ -173,7 +173,8 @@ the configuration does; the matrix covers every later table without a new rule.
 PostgreSQL runs as its own service, never inside the app image (D4). The documented Docker Compose
 example runs it in a container next to comradarr, and an existing PostgreSQL server works the same
 way. The oldest PostgreSQL major version comradarr accepts is 16, whose `CREATEROLE` gives a role
-control over only the roles it created; the pre-flight check refuses an older server.
+control over only the roles it created, the rule the role set-up relies on; 14 is out of support,
+and 15 would keep a different set of rules to test. The pre-flight check refuses an older server.
 
 - **Before the first start**, the operator supplies two secrets, each as an environment variable or
   a secret file: the master key (D20) and one database URL for a role that owns comradarr's

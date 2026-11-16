@@ -11,7 +11,7 @@ delete process.env.ORIGIN;
 const key = crypto.getRandomValues(new Uint8Array(32)).toBase64();
 
 /**
- * The run's PostgreSQL and the web server's database (SPEC-setup.md, "Testing strategy"). The web
+ * The run's PostgreSQL and the web server's database (SPEC.md, "Testing strategy"). The web
  * server starts before any global setup and this file can't await, so the runner process starts
  * them through a command. Playwright loads this file again in each worker, where
  * `TEST_WORKER_INDEX` is set: the workers inherit the runner's variables instead. The run is
