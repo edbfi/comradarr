@@ -794,24 +794,24 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
 ## Testing strategy
 
 - **Unit (Vitest, `node` environment):** the `/healthz` handler and `services/health.test.ts`
-  (healthy, unavailable when the database fails, 200 or 503, JSON with no version, timing or
-  error, never cached, and one log entry when the database becomes unavailable and one when it is
-  back, a slow older probe never logging a false recovery), `db/client.test.ts`'s probe (a stalled query cancelled at the limit),
-  the `secrets` module (`config/secret-key.test.ts`, and
+  (healthy, unavailable when the database fails, 200 or 503, JSON with no version, timing or error,
+  never cached, and one log entry when the database becomes unavailable and one when it is back, a
+  slow older probe never logging a false recovery), `db/client.test.ts`'s probe (a stalled query
+  cancelled at the limit), the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
-  `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
-  in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
-  the migrations, a failed one, and the records against Drizzle Kit's own migrator's;
+  `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and in
+  `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`, the
+  migrations, a failed one, and the records against Drizzle Kit's own migrator's;
   `preflight.test.ts` and `roles.test.ts`, on PostgreSQL 16 and 18, the owner role's checks, the
   roles, their verifiers and the privilege matrix (D16), a real `pg_hba.conf` rejection and the
   statement log; `parameterised.test.ts`, no SQL built from strings), logging
   (`config/log-debug.test.ts`, and in `logging/`: `redact.test.ts`, every redaction rule on its own
-  and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the
-  entry's shape, the debug switch, the request id across awaits and concurrent requests, and
-  `flushLogs`; `request-line.test.ts`, the request line), `services/unexpected-error.test.ts`
-  (`handleError`), `services/setup/startup.test.ts` (a failed startup's entry flushed before the
-  throw; shutdown's order, exit codes and deadline with its bounded flush, no handlers in `dev`,
-  handlers a turn after `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
+  and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the entry's
+  shape, the debug switch, the request id across awaits and concurrent requests, and `flushLogs`;
+  `request-line.test.ts`, the request line), `services/unexpected-error.test.ts` (`handleError`),
+  `services/setup/startup.test.ts` (a failed startup's entry flushed before the throw; shutdown's
+  order, exit codes and deadline with its bounded flush, no handlers in `dev`, handlers a turn after
+  `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
