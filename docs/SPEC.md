@@ -716,13 +716,14 @@ newest stable release (D25). Every package is a dev dependency, so adapter-bun b
 | Styling | `@pandacss/dev`, `@pandacss/vite` (its Vite plugin), `@pandacss/preset-base` |
 | Primitives | `@ark-ui/svelte` |
 | Translation | `@inlang/paraglide-js` (compiles the messages), `@inlang/plugin-i18next` (reads their i18next JSON v4 files) |
+| Database | `drizzle-orm` (on Bun's built-in `SQL` client), `drizzle-kit` (generates the migrations) |
 | Type check | `svelte-check` |
 | Unit tests | `vitest` (`node` environment); `happy-dom` joins with the first component test |
 | e2e | `@playwright/test` (Chromium) |
 | Lint and format | `@biomejs/biome` |
 
-The database is PostgreSQL as a separate service through Drizzle and Bun SQL (D5). It arrives with
-`setup`, not here; it runs in its own container, and the app creates its own roles (D17).
+The database is PostgreSQL 16 or later, a separate service reached through Drizzle and Bun SQL (D5,
+D15); it runs in its own container, and the app creates its own roles (D17).
 
 Setup facts for this stack:
 - SvelteKit 3 is configured through its Vite plugin (`vite.config.ts`); there's no
@@ -747,12 +748,13 @@ Setup facts for this stack:
 | Command | Does |
 |---|---|
 | `bun ci` | frozen install; `prepare` runs `svelte-kit sync`, the message compile and Panda codegen |
-| `bun run --bun dev` | Vite dev server; needs a key in `.env` or the environment, and without one every request fails with the key error |
+| `bun run --bun dev` | Vite dev server; needs a key and `COMRADARR_DATABASE_URL` in `.env` or the environment (README, "Database"), and without them every request fails with the startup error |
 | `bun run --bun build` | production build through adapter-bun into `build/`; needs no key and never embeds one |
-| `bun run --bun preview` | runs the built server (`bun ./build`; `PORT`, default 3000, and `HOST`); without a valid key it exits before listening |
+| `bun run --bun preview` | runs the built server (`bun ./build`; `PORT`, default 3000, and `HOST`); without a valid key or a reachable database it exits before listening |
 | `bun run --bun check` | `svelte-kit sync`, the message compile, Panda codegen, then `svelte-check` failing on any error or warning |
-| `bun run --bun test` | Vitest unit tests, once (no watch) |
-| `bun run --bun smoke` | Playwright e2e: the browser smoke test, the language tests and the startup tests, with a key it generates, never a developer's `.env` or exported key; it starts the built server, so `build` comes first, and Chromium comes from `bunx --bun playwright install chromium` |
+| `bun run --bun test` | Vitest unit tests, once (no watch), with a PostgreSQL from `tests/database.ts`: `COMRADARR_TEST_DATABASE_URL`, or a throwaway container through Docker |
+| `bun run --bun smoke` | Playwright e2e: the browser smoke test, the language tests and the startup tests, with a key it generates, never a developer's `.env` or exported key, and a PostgreSQL as `test` gets one; it starts the built server, so `build` comes first, and Chromium comes from `bunx --bun playwright install chromium` |
+| `bun run --bun db:generate` | Drizzle Kit generates a migration from the schema into `drizzle/`, then Biome formats it; the migration is reviewed and committed |
 | `bun run --bun lint` | `biome ci`, read-only; `biome.json` lists the file extensions Biome checks |
 | `prek run --all-files --hook-stage manual` | everything CI's `checks` job runs |
 
@@ -794,7 +796,10 @@ export const GET: RequestHandler = () => healthResponse();
 - **Unit (Vitest, `node` environment):** the `/healthz` handler (status 200, body `ok`,
   `cache-control: no-store`), the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
-  `security/secrets/`, under `src/lib/server/`), and in `src/lib/shared/i18n/`:
+  `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
+  in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
+  the migrations, a failed one, and the records against Drizzle Kit's own migrator's;
+  `parameterised.test.ts`, no SQL built from strings), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
     language and checks that English formats as `en-GB` and that `formatDateTime` follows the zone
     it is given, not the machine's;
@@ -809,6 +814,9 @@ export const GET: RequestHandler = () => healthResponse();
     background token and `h1` text style and logs no console errors, and that `/healthz` returns
     `ok`.
   - `secret-key.test.ts` checks that the built server refuses to start without a valid key.
+  - `setup.test.ts` starts its own servers, each on a new database: the migrations on a new
+    database and nothing on a second start, a failed migration stopping startup, and the database
+    URL required, readable from a file, and never echoed.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
@@ -817,6 +825,7 @@ export const GET: RequestHandler = () => healthResponse();
     hydration, pressing it does nothing, and no cookie is written. None logs a console error. The
     smoke test runs in English, Playwright's default.
 - prek runs the unit tests (`tests` hook); CI's `smoke` job builds with no key and runs `smoke`.
+  Both get their PostgreSQL from Docker on the runner, so CI stores no database secret.
 - **Each module's tests** keep the legacy app's quality bar. Behaviour is tested against recorded
   responses from real Sonarr, Radarr and Prowlarr instances, not hand-written mocks, with a check
   against live instances from time to time to catch drift (which needs live instances to hand).

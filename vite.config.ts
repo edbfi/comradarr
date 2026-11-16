@@ -23,6 +23,8 @@ export default defineConfig({
 	test: {
 		environment: "node",
 		include: ["src/**/*.test.ts"],
+		// One PostgreSQL for the run, for the tests that need a database (SPEC-setup.md).
+		globalSetup: ["tests/database.ts"],
 		expect: { requireAssertions: true },
 	},
 });

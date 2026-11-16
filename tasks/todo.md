@@ -17,28 +17,28 @@ for PostgreSQL, then the migrations. `settings`, `owner` and `audit_log` with it
 enum (the four `setup` codes) go into the first migration (the spec); no operations yet.
 
 **Acceptance criteria:**
-- [ ] `tests/database.ts` provisions as the spec says (the variable or a labelled `postgres:18`
+- [x] `tests/database.ts` provisions as the spec says (the variable or a labelled `postgres:18`
   container on a free port, a database and owner role per test file, clean-up of what the run
   created, a clear failure without either); Vitest uses it in a global setup and Playwright's
   config synchronously in the runner process only.
-- [ ] `server/config/database-url.test.ts` first fails, then passes: one variable or the file, both
+- [x] `server/config/database-url.test.ts` first fails, then passes: one variable or the file, both
   set refused, empty as unset, the 4 KiB cap and one trailing newline, the scheme, user and
   database checked, and no message ever echoing the URL.
-- [ ] `server/db/migrate.test.ts` first fails, then passes: the bundled migrations apply to a new
+- [x] `server/db/migrate.test.ts` first fails, then passes: the bundled migrations apply to a new
   database, the three tables and the enum exist, a second run applies nothing, and the records
   match Drizzle Kit's own migrator's; or the fallback ships `drizzle/` beside `build/`, and the test
   covers that path. A failed migration stops startup, thrown with its name and PostgreSQL's reason,
   and the built server exits non-zero.
-- [ ] `server/db/client.test.ts`: rollback isolation (D6), and the wait for PostgreSQL (retried
+- [x] `server/db/client.test.ts`: rollback isolation (D6), and the wait for PostgreSQL (retried
   on a refused connection, a host that doesn't resolve and `57P03` within 30 seconds, every 2
   seconds; an authentication failure at once).
-- [ ] `server/db/parameterised.test.ts` passes on the code and fails on a planted `sql.raw` and a
+- [x] `server/db/parameterised.test.ts` passes on the code and fails on a planted `sql.raw` and a
   planted string-built query, while a tagged `sql` interpolation passes.
-- [ ] `tests/e2e/setup.test.ts`: the built server migrates a new database, serves `/healthz`, starts
+- [x] `tests/e2e/setup.test.ts`: the built server migrates a new database, serves `/healthz`, starts
   again on it, and refuses to start without a database URL or with both variables, echoing
   neither.
-- [ ] The PR body records the time the 18 container adds to a run.
-- [ ] D15's validation is in the PR body: migrations, `check`, `bun --no-install ./build` with no
+- [x] The PR body records the time the 18 container adds to a run.
+- [x] D15's validation is in the PR body: migrations, `check`, `bun --no-install ./build` with no
   `node_modules`, rollback isolation, CI's jobs on Docker with no CI change, and the gates with
   failing `node`, `npm` and `npx` on `PATH`.
 

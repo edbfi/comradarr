@@ -274,12 +274,15 @@ unit tests, one e2e smoke and the Bun web CI ([`docs/SPEC.md`](docs/SPEC.md)). P
 come next, in the order of the approved capability map in `docs/SPEC.md`, each through an
 owner-approved `docs/SPEC-<id>.md`. Module 1, `secrets`
 ([`docs/SPEC-secrets.md`](docs/SPEC-secrets.md)), is built and ready for consumers. Nothing stores
-a secret yet, and no database exists. Module 2, `i18n` ([`docs/SPEC-i18n.md`](docs/SPEC-i18n.md)),
-is built: pages are served in English or Danish, with a language switcher, number and date
-formatters, and a check of the message files.
+a secret yet. Module 2, `i18n` ([`docs/SPEC-i18n.md`](docs/SPEC-i18n.md)), is built: pages are
+served in English or Danish, with a language switcher, number and date formatters, and a check of
+the message files. Module 3, `setup` ([`docs/SPEC-setup.md`](docs/SPEC-setup.md)), is being built
+from [`tasks/todo.md`](tasks/todo.md): startup waits for PostgreSQL and migrates it, still as the
+owner role until the app's own roles arrive.
 
-**Commands:** the table in [docs/SPEC.md](docs/SPEC.md#commands); for the master key that `dev`
-and `preview` need, see the README's [Master key](README.md#master-key).
+**Commands:** the table in [docs/SPEC.md](docs/SPEC.md#commands); for the master key and the
+database that `dev` and `preview` need, see the README's [Master key](README.md#master-key) and
+[Database](README.md#database).
 
 **Boundaries.**
 - The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)).
@@ -305,9 +308,9 @@ src/
                                  and `handle` writes the request's language into `<html lang>`
   app.css                        Panda layer order; the Vite plugin appends the generated CSS
   app.d.ts                       SvelteKit ambient types
-  env.ts                         declares `COMRADARR_SECRET_KEY` and `COMRADARR_SECRET_KEY_FILE`:
-                                 private, read at runtime, optional
-  hooks.server.ts                the `init` hook: loads the keyring, except while building;
+  env.ts                         declares `COMRADARR_SECRET_KEY`, `COMRADARR_DATABASE_URL` and
+                                 their `_FILE` forms: private, read at runtime, optional
+  hooks.server.ts                the `init` hook: runs startup, except while building;
                                  `handle`: each request's language, through Paraglide's middleware
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
@@ -319,11 +322,18 @@ src/
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
                                  `#lib/server/services/health.ts`
     paraglide/                   the compiled messages (generated, gitignored)
-    server/                      server-only: services/health.ts; later db/ (schema per aggregate),
-                                 providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
-                                 http/ (SSRF-safe fetch), logging/
-      config/secret-key.ts       the master key's text from `COMRADARR_SECRET_KEY` or the file
-                                 `COMRADARR_SECRET_KEY_FILE` names; no key logic
+    server/                      server-only: services/health.ts; later providers/<sonarr|radarr|
+                                 prowlarr>/, services/<domain>/, jobs/, http/ (SSRF-safe fetch),
+                                 logging/
+      config/                    each variable read and checked once; `ConfigError` names it and
+                                 never its value; secret-variable.ts: a secret from its variable
+                                 or the file its `_FILE` form names; secret-key.ts: the master
+                                 key's text; database-url.ts: the owner role's URL
+      db/                        client.ts: the pool, after waiting for PostgreSQL; migrate.ts:
+                                 applies the bundled migrations; settings.ts, owner.ts, audit.ts:
+                                 one schema per aggregate; parameterised.test.ts: no SQL built
+                                 from strings
+      services/setup/startup.ts  startup's steps: the key, the configuration, the database
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
                                  the AES key and key ID; secret.ts: the `Secret` wrapper,
@@ -339,8 +349,12 @@ src/
       i18n/messages.test.ts      the message check: every problem in `messages/*.json`
 static/                          served as is (comradarr-icon.svg, also the favicon)
 tests/
+  database.ts                    a PostgreSQL for the tests (Docker or COMRADARR_TEST_DATABASE_URL),
+                                 a database per test file; Vitest's global setup, and a command
+                                 Playwright's config runs
   e2e/smoke.test.ts              Playwright smoke against the built server
   e2e/secret-key.test.ts         the built server refuses to start without a valid key
+  e2e/setup.test.ts              first run and the request checks on the built server
   e2e/i18n.test.ts               the built server serves each viewer's language, the browser
                                  keeps it, and the switcher changes it
   fixtures/demo-fixtures.json    design fixtures
@@ -350,7 +364,8 @@ messages/en.json  messages/da.json
 project.inlang/                  settings.json: the locales and the i18next plugin;
                                  paraglide.config.ts: Paraglide's options, which the CLI and the
                                  Vite plugin both read
-drizzle/                         later: reviewed migrations
+drizzle/                         the reviewed migrations, from `db:generate`; drizzle.config.ts
+                                 lists the schema files
 panda.config.ts                  every design token; components use them through
                                  `#styled-system/<module>` (generated, gitignored)
 vite.config.ts                   SvelteKit (all its configuration), Panda, Paraglide and Vitest
