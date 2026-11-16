@@ -218,7 +218,7 @@ continues with the two-factor offer, then verifying access from the operator's o
 connector. Until Verify access passes, the setup gate keeps sending every signed-in page back to
 it, as the legacy app's setup flag did. This replaces the legacy app's order, which verified access
 before creating the account (owner decision). The claim, which creates the account, is still
-cross-origin-checked like every other POST (`sign-in`'s check, which asks the browser), and it
+cross-origin-checked like every other POST (`setup`'s check, which asks the browser), and it
 stores no address. Because claiming and creating the owner is one step, the legacy app's
 setup-claim cookie goes, and the token is printed only to the console, without the legacy app's
 token file.

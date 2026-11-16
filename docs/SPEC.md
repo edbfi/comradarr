@@ -3,7 +3,7 @@
 **Status:** the ground floor (skeleton) is specified here, approved by the orchestrator
 (2026-10-22) and built. The capability map below is approved; module 1, `secrets`
 ([SPEC-secrets.md](SPEC-secrets.md)), and module 2, `i18n` ([SPEC-i18n.md](SPEC-i18n.md)), are
-built.
+built; module 3, `setup` ([SPEC-setup.md](SPEC-setup.md)), is approved.
 
 ## Objective
 
@@ -40,8 +40,8 @@ components or services, and dates and numbers formatted for the viewer's languag
 |---|---|---|---|---|
 | 1 | `secrets` | **Built.** Encrypts stored secrets (connector API keys, notification channel settings, two-factor secrets, the OIDC client secret) before they reach the database (D20), and the secret wrapper that shows only a redaction marker and opens at one named call | — | — |
 | 2 | `i18n` | **Built.** The translation groundwork (D21) with Paraglide JS (D22): message files in English and Danish, choosing each request's language, the language switcher, formatting dates and numbers for the viewer's language, and a check that every message exists in both languages | — | the language switcher in each shell |
-| 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the claim's per-address limit; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: claim and account (no brief yet); `/healthz` |
-| 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits, the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts, and the sessions list with revoking | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
+| 3 | `setup` | Startup checks, database and migrations, runtime settings, structured logging with redaction, security headers and the nonce-based CSP (ground-floor choice 3), `ORIGIN` and the cross-origin check (it asks the browser, stores no address and takes `ORIGIN` as an optional override), the setup gate, the bootstrap token, printed to the console and never through the stored logs, and claiming the instance for its one owner, with the owner's password rules and hashing. comradarr adds PostgreSQL as that database, with migrations through the owner role, the app and audit-admin roles it creates and their pre-flight check (D17); the standard error format; the CSP's report endpoint; the audit trail: its table, the append-only privileges (D7, D16) and the one service every later change writes through, from the first claim attempt; and the health check with per-component status in place of `/healthz`'s fixed `ok` (ground-floor choice 5) | `secrets`, `i18n` | first-run setup: the claim and account (brief: `/setup`); `/healthz` |
+| 4 | `sign-in` | Owner sign-in with username and password, signing the new owner in at the claim (D20), sessions, sign-out (POST only), rate limits (the claim's included), app-named cookies that work over plain HTTP at home and behind an HTTPS proxy, password change, error pages, recovery (D20), and the app shell with the sidebar. comradarr adds the sessions' idle and absolute lifetimes, per-address limits and per-username backoff that survive restarts, and the sessions list with revoking | `setup` | `/login`; the app shell; the Sessions and Password sections of `/settings/access` |
 | 5 | `two-factor` | Optional but strongly recommended (D20): authenticator codes, backup codes and the challenge after every way the owner signs in (except the optional OIDC skip, D20), with replay protection and a limit on failed attempts. Recovery turns it off. Adds the offer to first-run setup, right after the owner account is created and before any connection step, and the reminder in the app shell while it is off | `sign-in` | the two-factor offer in first-run setup; its section of `/settings/access` (no brief yet); the reminder in the app shell |
 | 6 | `http-boundary` | Verifying access from the operator's own browser: proxy trust by socket peer, observed, proposed, tested there and only then saved; and the address check, which only diagnoses: comparing the address the browser uses with the `Host` the app receives, `ORIGIN` when set and the forwarded address, classifying the forwarded headers and the source address, suggesting `ORIGIN=<address>` or the proxy line `proxy_set_header Host $http_host`, and the header recipes for common reverse proxies. The address check never blocks and saves nothing, and its suggestion also shows on the claim and owner sign-in pages, so someone without a session can recover. A mandatory first-run step after the two-factor offer (D20): until it passes, the setup gate sends every signed-in page back to it; the address check never stops it passing. The same tests run after setup | `sign-in` | the Verify access step of first-run setup (no brief yet); the Public access section of `/settings/access`; the address hint on the claim and owner sign-in pages |
 | 7 | `events` | The in-process event bus and the live stream to the browser: server-sent events behind the session cookie, a bounded queue per client, heartbeats, and pages that reload their data when an event arrives. No event carries a secret | `sign-in` | — |
@@ -88,8 +88,8 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 |---|---|
 | `secrets` | `security/secrets/` (key checks, keyring, cipher, `Secret`), `config/secret-key.ts`, `src/env.ts` and the `init` hook in `hooks.server.ts` |
 | `i18n` | `messages/en.json` and `messages/da.json`, `project.inlang/` (the inlang project and Paraglide's options), `lib/shared/i18n/` (formatting and the message check), `lib/components/layout/LanguageSwitcher.svelte`; the language handle in `hooks.server.ts`, and `hooks.client.ts` |
-| `setup` | `db/` (client, migrations, the roles of D17, settings, owner and audit schema), `config/`, `logging/` (with redaction), `services/setup/`, `services/audit/record.ts`, `services/health.ts`, `security/bootstrap-token.ts`, `security/headers.ts`, `lib/shared/errors/` (the error format); `routes/setup/`, `routes/healthz/`, the CSP report endpoint under `routes/api/`, and the setup gate and the headers in `hooks.server.ts` |
-| `sign-in` | `services/sign-in/` (sessions and their storage, the limit counters, recovery), `db/` session and rate-limit schema, `security/` (session-token and password hashing, the cross-origin check), `vite.config.ts` (SvelteKit's own form check off); the sign-in at the claim in `routes/setup/`, `routes/login/`, `routes/(app)/` layout, the Sessions and Password sections of `routes/(app)/settings/access/`, `lib/components/layout/` |
+| `setup` | `db/` (client, migrations, the roles of D17, settings, owner and audit schema), `config/` (the database URL, `ORIGIN`, debug logging), `logging/` (with redaction), `services/setup/`, `services/audit/`, `services/health.ts`, `security/` (the bootstrap token, the headers, the cross-origin check and its refusal, the password rules and hashing), `lib/shared/errors/` (the error format), `lib/shared/password-rules.ts`, `vite.config.ts` (the CSP, SvelteKit's own form check off); `routes/setup/`, `routes/healthz/`, the CSP report endpoint under `routes/api/`, and the request id, the headers, the cross-origin check, the setup gate and `handleError` in `hooks.server.ts` |
+| `sign-in` | `services/sign-in/` (sessions and their storage, the limit counters, recovery), `db/` session and rate-limit schema, `security/` (session-token hashing); the sign-in at the claim in `routes/setup/`, `routes/login/`, `routes/(app)/` layout, the Sessions and Password sections of `routes/(app)/settings/access/`, `lib/components/layout/` |
 | `two-factor` | `services/two-factor/`, the owner schema's two-factor fields in `db/`; the offer in `routes/setup/`, the challenge page beside `routes/login/`, its section of `routes/(app)/settings/access/`, and the reminder in `lib/components/layout/` |
 | `http-boundary` | `services/http-boundary/` (observed values, proposals, live tests, the address check), `security/` (the client address), the boundary settings in `db/`; its step in `routes/setup/`, the address hint on the claim in `routes/setup/` and on `routes/login/`, the Public access section of `routes/(app)/settings/access/`, and the resolution in `hooks.server.ts` |
 | `events` | `services/events/` (the bus); the stream under `routes/api/`; the listener in `lib/components/layout/` |
@@ -115,11 +115,12 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 - `setup`: D15 (Drizzle versions for Bun SQL), D16 (with the roles of D17), the oldest PostgreSQL
   version (D17) and the logging library half of D14; and how the inline `style` attributes that Ark
   UI and Svelte write fit the content security policy, which allows no `unsafe-inline`. The backup
-  and restore test of D18 goes with the Compose example.
+  and restore test of D18 goes with the Compose example. [SPEC-setup.md](SPEC-setup.md) answers
+  each; they close when it is built.
 - `sign-in`: how long an owner session lasts.
-- `sign-in`: the password rules: the minimum length, whether a list of common passwords is
-  refused, and how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
-  where the app's approved docs allow one).
+- `sign-in`: how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
+  where the app's approved docs allow one). The password's length and the common-password list are
+  `setup`'s ([SPEC-setup.md](SPEC-setup.md#the-claim)).
 - The first module with a background job closes the job half of D14: `sign-in` if its session
   cleanup is a job, otherwise `sync`.
 - `budgets`: whether the daily cap counts a rolling 24 hours or the day in the owner's time zone.
@@ -169,7 +170,7 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Surfaces with no brief yet
 
-First-run setup's claim and account, two-factor and Verify access steps, the two-factor and OIDC
+First-run setup's two-factor and Verify access steps, the two-factor and OIDC
 sections and password change on `/settings/access`, the connection policy on `/connectors`, the
 Notifications page, and the API keys and observability settings are needed (all are in the Module
 notes or in PRODUCT.md's sidebar) but have no brief. Each gets its brief, or its brief's change,
@@ -189,120 +190,6 @@ edbfi apps (D20): a bullet or clause marked "(comradarr)" is this app's own, and
 shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bullet, and
 "(comradarr: …)" only its own parentheses. Decision numbers are comradarr's.
 
-#### setup
-
-- **The setup gate.** Until first run is complete, every page except static assets, the claim,
-  sign-in and first run's own helpers sends the browser to the current first-run step. The server
-  keeps one current-step pointer: the browser can't skip ahead, each step's action checks that it is
-  the current step, and a step that offers Previous only moves the pointer back. Only the last
-  step's action completes first run. (comradarr) The pointer is stored and compared exactly: any
-  change to setup state, creating the owner included, writes it as not complete, so an interrupted
-  first run is still gated after a restart, and nothing is inferred from an owner account existing.
-  Until first run is complete, JSON callers get a 503 "setup incomplete", never a 401, and the only
-  routes open without a session are setup's own, owner sign-in with its two-factor challenge,
-  recovery, the health check, the CSP report endpoint and the static assets setup needs; the OpenAPI
-  document isn't one of them. Until Verify access passes, every signed-in page goes back to it
-  (`http-boundary`, D20).
-- **The bootstrap token** (D20) is 12 random lowercase letters and digits, shown as
-  `xxxx-xxxx-xxxx`, held only in memory (never logged or stored) and compared in constant time. It
-  is printed with the setup URL and is valid for 15 minutes, after which a new one is printed. Claim
-  attempts are rate-limited (`sign-in`). (comradarr) It is printed only while the instance is
-  unclaimed, in a banner on the console that also gives its expiry time and warns that the console
-  output is a setup secret, not to be pasted into chats or issue trackers. The setup URL carries the
-  token, with an all-interfaces address shown as `localhost`; the setup page fills the token in and
-  removes it from the address bar at once, so it never reaches the history or a referrer. A restart
-  prints a new token.
-- **The claim** is a POST, cross-origin-checked like any other (`sign-in`), and it stores no
-  address. It needs a valid bootstrap token and the browser's address (`sign-in`). Using up the
-  token and creating the owner are one atomic step, and the owner session it starts follows
-  `sign-in`'s cookies. (comradarr) The account form shows how strong the password is. Every claim
-  attempt is audited with its outcome (granted, wrong token, expired, rate-limited), and setup's
-  endpoints never log request bodies.
-- **Runtime settings** (comradarr). The environment holds only what must exist before the start: the
-  master key and the database URL (D17), the log level and format (structured lines by default,
-  console lines for development), the content security policy's report-only mode (for development,
-  with a warning at every start), recovery (D20), `ORIGIN`, the server's address and port (`HOST`,
-  `PORT`) and the shutdown drain time (below). Every other setting is stored in PostgreSQL, changed
-  in the app, audited and in effect at once, and a network setting is tested before it is saved
-  (`http-boundary`). There are no configuration files. Plain settings and secrets are stored apart:
-  a secret is encrypted in its own field (`secrets`), so reading plain settings never decrypts
-  anything.
-- **Database** (comradarr). Every query is parameterised, and an automated check (a lint rule or a
-  test, which `setup`'s spec chooses) rejects SQL built from strings.
-- **Logging.** Four levels; debug entries are dropped unless debug logging is on. Each entry has a
-  level, a message, a source, structured metadata and a millisecond timestamp, and goes to standard
-  output (D12). Redaction runs before an entry is written anywhere: credentials in URLs, token-like
-  query parameters, token, authorisation and cookie fields in payloads and headers, and, at any
-  depth, any metadata key that looks like a token, secret, password, cookie, session or key.
-  (comradarr) Also redacted: the API-key header, secret-shaped values (password hashes, three-part
-  tokens, the API-key prefix pattern, encrypted values) and wrapped secrets (`secrets`). Debug is
-  internal state, info is routine events (a sync finished with its counts, a rotation tick's
-  summary, a request with its method, its path with query values stripped, status, size, time and
-  client address), warning is a recoverable surprise and error an actual failure; there is no fatal
-  level, because an unrecoverable condition exits. Context such as the connector, the sync type or
-  the request id is bound once per boundary, and event names form a hierarchy that is easy to
-  search. A loop logs one summary per tick, and a repeated error is logged once when it starts, then
-  rarely, then once when it clears. Request and response bodies are never logged, and an exception
-  is logged as its type, message, relevant frame and fingerprint, never its local variables. Who
-  changed what, and any user's identity, go to the audit trail, not the log.
-- **The audit trail** (comradarr). One service writes every entry, from the first claim attempt on.
-  An entry has its time, an action code from one documented list that only grows, the actor (the
-  owner, or the client address when nobody is signed in), a context of a fixed shape per action with
-  every secret redacted, the client address, the user agent and the request id, which links it to
-  the request's log lines. Entries are indexed and read newest first, overall and by action. It
-  records the bootstrap token being printed; every claim attempt and its outcome; creating the
-  owner; completing first run; every sign-in attempt with its method; sign-out; ending sessions;
-  password changes; recovery; creating, first using and revoking API keys; adding, editing,
-  deleting, pausing and resuming connectors (the URL and type, and only that the key changed, never
-  the key); `http-boundary` changes with old and new values; OIDC settings; notification channels,
-  routes and templates; settings and secret changes; syncs and searches started by hand; and pausing
-  and resuming the rotation or an item. Routine sync and rotation ticks, health probes, single
-  dispatches and single notification deliveries go to the log instead; an action is recorded in
-  exactly one of the two. Startup checks that the database knows every action code.
-- **Security headers,** on every response, early returns included: framing denied, no MIME sniffing,
-  a referrer policy of `same-origin` or `strict-origin-when-cross-origin`, never `no-referrer`
-  (which makes browsers send `Origin: null` on the app's own form posts), a permissions policy
-  denying camera, microphone and geolocation (comradarr: and every other device feature the app
-  doesn't use), one-year strict transport security over HTTPS (known when `ORIGIN` is `https`, or
-  when the browser sent `Sec-Fetch-Site` to a host that isn't loopback, since browsers send it only
-  to HTTPS and loopback addresses), and a nonce-based content security policy: scripts from the app
-  only; images from the app and inline data; fonts from the app (DESIGN.md bundles them);
-  connections to the app only; no framing; the app only as base and form target. (comradarr) No
-  setting turns them off or changes them. Strict transport security covers subdomains and doesn't
-  ask for preloading, which is the operator's decision. Opener and resource policies are
-  same-origin, and no server-version or powered-by header is sent. The policy's default is the app
-  only, styles too come from the app, scripts and styles carry a fresh nonce per request, plugins
-  are refused, `unsafe-inline` and `unsafe-eval` are never allowed (which limits the dependencies
-  the app can use), and `upgrade-insecure-requests` isn't sent, because it would break a plain-HTTP
-  install at home.
-- **The CSP report endpoint** (comradarr) needs no session and works before setup. It takes only the
-  report content type, up to a size cap, is rate-limited per address, logs each violation with
-  bounded context, and silently drops anything it doesn't accept, so a prober learns nothing.
-- **Health** (comradarr) replaces `/healthz`'s fixed answer: no session needed, minimal, the overall
-  and per-component status with no versions or timings; healthy or degraded answers success, and
-  unavailable when a critical component, such as the database, is down.
-- **The error format** (comradarr). Every error has one structured shape: a stable type id that is
-  also its message key, a title, the status, a translated detail, the request id, per-field errors
-  for a validation failure, the domain context, and for a connector error whether a retry can help.
-- **Startup and shutdown.** Startup runs once, before any request is served: migrations (D5), then
-  each module's startup work, then starting the jobs; a job that fails to start is logged, not
-  fatal. Shutdown stops the jobs, flushes the logs and drains open requests and live streams for a
-  bounded time, then exits even if an upstream call is still outstanding. Streams it closes end
-  cleanly, so browsers reconnect. A second signal exits at once, and a hang-up counts as a stop. The
-  environment sets the drain time (default 30 seconds, kept below the container's stop timeout).
-  (comradarr) Migrations run as the owner role after its pre-flight check (D17); the token is
-  printed next if the instance is unclaimed; jobs do nothing until first run is complete. Migrations
-  only go forward: a failed one stops startup with a clear message and a non-zero exit, a pending
-  one logs a reminder to back up first, and going back means restoring that backup and running the
-  previous version, never running an older version on a migrated database. Shutdown closes outbound
-  connections and the database after stopping the jobs and draining. A job catches every error in a
-  tick, logs it with its context and carries on; a lasting failure shows as a deduplicated error and
-  a health badge, not as restarts. Everything that matters is in the database, so a crash loses
-  nothing: sync resumes from its timestamps and fingerprints, rotation from the last-searched times,
-  and commands in flight are polled again.
-- **Trust:** anyone who can read the server console can claim a fresh install. (comradarr)
-  Restarting the app needs the same trust, so a restart printing a new token adds nothing.
-
 #### sign-in
 
 - **Request order** (startup has already finished in SvelteKit's `init` hook): the language
@@ -310,35 +197,10 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   then the owner check. Security headers go on every response, an early return from any stage
   included. (comradarr) The client address is resolved once, after the language and before the
   first check (`http-boundary`), and every stage, the audit trail and the logs read the same one;
-  the limits on API keys apply once `sign-in` has checked the key.
-- **SvelteKit's own form check is off:** `sveltekit({ csrf: { trustedOrigins: ['*'] } })` in
-  `vite.config.ts` (SvelteKit 3 takes its options in the `sveltekit()` call, with no `kit:`
-  wrapper). Remote functions stay off. A config test asserts both, so SvelteKit's only remaining
-  check before `handle` is the remote-function one, which nothing uses. The cross-origin check
-  replaces SvelteKit's form check.
-- **The cross-origin check** asks the browser, so the app doesn't need to know its own address and
-  stores none. It is the first check in `handle`, after only the language (`i18n`), for every
-  method except GET, HEAD and OPTIONS, and for every content type (form, JSON, multipart,
-  `text/plain`, empty). Internal `event.fetch` subrequests (`event.isSubRequest`) skip it.
-  (comradarr: it replaces the legacy app's origin check against a stored list and its exemptions;
-  the claim and the CSP report endpoint are checked like any other POST, and a request with an API
-  key passes without browser headers only as a machine route, below.)
-  - An `Origin` header, whenever it is present, must parse as one bare `http` or `https` origin;
-    `null`, a malformed value or several values are refused. This applies on every branch below.
-  - With `ORIGIN` set, a present `Origin` must equal `ORIGIN`, compared as parsed origins. Without
-    `Origin`, `Sec-Fetch-Site` must be `same-origin` or `none`.
-  - With `ORIGIN` unset, a present `Sec-Fetch-Site` passes only as `same-origin` or `none`
-    (`same-site` and `cross-site` are refused). Otherwise `Origin`'s host and port must equal the
-    `Host` header, with default ports normalised. Browsers send `Sec-Fetch-Site` only to HTTPS,
-    `localhost` and loopback addresses, so over plain HTTP outside loopback every browser gets
-    this comparison.
-  - A request with neither `Origin` nor `Sec-Fetch-Site` doesn't come from a browser. It passes only
-    on an explicit list of machine routes (comradarr: the JSON API, with a valid API key; API keys
-    reach only the JSON API, D20): the API-key endpoints and other machine routes the app's
-    approved docs already name, each with the credentials those docs require. The session cookie is
-    never honoured on it: such a request that carries only a session cookie gets a 403.
-  - A refusal is a 403 with the app's own "Access denied" page, or a JSON error for JSON callers,
-    with the security headers and in the viewer's language.
+  the limits on API keys apply once `sign-in` has checked the key. The language, the headers,
+  the cross-origin check and the setup gate are `setup`'s
+  ([SPEC-setup.md](SPEC-setup.md#the-request-checks)), and so are SvelteKit's own form check,
+  `ORIGIN` and the cross-origin check's tests.
 - **The browser's address** is `ORIGIN` when it is set, and otherwise the validated `Origin` of the
   POST that passed the cross-origin check. It decides the cookies' `Secure` flag and the OIDC
   `redirect_uri`. Every POST that sets or deletes a cookie needs it, such as the claim, sign-in, the
@@ -355,29 +217,6 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   and owner sign-in pages suggest setting `ORIGIN=<that address>` (or removing a wrong `ORIGIN`) or
   adding the proxy line `proxy_set_header Host $http_host`, so someone without a session can
   recover. (comradarr) `http-boundary` adds it, with the check behind it.
-- **`ORIGIN`** is optional and never required. It is plain `ORIGIN`, not an app-prefixed name (an
-  app prefix would mean setting adapter-bun's `envPrefix`, which would then reject the master key's
-  variable). When set, it must be a bare `http` or `https` origin (a trailing `/` is fine; no path,
-  query, fragment or credentials), compared as a parsed origin, or startup stops with an error that
-  doesn't echo the value. adapter-bun 1.0.0 ignores `ORIGIN`; from 1.0.1 a set `ORIGIN` also
-  corrects SvelteKit's `event.url`, and an empty `ORIGIN=""` throws with the value in the message,
-  so a container image's entrypoint unsets an empty `ORIGIN` and its templates leave it out (the
-  image's work, not this repo's; comradarr has none yet).
-- **When `ORIGIN` or a proxy fix is still needed:** behind a proxy that rewrites `Host`, over plain
-  HTTP for every browser, and over HTTPS only for browsers without `Sec-Fetch-Site` (Safari before
-  16.4, Firefox before 90, Chrome before 76). The proxy fix is `proxy_set_header Host $http_host`
-  (not `$host`, which drops a non-default port). Remote functions would need it too; they stay
-  off.
-- **Accepted residual risks.** Over plain HTTP, the `Origin` and `Host` comparison can't tell `http`
-  from `https`, which is harmless on a port that speaks only HTTP; over HTTPS it affects only
-  browsers without `Sec-Fetch-Site`, and only against a network attacker, and HSTS or `ORIGIN`
-  closes it. DNS rebinding reaches only actions that need no sign-in, because cookies don't follow
-  a rebind, and those are gated by a console token or rate-limited.
-- **Tests:** the cross-origin check is one pure module, unit-tested against a matrix of headers and
-  copied to each app as D20 shares the opening modules. One Playwright test against the built server
-  (`bun ./build`) checks that a cross-site form POST is refused and that a same-origin POST carrying
-  no `Sec-Fetch-*` headers passes, both on `localhost` and on a plain-HTTP host name that isn't
-  loopback (such as Chromium's `--host-resolver-rules="MAP app.test 127.0.0.1"`).
 - **Cookies:** session cookies are named after the app (comradarr: `comradarr_session` for the owner
   session), because cookies ignore ports and apps on one address would otherwise sign each other
   out. They are host-only, `HttpOnly` and `SameSite=Lax` (comradarr: with the path `/`). Every
@@ -398,8 +237,8 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   takes as long as a wrong password, and every failure gets the same "invalid credentials". Every
   attempt is audited with its method and outcome (success, unknown user or wrong password). A
   successful sign-in always issues a new session token. Every comparison of a secret is
-  constant-time. The legacy app refused passwords below a minimum length and from a list of common
-  ones; the open `sign-in` decision on the password rules settles both.
+  constant-time. The password rules and the hashing are `setup`'s
+  ([SPEC-setup.md](SPEC-setup.md#the-claim)), and `sign-in` reuses them.
 - **Password change** (comradarr) needs the current password, and in one transaction stores the new
   hash, replaces the current session and ends every other one.
 - **Sessions** (comradarr). A session token has at least 256 bits of randomness, and only a fast
@@ -471,7 +310,7 @@ shared wording; a "(comradarr)" mark inside a bullet covers the rest of that bul
   or declined, or the step saw no proxy; the same test runs again after setup, and every change is
   audited with its old and new values.
 - **No host list and no CORS.** The app keeps no list of allowed hosts and sends no CORS headers:
-  the cross-origin check (`sign-in`) refuses cross-origin writes, no other site's page can read the
+  the cross-origin check (`setup`) refuses cross-origin writes, no other site's page can read the
   app's responses, and the API keys' callers aren't browsers. The address check reports a `Host` it
   doesn't expect. DNS rebinding, which a host list would also stop, is the accepted residual risk
   under `sign-in`.
