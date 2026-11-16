@@ -17,6 +17,11 @@ export async function startUp(env: StartupEnv): Promise<void> {
 	await loadKeyring(env);
 	// 2. The configuration.
 	const { url, variable } = await readDatabaseUrl(env);
-	// 3. The database, reached and migrated.
-	await migrateDatabase(await openDatabase(url, { variable }));
+	// 3. The database, reached and migrated; the owner role's pool closes once it has migrated.
+	const db = await openDatabase(url, { variable });
+	try {
+		await migrateDatabase(db);
+	} finally {
+		await db.$client.close();
+	}
 }
