@@ -40,6 +40,7 @@ describe("problem", () => {
 
 	it.each([
 		["access_denied", 403],
+		["setup_incomplete", 503],
 		["internal_error", 500],
 	] as [ProblemType, number][])("gives %s the status %i", (type, status) => {
 		expect(problem(type).status).toBe(status);

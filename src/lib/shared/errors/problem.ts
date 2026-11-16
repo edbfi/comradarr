@@ -10,6 +10,11 @@ const TYPES = {
 		title: m.error_access_denied_title,
 		detail: m.error_access_denied_description,
 	},
+	setup_incomplete: {
+		status: 503,
+		title: m.error_setup_incomplete_title,
+		detail: m.error_setup_incomplete_description,
+	},
 	internal_error: {
 		status: 500,
 		title: m.error_internal_error_title,

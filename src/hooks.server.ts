@@ -15,6 +15,7 @@ import {
 import { accessDenied } from "#lib/server/security/access-denied.ts";
 import { crossOriginAllowed } from "#lib/server/security/cross-origin.ts";
 import { securityHeaders, withSecurityHeaders } from "#lib/server/security/headers.ts";
+import { firstRunRedirect, gateAnswer } from "#lib/server/services/setup/first-run.ts";
 import { currentOrigin, startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
 import { building, dev } from "$app/env";
@@ -87,7 +88,18 @@ const crossOrigin: Handle = ({ event, resolve }) =>
 		? resolve(event)
 		: accessDenied(event.request, event.locals.requestId);
 
-export const handle = sequence(requestId, language, headers, crossOrigin);
+/**
+ * The setup gate, the last stage: until first run is complete, every request but its current step,
+ * `/healthz` and the CSP report endpoint is held back, returned so it keeps the headers.
+ */
+const setupGate: Handle = ({ event, resolve }) => {
+	const step = firstRunRedirect(event.url.pathname);
+	return step === undefined
+		? resolve(event)
+		: gateAnswer(event.request, step, event.locals.requestId);
+};
+
+export const handle = sequence(requestId, language, headers, crossOrigin, setupGate);
 
 /**
  * Every error SvelteKit catches passes here: one nobody expected goes through the logger,

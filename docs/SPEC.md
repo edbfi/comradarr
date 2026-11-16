@@ -822,9 +822,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   without `ORIGIN`, each printing audited without the token, renewal at expiry and held during a
   claim, the token used once, a replaced token read as expired, none after stopping or once
   claimed, a restart reading the step pointer back, an owner row without the pointer still
-  unclaimed), `security/password.test.ts`
-  (the username and password rules, the list, hashing, and agreement with the browser's rules on
-  every case), `lib/shared/password-rules.test.ts` (the length in code points and each rule),
+  unclaimed, the gate's decision for each path and its answer to a page and to a JSON caller),
+  `security/password.test.ts` (the username and password rules, the list, hashing, and agreement
+  with the browser's rules on every case), `lib/shared/password-rules.test.ts` (the length in code
+  points and each rule),
   `services/setup/claim.test.ts` (a claim with its three audit entries in its transaction; field
   errors leaving the token unused; wrong and expired tokens never reaching the hash, each audited
   with its outcome; a second claim; two at once; a failed transaction printing a new token, none
@@ -842,7 +843,9 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
 
   Component tests use happy-dom when components exist; never jsdom.
 - **e2e (Playwright, Chromium, under Bun):** against the built adapter-bun server, with a master key
-  Playwright generates for each run, so CI needs no stored secret.
+  Playwright generates for each run, so CI needs no stored secret. Its `wait.stdout` pattern
+  captures the banner's token, and `global-setup.ts` claims the instance through the form, so the
+  smoke and language tests run on a claimed instance.
   - `smoke.test.ts` checks that `/` returns 200, shows the placeholder heading, hydrates (it waits
     for the `data-hydrated` attribute the root layout sets when mounted), applies the Panda
     background token and `h1` text style and logs no console errors, and that `/healthz` reports
@@ -864,7 +867,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     the bootstrap token's banner before "Listening on", with the token in no log entry, response
     or audit entry, and the claim: the link filling the token in, a refused token keeping the
     username, the rules list, the switcher, the right token in upper case without dashes, then
-    `/setup` and its action answering 404, also after a restart.
+    `/setup` and its action answering 404, also after a restart; and the setup gate: every page of a
+    fresh instance sent to `/setup` with the headers, a JSON caller's 503 `setup_incomplete` in
+    both languages, `/healthz` and the CSP report endpoint let through. The tests of a page claim
+    their server first, so none silently tests the gate.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
