@@ -6,9 +6,17 @@ import {
 	type SecretKeyVariable,
 } from "#lib/server/config/secret-key.ts";
 import { decodeKeyText, type KeyCheck, KeyTextError } from "./key-text.ts";
+import { Secret } from "./secret.ts";
 
-/** The keys the cipher uses, derived from the master key (SPEC-secrets.md, "Derivation"). */
-export type Keyring = { readonly keyId: string; readonly aesKey: CryptoKey };
+/**
+ * What the master key derives (SPEC-secrets.md, "Derivation"): the cipher's keys, and the password
+ * of each database role startup creates (D17; SPEC-setup.md, "Roles").
+ */
+export type Keyring = {
+	readonly keyId: string;
+	readonly aesKey: CryptoKey;
+	readonly rolePasswords: { readonly app: Secret; readonly auditAdmin: Secret };
+};
 
 /** The checks loading the master key can fail: reading its text, then the text itself. */
 export type KeyringCheck = SecretKeyCheck | KeyCheck;
@@ -31,6 +39,8 @@ export class KeyringError extends Error {
 
 const AES_INFO = "edbfi:secrets:v1:aes-256-gcm";
 const KEY_ID_INFO = "edbfi:secrets:v1:key-id";
+const APP_ROLE_INFO = "edbfi:database-role:v1:app";
+const AUDIT_ADMIN_ROLE_INFO = "edbfi:database-role:v1:audit-admin";
 const FIX =
 	"if Comradarr has run before, set the key it ran with; otherwise generate one with: openssl rand -base64 32";
 const SUBJECT: Record<SecretKeyVariable, string> = {
@@ -75,15 +85,21 @@ export async function loadKeyring(env: SecretKeyEnv): Promise<void> {
 		"deriveKey",
 		"deriveBits",
 	]);
-	const [aesKey, keyIdBits] = await Promise.all([
+	const [aesKey, keyIdBits, appBits, auditAdminBits] = await Promise.all([
 		crypto.subtle.deriveKey(hkdf(AES_INFO), base, { name: "AES-GCM", length: 256 }, false, [
 			"encrypt",
 			"decrypt",
 		]),
 		crypto.subtle.deriveBits(hkdf(KEY_ID_INFO), base, 128),
+		crypto.subtle.deriveBits(hkdf(APP_ROLE_INFO), base, 256),
+		crypto.subtle.deriveBits(hkdf(AUDIT_ADMIN_ROLE_INFO), base, 256),
 	]);
-	const keyId = new Uint8Array(keyIdBits).toBase64({ alphabet: "base64url", omitPadding: true });
-	if (load === latestLoad) loaded = Object.freeze({ keyId, aesKey });
+	const keyId = base64url(keyIdBits);
+	const rolePasswords = Object.freeze({
+		app: new Secret(base64url(appBits)),
+		auditAdmin: new Secret(base64url(auditAdminBits)),
+	});
+	if (load === latestLoad) loaded = Object.freeze({ keyId, aesKey, rolePasswords });
 }
 
 /** The keyring of the latest successful load; throws if none is loaded. */
@@ -93,6 +109,9 @@ export function currentKeyring(): Keyring {
 	}
 	return loaded;
 }
+
+const base64url = (bits: ArrayBuffer) =>
+	new Uint8Array(bits).toBase64({ alphabet: "base64url", omitPadding: true });
 
 /** HKDF-SHA-256 with an empty salt and `info` as its label. */
 function hkdf(info: string): HkdfParams {

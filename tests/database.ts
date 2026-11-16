@@ -118,7 +118,10 @@ export async function startServer(
 		"-p",
 		"127.0.0.1::5432",
 		`postgres:${version}`,
-		// Durability is irrelevant to a throwaway server, and these make it faster.
+		// Durability is irrelevant to a throwaway server, and these make it faster; test files run
+		// in parallel, each with its own pools, so the default 100 connections aren't enough.
+		"-c",
+		"max_connections=500",
 		"-c",
 		"fsync=off",
 		"-c",
@@ -149,12 +152,18 @@ const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
  * A new database owned by a new owner role that may create roles, as D17's owner role, with the
  * URL for it on the same server.
  */
-export async function createDatabase(adminUrl: string): Promise<TestDatabase> {
-	const name = `t_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
+export async function createDatabase(
+	adminUrl: string,
+	/** What follows the run's `t_` prefix, such as characters that need quoting; random by default. */
+	suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 16),
+	/** The owner role's attributes beyond LOGIN, as D17's owner role has them by default. */
+	attributes = "createrole",
+): Promise<TestDatabase> {
+	const name = `t_${suffix}`;
 	const password = crypto.randomUUID();
 	const admin = new SQL(adminUrl, { max: 1 });
 	try {
-		await admin.unsafe(`create role ${quote(name)} login createrole password '${password}'`);
+		await admin.unsafe(`create role ${quote(name)} login ${attributes} password '${password}'`);
 		// A role that isn't a superuser may give a database only to a role it can SET ROLE to.
 		await admin.unsafe(`grant ${quote(name)} to current_user`);
 		await admin.unsafe(`create database ${quote(name)} owner ${quote(name)}`);
@@ -165,9 +174,9 @@ export async function createDatabase(adminUrl: string): Promise<TestDatabase> {
 		await admin.close();
 	}
 	const url = new URL(adminUrl);
-	url.username = name;
+	url.username = encodeURIComponent(name);
 	url.password = password;
-	url.pathname = `/${name}`;
+	url.pathname = `/${encodeURIComponent(name)}`;
 	return { name, url: url.toString() };
 }
 
@@ -187,19 +196,48 @@ export async function dropDatabase(adminUrl: string, database: TestDatabase): Pr
 	}
 }
 
-/** Vitest's global setup: one server for the run, its admin URL provided to every test file. */
+/**
+ * Vitest's global setup: PostgreSQL 18 for every test file, and 16, the oldest accepted, for the
+ * role and privilege tests, started together. Each server's admin URL and, for a container, its id
+ * are provided to the test files.
+ */
 export default async function setup(project: {
-	provide: (key: "testDatabaseAdminUrl", value: string) => void;
+	provide: <K extends keyof TestServers>(key: K, value: TestServers[K]) => void;
 }): Promise<() => void> {
-	const server = await startServer(18);
-	project.provide("testDatabaseAdminUrl", server.adminUrl);
-	return () => stopServer(server);
+	const started = await Promise.allSettled([startServer(18), startServer(16)]);
+	const servers = started.flatMap((result) =>
+		result.status === "fulfilled" ? [result.value] : [],
+	);
+	const failed = started.find((result) => result.status === "rejected");
+	if (failed !== undefined) {
+		for (const server of servers) stopServer(server);
+		throw failed.reason;
+	}
+	const [newest, oldest] = servers as [TestServer, TestServer];
+	project.provide("testDatabaseAdminUrl", newest.adminUrl);
+	project.provide("testDatabaseServers", { 18: newest, 16: oldest });
+	return () => {
+		for (const server of servers) stopServer(server);
+	};
 }
 
+/** What the global setup provides. */
+export type TestServers = {
+	testDatabaseAdminUrl: string;
+	testDatabaseServers: Record<16 | 18, TestServer>;
+};
+
 declare module "vitest" {
-	export interface ProvidedContext {
-		testDatabaseAdminUrl: string;
-	}
+	export interface ProvidedContext extends TestServers {}
+}
+
+/**
+ * Runs `command` as the server's operating-system user inside its container, for tests that change
+ * the server's own files; a server the variable named has no container, and the caller skips it.
+ */
+export function inContainer(server: TestServer, command: string): string {
+	if (server.containerId === undefined) throw new Error("this server has no container");
+	return docker(["exec", "-u", "postgres", server.containerId, "sh", "-c", command]);
 }
 
 /** A server and a first database on it, as the command prints them for Playwright. */

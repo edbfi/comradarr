@@ -66,13 +66,13 @@ rules), revoking `PUBLIC`'s `CREATE` and `TEMPORARY`, the owner connection close
 and requests on the app role's pool. `tests/database.ts` gains `postgres:16`.
 
 **Acceptance criteria:**
-- [ ] `server/security/secrets/keyring.test.ts` gains the two role passwords under their HKDF
+- [x] `server/security/secrets/keyring.test.ts` gains the two role passwords under their HKDF
   labels, 43 characters of base64url, the same for the same key and different across keys.
-- [ ] `server/db/preflight.test.ts` first fails, then passes, on PostgreSQL 16 and 18: each refusal
+- [x] `server/db/preflight.test.ts` first fails, then passes, on PostgreSQL 16 and 18: each refusal
   of the spec, named, all at once, before anything changes.
-- [ ] `tests/database.ts` provides `postgres:16` from Docker, or `COMRADARR_TEST_DATABASE_URL_16`
+- [x] `tests/database.ts` provides `postgres:16` from Docker, or `COMRADARR_TEST_DATABASE_URL_16`
   when it is set; without either, the 16 run fails clearly, like the 18 one.
-- [ ] `server/db/roles.test.ts`, on 16 and 18: roles created, passwords set as verifiers (fresh
+- [x] `server/db/roles.test.ts`, on 16 and 18: roles created, passwords set as verifiers (fresh
   salt, 4096 iterations; the app role logs in with the derived password, and again after a new
   key), and the D16 privilege checks of the spec's Validation, effective privileges included,
   also on a database whose `public` schema still grants `CREATE` to `PUBLIC`; a database name with
@@ -82,13 +82,13 @@ and requests on the app role's pool. `tests/database.ts` gains `postgres:16`.
   file's database and app role, `pg_reload_conf()`, and the line removed and reloaded afterwards.
   With an external test URL, nobody's server is edited: the same error handling runs against a
   `28000` the test's client returns. CI always uses Docker, so it always runs the real case.
-- [ ] `parameterised.test.ts` exempts exactly `db/roles.ts` (the role statements) and
+- [x] `parameterised.test.ts` exempts exactly `db/roles.ts` (the role statements) and
   `db/migrate.ts` (the reviewed migrations).
-- [ ] No password or verifier in a thrown error, and no plaintext password in PostgreSQL's statement
+- [x] No password or verifier in a thrown error, and no plaintext password in PostgreSQL's statement
   log, which shows the verifier the app sends by design (a test searches both; task 3 adds the
   log entries).
-- [ ] The PR body records the time the 16 container adds to a run.
-- [ ] e2e: the built server serves as the app role with the owner connection closed (the server's
+- [x] The PR body records the time the 16 container adds to a run.
+- [x] e2e: the built server serves as the app role with the owner connection closed (the server's
   PostgreSQL sessions), and refuses to start with an owner role without `CREATEROLE`, echoing no
   value.
 

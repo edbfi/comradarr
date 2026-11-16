@@ -22,7 +22,17 @@ export type OpenOptions = {
 	readonly onWaiting?: (attempt: number, reason: string) => void;
 	/** The variable the URL came from, which errors name. */
 	readonly variable?: DatabaseUrlVariable;
+	/** Who connects, when it isn't the URL's own role, such as `the app role "comradarr_app"`. */
+	readonly as?: string;
 };
+
+/** `url` with another role's name and password, keeping its host, port, database and parameters. */
+export function withCredentials(url: string, user: string, password: string): string {
+	const parsed = new URL(url);
+	parsed.username = encodeURIComponent(user);
+	parsed.password = encodeURIComponent(password);
+	return parsed.toString();
+}
 
 /** What Bun SQL reports for a connection that failed before PostgreSQL answered. */
 const CONNECTION_CODES = new Set([
@@ -72,14 +82,12 @@ export async function openDatabase(url: string, options: OpenOptions = {}): Prom
 			await Promise.race([probe`select 1`, timedOut]);
 			return connect(url);
 		} catch (error) {
-			if (!isWorthWaiting(error)) {
-				throw new ConfigError(variable, `${at} refused the connection (${reasonOf(error)})`);
-			}
+			if (!isWorthWaiting(error)) throw refusal(error, variable, options.as);
 			const reason = reasonOf(error);
 			if (Date.now() + intervalMs >= deadline) {
 				throw new ConfigError(
 					variable,
-					`${at} could not be reached within ${waitMs / 1000} seconds (${reason})`,
+					`${options.as === undefined ? at : `PostgreSQL, for ${options.as},`} could not be reached within ${waitMs / 1000} seconds (${reason})`,
 				);
 			}
 			onWaiting?.(attempt, reason);
@@ -89,6 +97,22 @@ export async function openDatabase(url: string, options: OpenOptions = {}): Prom
 			await probe.close({ timeout: 0 }).catch(() => {});
 		}
 	}
+}
+
+/**
+ * PostgreSQL's refusal of a connection, which waiting won't fix, such as a wrong password or a
+ * `pg_hba.conf` that rejects the role (28000). It names who connected and PostgreSQL's reason.
+ */
+export function refusal(
+	error: unknown,
+	variable: DatabaseUrlVariable = "COMRADARR_DATABASE_URL",
+	as?: string,
+): ConfigError {
+	const who =
+		as === undefined
+			? `PostgreSQL at ${databaseUrlSubject(variable)} refused the connection`
+			: `PostgreSQL refused ${as}`;
+	return new ConfigError(variable, `${who} (${reasonOf(error)})`);
 }
 
 /** The SQLSTATE and PostgreSQL's message, or Bun's code: neither holds the URL. */

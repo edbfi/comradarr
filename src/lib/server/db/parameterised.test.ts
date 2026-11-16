@@ -16,8 +16,12 @@ const UNSAFE: { pattern: RegExp; says: string }[] = [
 	{ pattern: /\bsql\s*`[^`]*`\s*\+/g, says: "text joined to a sql template" },
 ];
 
-/** The files whose statements can't take parameters, each reviewed: the reviewed migrations. */
-const EXEMPT = new Set(["src/lib/server/db/migrate.ts"]);
+/**
+ * The files whose statements can't take parameters, each reviewed: the reviewed migrations, and
+ * the role statements, whose identifiers pass through one quoting function and whose only literal
+ * is a verifier the app computed.
+ */
+const EXEMPT = new Set(["src/lib/server/db/migrate.ts", "src/lib/server/db/roles.ts"]);
 
 /**
  * The problems in one file's text, as `line: what`, matched across lines, since the formatter
