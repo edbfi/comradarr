@@ -37,6 +37,7 @@ enum (the four `setup` codes) go into the first migration (the spec); no operati
 - [ ] `tests/e2e/setup.test.ts`: the built server migrates a new database, serves `/healthz`, starts
   again on it, and refuses to start without a database URL or with both variables, echoing
   neither.
+- [ ] The PR body records the time the 18 container adds to a run.
 - [ ] D15's validation is in the PR body: migrations, `check`, `bun --no-install ./build` with no
   `node_modules`, rollback isolation, CI's jobs on Docker with no CI change, and the gates with
   failing `node`, `npm` and `npx` on `PATH`.
@@ -75,9 +76,12 @@ and requests on the app role's pool. `tests/database.ts` gains `postgres:16`.
   salt, 4096 iterations; the app role logs in with the derived password, and again after a new
   key), and the D16 privilege checks of the spec's Validation, effective privileges included,
   also on a database whose `public` schema still grants `CREATE` to `PUBLIC`; a database name with
-  a `"` and capitals still gets correctly quoted roles; a real `pg_hba.conf` rejection of the app
-  role (a rejecting line written into the test container, then `pg_reload_conf()`) fails with
-  PostgreSQL's `28000` and an error naming the role.
+  a `"` and capitals still gets correctly quoted roles; a `pg_hba.conf` rejection of the app role
+  fails with PostgreSQL's `28000` and an error naming the role. On the Docker container the
+  rejection is real: a `reject` line first in the file `SHOW hba_file` names, scoped to this test
+  file's database and app role, `pg_reload_conf()`, and the line removed and reloaded afterwards.
+  With an external test URL, nobody's server is edited: the same error handling runs against a
+  `28000` the test's client returns. CI always uses Docker, so it always runs the real case.
 - [ ] `parameterised.test.ts` exempts exactly `db/roles.ts` (the role statements) and
   `db/migrate.ts` (the reviewed migrations).
 - [ ] No password or verifier in a thrown error, and no plaintext password in PostgreSQL's statement
