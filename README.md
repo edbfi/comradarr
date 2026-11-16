@@ -81,10 +81,9 @@ secrets:
 secret fails with an error saying it was written under another master key. Enter it again, or set
 the old key back, which still reads everything.
 
-**Backups:** back up Comradarr's database with `pg_dump`, keep a copy of the key with your
-backups, apart from the database, and restore the database with the key it was written with.
-Without it, stored secrets can't be read. The key also derives the passwords of the database
-roles Comradarr creates; it sets those again when it starts, so they need no backup of their own.
+**Backups:** keep a copy of the key with your backups, apart from the database, and restore the
+database with the key it was written with: without it, stored secrets can't be read. The commands
+are in [Backups](#backups).
 
 ## Database
 
@@ -110,6 +109,117 @@ so there is nothing to store: a new key sets new passwords at the next start. If
 `pg_hba.conf` lists the users it lets in, allow these two from Comradarr's address, as the owner
 role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
+
+## Running it with Compose
+
+There is no Comradarr image yet, so this example runs the server you build, in Bun's own image,
+next to PostgreSQL 18. In a clone of this repository, build it once:
+
+```sh
+bun ci && bun run --bun build
+```
+
+Then make the three secrets, each in its own file that only you can read. The database URL repeats
+the database password:
+
+```sh
+(
+  umask 077
+  mkdir -p secrets
+  openssl rand -base64 32 > secrets/master-key
+  openssl rand -hex 24 > secrets/db-password
+  printf 'postgres://comradarr:%s@db:5432/comradarr' "$(cat secrets/db-password)" > secrets/database-url
+)
+```
+
+Keep a copy of `secrets/master-key` with your backups. The clone's `.gitignore` leaves `secrets/` out
+of git. Save this as `compose.yaml` next to them:
+
+```yaml
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: comradarr
+      POSTGRES_DB: comradarr
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      # Over TCP: the image's temporary server, while it first sets the database up, answers only
+      # on its socket.
+      test: ["CMD", "pg_isready", "--host=127.0.0.1", "--username=comradarr", "--dbname=comradarr"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  comradarr:
+    image: oven/bun:1.4.4
+    command: ["bun", "/app/build"]
+    volumes:
+      - ./build:/app/build:ro
+    environment:
+      COMRADARR_SECRET_KEY_FILE: /run/secrets/master_key
+      COMRADARR_DATABASE_URL_FILE: /run/secrets/database_url
+      # ORIGIN: https://comradarr.example
+    secrets: [master_key, database_url]
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    stop_grace_period: 40s
+    restart: unless-stopped
+
+secrets:
+  master_key:
+    file: ./secrets/master-key
+  db_password:
+    file: ./secrets/db-password
+  database_url:
+    file: ./secrets/database-url
+
+volumes:
+  db:
+```
+
+Start it with `docker compose up -d`, and read the setup banner with `docker compose logs
+comradarr` (below). Comradarr starts once PostgreSQL's health check passes, and waits for it
+itself as well.
+
+## Backups
+
+A backup is PostgreSQL's own dump of Comradarr's database, together with the master key. Comradarr
+needs both: the key derives the passwords of its two database roles and decrypts what it stores.
+With the Compose example:
+
+```sh
+(
+  umask 077
+  docker compose exec -T db pg_dump --no-owner --no-privileges --username=comradarr --dbname=comradarr > comradarr.sql.tmp \
+    && mv comradarr.sql.tmp comradarr.sql
+)
+```
+
+A failed dump leaves the last good `comradarr.sql` in place. The dump holds the owner's password
+hash and the audit history, so only you can read it, and the clone's `.gitignore` leaves it out of
+git.
+
+The dump leaves out the two roles; Comradarr creates them again at its next start. To restore,
+start PostgreSQL on an empty volume and wait until it is ready, load the dump into its new database
+in one transaction, so a failure leaves nothing behind, then start Comradarr with the same master
+key:
+
+```sh
+docker compose up -d --wait db
+docker compose exec -T db psql -v ON_ERROR_STOP=1 --single-transaction --quiet --username=comradarr --dbname=comradarr < comradarr.sql
+docker compose up -d comradarr
+```
+
+Take a backup before each upgrade: migrations only go forward, so going back means restoring the
+backup and running the previous version.
 
 ## First run
 

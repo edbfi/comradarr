@@ -112,8 +112,6 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Open decisions each module closes
 
-- `setup`: the backup and restore test of D18 goes with the Compose example. D15, D16, D17's
-  oldest PostgreSQL version, D14's logging half and the CSP's inline styles are closed.
 - `sign-in`: how long an owner session lasts.
 - `sign-in`: how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
   where the app's approved docs allow one). The password's length and the common-password list are
@@ -870,7 +868,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     `/setup` and its action answering 404, also after a restart; and the setup gate: every page of a
     fresh instance sent to `/setup` with the headers, a JSON caller's 503 `setup_incomplete` in
     both languages, `/healthz` and the CSP report endpoint let through. The tests of a page claim
-    their server first, so none silently tests the gate.
+    their server first, so none silently tests the gate. Backup and restore (D18): a claimed
+    instance dumped with the README's `pg_dump --no-owner --no-privileges` and restored with
+    `psql` as a new owner role on a new PostgreSQL with no comradarr roles starts with the same key
+    and comes back with both roles, their privileges, the owner and the audit history.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

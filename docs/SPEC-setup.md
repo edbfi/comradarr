@@ -791,7 +791,10 @@ server, need a real PostgreSQL (SPEC.md, "Each module's tests"). `tests/database
   databases and roles (a superuser, or `CREATEDB` and `CREATEROLE`) on a server the developer runs;
   otherwise it starts `postgres:18` with Docker, labelled, with `--rm`, on a free port so parallel
   worktrees don't collide, and removes containers a crashed run left behind, found by their label.
-  The role and privilege tests also run on `postgres:16`, the oldest accepted.
+  The role and privilege tests also run on `postgres:16`, the oldest accepted. The e2e restore test
+  runs `pg_dump` and `psql` inside each server's own container, as the README does, so the client
+  is the server's version; for a server `COMRADARR_TEST_DATABASE_URL` names, from `PATH` if they
+  are version 18 or later, since an older `pg_dump` refuses a newer server.
 - **Isolation:** each test file gets its own new database, owned by its own new owner role, and
   the run drops every database and role it created, the derived app and audit-admin roles
   included, and nothing else.
