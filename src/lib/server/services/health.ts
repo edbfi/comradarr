@@ -20,6 +20,10 @@ const log = createLogger("health");
  */
 let reported: Status = "healthy";
 
+/** Each probe's number as it starts, and the number of the one that last changed `reported`. */
+let started = 0;
+let reportedBy = 0;
+
 /**
  * Checks each component and returns the overall status, the worst of theirs. `setup` has one, the
  * database (critical, so it is healthy or unavailable); later modules add theirs.
@@ -37,9 +41,12 @@ export async function checkHealth(
 }
 
 async function databaseStatus(db: Database, timeoutMs: number): Promise<Status> {
+	const probe = ++started;
 	const reason = await probeDatabase(db, timeoutMs);
 	const status: Status = reason === undefined ? "healthy" : "unavailable";
-	if (status !== reported) {
+	// A slow probe that started before the last logged change can't log a change back.
+	if (status !== reported && probe > reportedBy) {
+		reportedBy = probe;
 		if (reason === undefined) log.info("the database is back");
 		else log.warn("the database is unavailable", { reason });
 		reported = status;

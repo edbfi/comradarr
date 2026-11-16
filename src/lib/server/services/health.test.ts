@@ -85,6 +85,35 @@ describe("checkHealth", () => {
 	});
 });
 
+describe("checkHealth's log with overlapping probes", () => {
+	it("doesn't log a recovery from a slow probe that started before the failure was logged", async () => {
+		await checkHealth(db);
+		lines.length = 0;
+		const closed = await openDatabase(database.url);
+		await closed.$client.close();
+		let release!: () => void;
+		const slow = {
+			$client: Object.assign(
+				() =>
+					Object.assign(
+						new Promise((resolve) => {
+							release = () => resolve([{}]);
+						}),
+						{ cancel: () => {} },
+					),
+				{},
+			),
+		} as unknown as Database;
+
+		const late = checkHealth(slow);
+		await checkHealth(closed);
+		release();
+		await late;
+
+		expect(entries().map((entry) => entry.message)).toEqual(["the database is unavailable"]);
+	});
+});
+
 describe("healthResponse", () => {
 	it("answers healthy and degraded with 200, and unavailable with 503, never cached", async () => {
 		const healthy = healthResponse({ status: "healthy", components: { database: "healthy" } });
