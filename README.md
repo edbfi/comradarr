@@ -130,9 +130,22 @@ belong to the Bun server it runs on:
 | `CONNECTION_IDLE_TIMEOUT` | seconds before an idle connection closes, at most 255 | `10` |
 | `BODY_SIZE_LIMIT` | the largest request body accepted | `512K` |
 
-After the requests finish, Comradarr takes a little over 5 more seconds at most to close. Give the container
-longer than `SHUTDOWN_TIMEOUT` plus 5 seconds to stop, or it's killed mid-write. Docker's default is
-10 seconds, so with the default `SHUTDOWN_TIMEOUT`, set Compose's `stop_grace_period` to `40s`.
+After the requests finish, Comradarr takes a little over 5 more seconds at most to close. Give the
+container longer than `SHUTDOWN_TIMEOUT` plus 5 seconds to stop, or it's killed mid-write. Docker's
+default is 10 seconds, so with the default `SHUTDOWN_TIMEOUT`, set Compose's `stop_grace_period` to
+`40s`.
+
+## The address browsers use
+
+`ORIGIN` is optional, and tells Comradarr the address browsers use, as a bare origin with no path:
+
+| Variable | Holds | Default |
+| --- | --- | --- |
+| `ORIGIN` | the address browsers use, such as `https://comradarr.example` or `http://192.168.1.20:3000` | unset |
+
+Comradarr won't start if `ORIGIN` is empty or holds a path, a query, a fragment or credentials;
+leave it out instead. Over HTTPS, when `ORIGIN` is `https` or the browser shows it, pages ask
+browsers to keep using HTTPS.
 
 ## Logs
 

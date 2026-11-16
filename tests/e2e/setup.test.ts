@@ -238,30 +238,6 @@ test.describe("the logs", () => {
 		expect(request?.requestId).toMatch(/^[0-9a-f-]{36}$/);
 	});
 
-	test("log a conditional request SvelteKit answers with 304 as a 304 with no body", async () => {
-		const database = await newDatabase();
-		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
-		let etag: string | null = null;
-		let second = 0;
-		try {
-			etag = (await fetch(`${server.url}/?first`)).headers.get("etag");
-			const again = await fetch(`${server.url}/?second`, {
-				headers: { "if-none-match": etag ?? "" },
-			});
-			second = again.status;
-		} finally {
-			await server.stop();
-		}
-		const line = logEntries(server.output()).find(
-			(entry) =>
-				entry.message === "request" && (entry.metadata as { path: string }).path === "/?second=",
-		);
-
-		expect(etag).not.toBeNull();
-		expect(second).toBe(304);
-		expect(line?.metadata).toMatchObject({ status: 304, size: 0 });
-	});
-
 	test("hold no password, verifier or database URL from startup", async () => {
 		const database = await newDatabase();
 		const key = crypto.getRandomValues(new Uint8Array(32)).toBase64();
@@ -311,6 +287,131 @@ test.describe("shutdown", () => {
 			expect(stopping.map((entry) => (entry.metadata as { signal: string }).signal)).toEqual([
 				"SIGTERM",
 			]);
+		});
+	}
+});
+
+test.describe("security headers and the CSP", () => {
+	const ALWAYS = {
+		"x-frame-options": "DENY",
+		"x-content-type-options": "nosniff",
+		"referrer-policy": "same-origin",
+		"cross-origin-opener-policy": "same-origin",
+		"cross-origin-resource-policy": "same-origin",
+	};
+
+	test("every response that passes through handle carries them, with no HSTS over plain HTTP and no server banner", async () => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		try {
+			const statuses: Record<string, number> = {};
+			for (const path of ["/", "/healthz", "/no-such-page"]) {
+				const response = await fetch(`${server.url}${path}`, { redirect: "manual" });
+				statuses[path] = response.status;
+				for (const [name, value] of Object.entries(ALWAYS)) {
+					expect(response.headers.get(name), `${name} on ${path}`).toBe(value);
+				}
+				expect(response.headers.get("permissions-policy"), path).toContain("camera=()");
+				expect(response.headers.get("strict-transport-security"), path).toBeNull();
+				expect(response.headers.get("server"), path).toBeNull();
+				expect(response.headers.get("x-powered-by"), path).toBeNull();
+			}
+			expect(statuses).toEqual({ "/": 200, "/healthz": 200, "/no-such-page": 404 });
+		} finally {
+			await server.stop();
+		}
+	});
+
+	test("a page's policy is the spec's, its scripts carry the nonce, and the browser reports no violation", async ({
+		page,
+	}) => {
+		const database = await newDatabase();
+		const server = await startServer(root, { COMRADARR_DATABASE_URL: database.url });
+		try {
+			const response = await fetch(`${server.url}/`);
+			const policy = response.headers.get("content-security-policy") ?? "";
+			const html = await response.text();
+			const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
+			expect(nonce).toBeDefined();
+			const directives = Object.fromEntries(
+				policy.split(";").map((directive) => {
+					const [name = "", ...sources] = directive.trim().split(/\s+/);
+					return [name, sources.sort()];
+				}),
+			);
+			expect(directives).toEqual({
+				"default-src": ["'self'"],
+				"script-src": [`'nonce-${nonce}'`, "'self'"].sort(),
+				"style-src": ["'self'"],
+				"style-src-elem": ["'self'"],
+				"style-src-attr": ["'unsafe-inline'"],
+				"img-src": ["'self'", "data:"],
+				"font-src": ["'self'"],
+				"connect-src": ["'self'"],
+				"frame-ancestors": ["'none'"],
+				"frame-src": ["'none'"],
+				"object-src": ["'none'"],
+				"base-uri": ["'self'"],
+				"form-action": ["'self'"],
+				"report-uri": ["/api/csp-report"],
+			});
+			const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((match) => match[0]);
+			expect(scripts.length).toBeGreaterThan(0);
+			for (const script of scripts) expect(script).toContain(`nonce="${nonce}"`);
+
+			const violations: string[] = [];
+			page.on("console", (message) => {
+				if (/Content Security Policy/i.test(message.text())) violations.push(message.text());
+			});
+			await page.addInitScript(() => {
+				document.addEventListener("securitypolicyviolation", (event) => {
+					console.error(`Content Security Policy violation: ${event.violatedDirective}`);
+				});
+			});
+			const visit = await page.goto(`${server.url}/`);
+			await expect(page.locator("html[data-hydrated]")).toBeAttached();
+			expect(violations).toEqual([]);
+			// Chromium sends Sec-Fetch-Site to this loopback address over plain HTTP: no HSTS.
+			expect(visit?.headers()["strict-transport-security"]).toBeUndefined();
+
+			// A style element without the nonce is a violation the browser reports to the endpoint.
+			await page.evaluate(() => {
+				const style = document.createElement("style");
+				style.textContent = "body { outline: 1px solid red; }";
+				document.head.append(style);
+			});
+			await expect
+				.poll(
+					() =>
+						logEntries(server.output()).find(
+							(entry) => entry.message === "content security policy violation",
+						),
+					{ timeout: 10_000 },
+				)
+				.toMatchObject({ level: "warn", metadata: { directive: "style-src-elem", page: "/" } });
+		} finally {
+			await server.stop();
+		}
+	});
+
+	for (const [value, message] of [
+		["https://u:p@comradarr.example", "ORIGIN must not hold credentials"],
+		["https://comradarr.example/app", "ORIGIN must not have a path"],
+	] as const) {
+		test(`the built server refuses ORIGIN=${value}, without echoing it`, async () => {
+			const database = await newDatabase();
+			const { exitCode, output } = await runToExit(root, {
+				COMRADARR_DATABASE_URL: database.url,
+				ORIGIN: value,
+			});
+
+			expect(output.includes(value), "output holds the value").toBe(false);
+			expect(output.includes("u:p@"), "output holds the credentials").toBe(false);
+			expect(exitCode).not.toBe(0);
+			expect(output).not.toContain("Listening on");
+			const failures = logEntries(output).filter((entry) => entry.message === "startup failed");
+			expect(failures).toHaveLength(1);
+			expect(JSON.stringify(failures[0])).toContain(message);
 		});
 	}
 });

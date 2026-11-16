@@ -311,25 +311,27 @@ src/
   app.d.ts                       SvelteKit ambient types: the request id in `locals` and in an
                                  error's answer
   env.ts                         declares `COMRADARR_SECRET_KEY`, `COMRADARR_DATABASE_URL`, their
-                                 `_FILE` forms and `COMRADARR_LOG_DEBUG`: private, read at runtime,
-                                 optional
+                                 `_FILE` forms, `ORIGIN` and `COMRADARR_LOG_DEBUG`: private, read at
+                                 runtime, optional
   hooks.server.ts                the `init` hook: runs startup, except while building;
-                                 `handle`: each request's id and log line, then its language,
-                                 through Paraglide's middleware; `handleError`: unexpected errors
-                                 through the logger
+                                 `handle`: each request's id and log line, its language through
+                                 Paraglide's middleware, then the security headers;
+                                 `handleError`: unexpected errors through the logger
   hooks.client.ts                the browser keeps the language the server chose for the page
   routes/
     +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
     (public)/+page.svelte        `/`: placeholder page, its text from the messages, and the
                                  language switcher
     healthz/+server.ts           `/healthz`: the public health check, overall and per component
+    api/csp-report/+server.ts    the CSP's report endpoint
     setup/ login/ dashboard/ …   later: one folder per surface brief; api/ for JSON endpoints
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
                                  `#lib/server/services/health.ts`
     paraglide/                   the compiled messages (generated, gitignored)
     server/                      server-only: services/health.ts: the components' status and the
                                  `/healthz` answer; services/unexpected-error.ts:
-                                 `handleError`'s log entry and generic answer; later
+                                 `handleError`'s log entry and generic answer;
+                                 services/csp-report.ts: a CSP violation report to the log; later
                                  providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
                                  http/ (SSRF-safe fetch)
       logging/                   logger.ts: JSON lines on standard output, the debug switch, the
@@ -339,7 +341,7 @@ src/
                                  never its value; secret-variable.ts: a secret from its variable
                                  or the file its `_FILE` form names; secret-key.ts: the master
                                  key's text; database-url.ts: the owner role's URL; log-debug.ts:
-                                 `COMRADARR_LOG_DEBUG`
+                                 `COMRADARR_LOG_DEBUG`; origin.ts: `ORIGIN`, a bare origin
       db/                        client.ts: the pool, after waiting for PostgreSQL; migrate.ts:
                                  applies the bundled migrations; preflight.ts: the owner role's
                                  checks; roles.ts: the two roles, their SCRAM verifiers and the
@@ -349,6 +351,7 @@ src/
                                  strings
       services/setup/startup.ts  startup's steps: the key, the configuration, the database; the
                                  app role's pool; shutdown on the signals, with its deadline
+      security/headers.ts        the security headers for a request, HSTS only over HTTPS
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
                                  the AES key, the key ID and the database roles' passwords;

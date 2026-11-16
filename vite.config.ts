@@ -13,6 +13,30 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
 			},
 			adapter: adapter(),
+			// A nonce on the app's own scripts and style elements, on every page; no page is
+			// prerendered, so each gets its own. Style attributes alone may be inline: SvelteKit,
+			// Svelte and Ark UI render them on the server (SPEC-setup.md, "The content security
+			// policy"). `report-uri` only: with `report-to` too, Chromium sends no report over
+			// plain HTTP.
+			csp: {
+				mode: "nonce",
+				directives: {
+					"default-src": ["self"],
+					"script-src": ["self"],
+					"style-src": ["self"],
+					"style-src-elem": ["self"],
+					"style-src-attr": ["unsafe-inline"],
+					"img-src": ["self", "data:"],
+					"font-src": ["self"],
+					"connect-src": ["self"],
+					"frame-ancestors": ["none"],
+					"frame-src": ["none"],
+					"object-src": ["none"],
+					"base-uri": ["self"],
+					"form-action": ["self"],
+					"report-uri": ["/api/csp-report"],
+				},
+			},
 		}),
 		// Static css() calls become class strings at build time, so no styling runtime ships.
 		pandacss({ transform: true }),

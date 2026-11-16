@@ -12,7 +12,8 @@ import {
 	sentStatusAndSize,
 	thrownStatus,
 } from "#lib/server/logging/request-line.ts";
-import { startUp } from "#lib/server/services/setup/startup.ts";
+import { securityHeaders, withSecurityHeaders } from "#lib/server/security/headers.ts";
+import { currentOrigin, startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
 import { building, dev } from "$app/env";
 import * as env from "$app/env/private";
@@ -64,7 +65,11 @@ const language: Handle = ({ event, resolve }) =>
 		),
 	);
 
-export const handle = sequence(requestId, language);
+/** The security headers on every response from here on, an early return from a later stage too. */
+const headers: Handle = async ({ event, resolve }) =>
+	withSecurityHeaders(await resolve(event), securityHeaders(event.request, currentOrigin()));
+
+export const handle = sequence(requestId, language, headers);
 
 /**
  * Every error SvelteKit catches passes here: one nobody expected goes through the logger,

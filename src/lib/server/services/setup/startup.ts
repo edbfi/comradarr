@@ -1,5 +1,6 @@
 import { type DatabaseUrlEnv, readDatabaseUrl } from "#lib/server/config/database-url.ts";
 import { type LogDebugEnv, readLogDebug } from "#lib/server/config/log-debug.ts";
+import { type OriginEnv, readOrigin } from "#lib/server/config/origin.ts";
 import type { SecretKeyEnv } from "#lib/server/config/secret-key.ts";
 import { type Database, openDatabase, withCredentials } from "#lib/server/db/client.ts";
 import { migrateDatabase } from "#lib/server/db/migrate.ts";
@@ -9,7 +10,7 @@ import { configureLogging, createLogger, flushLogs } from "#lib/server/logging/l
 import { currentKeyring, loadKeyring } from "#lib/server/security/secrets/keyring.ts";
 
 /** Every variable startup reads. */
-export type StartupEnv = SecretKeyEnv & DatabaseUrlEnv & LogDebugEnv;
+export type StartupEnv = SecretKeyEnv & DatabaseUrlEnv & LogDebugEnv & OriginEnv;
 
 /** The parts of the process that shutdown uses, so tests can pass a stand-in. */
 export type ShutdownTarget = {
@@ -29,6 +30,7 @@ const CLEANUP_DEADLINE_MS = 5000;
 const DEADLINE_FLUSH_MS = 250;
 
 let database: Database | undefined;
+let origin: string | undefined;
 
 /**
  * Runs startup's steps in order, before any request is served (SPEC-setup.md, "Startup and
@@ -124,6 +126,7 @@ async function runSteps(env: StartupEnv): Promise<void> {
 	await loadKeyring(env);
 	// 2. The configuration, all of it before the database.
 	configureLogging({ debug: readLogDebug(env) });
+	origin = readOrigin(env);
 	const { url, variable } = await readDatabaseUrl(env);
 	// 3. The database (D17): as the owner role, the pre-flight check, the migrations and the
 	// roles; the owner role's pool closes, and requests use the app role's.
@@ -142,6 +145,11 @@ async function runSteps(env: StartupEnv): Promise<void> {
 		variable,
 		as: `the app role "${app.name}"`,
 	});
+}
+
+/** The browser's address from `ORIGIN`, which startup checked, or undefined when it is unset. */
+export function currentOrigin(): string | undefined {
+	return origin;
 }
 
 /** The app role's pool, which requests and jobs use; it throws before startup has opened it. */
