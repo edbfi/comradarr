@@ -83,7 +83,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 
 ### Phase 2: the request checks
 
-- [ ] Task 6: `ORIGIN`, the security headers, the CSP and its report endpoint
+- [x] Task 6: `ORIGIN`, the security headers, the CSP and its report endpoint
 - [ ] Task 7: the cross-origin check and the error format
 
 ### Checkpoint: after task 7

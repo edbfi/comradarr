@@ -112,10 +112,8 @@ its layout. They follow the [Code structure](../AGENTS.md#code-structure) layout
 
 ### Open decisions each module closes
 
-- `setup`: how the inline `style` attributes that Ark UI and Svelte write fit the content security
-  policy, which allows no `unsafe-inline` ([SPEC-setup.md](SPEC-setup.md) answers it; it closes when
-  built); the backup and restore test of D18 goes with the Compose example. D15, D16, D17's oldest
-  PostgreSQL version and D14's logging half are closed.
+- `setup`: the backup and restore test of D18 goes with the Compose example. D15, D16, D17's
+  oldest PostgreSQL version, D14's logging half and the CSP's inline styles are closed.
 - `sign-in`: how long an owner session lasts.
 - `sign-in`: how repeated failed sign-ins are slowed beyond the rate limits (backoff, or a lockout
   where the app's approved docs allow one). The password's length and the common-password list are
@@ -809,7 +807,11 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
   and nested, secret-shaped values, and the linear-time growth checks; `logger.test.ts`, the entry's
   shape, the debug switch, the request id across awaits and concurrent requests, and `flushLogs`;
   `request-line.test.ts`, the request line), `services/unexpected-error.test.ts` (`handleError`),
-  `services/setup/startup.test.ts` (a failed startup's entry flushed before the throw; shutdown's
+  `config/origin.test.ts` (`ORIGIN`'s accepted forms and each refusal), `security/headers.test.ts`
+  (the headers over HTTPS, plain HTTP, `localhost` and loopback, and with `ORIGIN`),
+  `services/csp-report.test.ts` (a report logged with bounded context, and 204 for anything else, an
+  oversized body read only to the cap), `services/setup/startup.test.ts` (a bad `ORIGIN` refused
+  before the database URL is read; a failed startup's entry flushed before the throw; shutdown's
   order, exit codes and deadline with its bounded flush, no handlers in `dev`, handlers a turn after
   `init`, and closing the pool once), and in `src/lib/shared/i18n/`:
   - `format.test.ts` runs the formatters inside `paraglideMiddleware` with a request for each
@@ -831,8 +833,11 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     required, readable from a file, and never echoed, the two roles set up with no owner-role
     session left, an owner role without `CREATEROLE` refused, the logs as JSON lines with one line
     per request carrying its id, no password, verifier or database URL in startup's output, a bad
-    `COMRADARR_LOG_DEBUG` refused in one entry, and `SIGTERM` and `SIGHUP` each stopping the server
-    with exit code 0.
+    `COMRADARR_LOG_DEBUG` refused in one entry, `SIGTERM` and `SIGHUP` each stopping the server
+    with exit code 0, the headers on a page, `/healthz` and a 404 with no HSTS over plain HTTP and
+    no server banner, the policy directive by directive with the nonce on every script and no
+    violation, a provoked violation reaching the log through the report endpoint, and an `ORIGIN`
+    with credentials or a path refused without echoing it.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
@@ -884,9 +889,9 @@ design doesn't call for anything different; choices 4 and 5 are comradarr's own.
 2. **Ark UI before its first use.** The skeleton installs `@ark-ui/svelte`, so the Panda and Ark
    pairing and `check-peers` are settled early; the first `ui/` wrapper comes with the first surface
    that needs one.
-3. **Security headers and CSP.** `setup`'s Module notes make security headers and a strict
-   nonce-based CSP always on, with a report endpoint. They belong to the first module that serves
-   real pages (`setup`, whose claim page comes before `sign-in`), not the skeleton.
+3. **Security headers and CSP.** Always on, with a nonce-based CSP and its report endpoint;
+   `setup` built them ([SPEC-setup.md](SPEC-setup.md#security-headers)), with style attributes
+   alone allowed inline (the owner's choice with that spec).
 4. **Where the icon lives.** SvelteKit serves static files from `static/`, so the icon is
    `static/comradarr-icon.svg`, which the README shows and `src/app.html` uses as the favicon.
 5. **Health.** `/healthz` reports the overall and per-component status as JSON, 200 or 503, with no

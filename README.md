@@ -134,6 +134,20 @@ After the requests finish, Comradarr takes a little over 5 more seconds at most 
 longer than `SHUTDOWN_TIMEOUT` plus 5 seconds to stop, or it's killed mid-write. Docker's default is
 10 seconds, so with the default `SHUTDOWN_TIMEOUT`, set Compose's `stop_grace_period` to `40s`.
 
+## The address browsers use
+
+`ORIGIN` is optional, and tells Comradarr the address browsers use, as a bare origin with no path:
+
+| Variable | Holds | Default |
+| --- | --- | --- |
+| `ORIGIN` | the address browsers use, such as `https://comradarr.example` or `http://192.168.1.20:3000` | unset |
+
+Comradarr won't start if `ORIGIN` is empty or holds a path, a query, a fragment or credentials;
+leave it out instead. Over HTTPS (when `ORIGIN` is `https`, or, without it, when the request came
+over HTTPS), pages ask browsers to keep using HTTPS for a year. Browsers apply that to every port of
+the host name, so an app on the same host name over plain HTTP, such as Sonarr or Radarr, becomes
+unreachable from that browser: give it its own host name, or serve it over HTTPS too.
+
 ## Logs
 
 Comradarr writes its log to standard output, one JSON object per line, which the container

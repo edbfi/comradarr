@@ -68,6 +68,17 @@ describe("startUp", () => {
 	});
 });
 
+describe("startUp's configuration", () => {
+	it("refuses a bad ORIGIN before it reads the database URL", async () => {
+		const error = await startUp(
+			{ COMRADARR_SECRET_KEY: key(), ORIGIN: "https://comradarr.example/app" },
+			{ dev: true },
+		).catch((caught: unknown) => caught);
+
+		expect(error).toMatchObject({ name: "ConfigError", variable: "ORIGIN" });
+	});
+});
+
 /** A stand-in for the process: it records the signals sent, and the exit code in `steps`. */
 function fakeProcess(steps: string[] = []) {
 	const events = new EventEmitter();

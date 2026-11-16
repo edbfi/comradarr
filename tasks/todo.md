@@ -187,12 +187,12 @@ nonce CSP with `style-src-attr 'unsafe-inline'` and `report-uri`, and `/api/csp-
 ground-floor choice 3.
 
 **Acceptance criteria:**
-- [ ] `server/config/origin.test.ts` (obzorarr's, ported) and `server/security/headers.test.ts`
+- [x] `server/config/origin.test.ts` (obzorarr's, ported) and `server/security/headers.test.ts`
   (obzorarr's cases plus the permissions list, opener and resource policies, never
   `includeSubDomains`).
-- [ ] `routes/api/csp-report/server.test.ts`: the accepted type and size, the bounded log entry, a
-  204 for everything, the oversized body read only to the cap.
-- [ ] e2e: the headers on a page, `/healthz` and a 404, no HSTS over plain HTTP, no `Server` or
+- [x] `server/services/csp-report.test.ts` (the route only calls it): the accepted type and size,
+  the bounded log entry, a 204 for everything, the oversized body read only to the cap.
+- [x] e2e: the headers on a page, `/healthz` and a 404, no HSTS over plain HTTP, no `Server` or
   `X-Powered-By`; the policy directive by directive; the nonce on every script; no violation on a
   page; a provoked violation reaching the log; the refused `ORIGIN`s.
 
@@ -201,9 +201,9 @@ ground-floor choice 3.
 **Dependencies:** task 3.
 
 **Files:** `server/config/origin.ts` (+ test), `server/security/headers.ts` (+ test),
-`src/routes/api/csp-report/+server.ts` (+ test), `src/hooks.server.ts`, `src/env.ts`,
-`vite.config.ts`, `tests/e2e/setup.test.ts`, README (`ORIGIN`), SPEC.md (ground-floor choice 3),
-AGENTS.md.
+`src/routes/api/csp-report/+server.ts`, `server/services/csp-report.ts` (+ test),
+`src/hooks.server.ts`, `src/env.ts`, `vite.config.ts`, `tests/e2e/setup.test.ts`, README
+(`ORIGIN`), SPEC.md (ground-floor choice 3), AGENTS.md.
 
 **Size:** M.
 

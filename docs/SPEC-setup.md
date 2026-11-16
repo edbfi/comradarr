@@ -758,6 +758,7 @@ src/lib/server/services/setup/startup.ts    the startup steps and shutdown
 src/lib/server/services/setup/first-run.ts  the steps, the pointer, the token and the gate
 src/lib/server/services/setup/claim.ts      the claim
 src/lib/server/services/health.ts           the components and the answer
+src/lib/server/services/csp-report.ts       a violation report to the log
 src/lib/shared/errors/problem.ts            the error format
 src/lib/shared/password-rules.ts            the rules the browser can check
 src/routes/setup/+page.svelte               the claim form
