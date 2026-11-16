@@ -111,6 +111,12 @@ so there is nothing to store: a new key sets new passwords at the next start. If
 role; otherwise Comradarr stops, naming the role PostgreSQL refused. When
 PostgreSQL is still starting, Comradarr waits for it for up to 30 seconds before it gives up.
 
+## Health
+
+`/healthz` answers without signing in, for a container's health check: `{"status":"healthy",
+"components":{"database":"healthy"}}` with 200, or `unavailable` with 503 when the database doesn't
+answer within 2 seconds. It never shows versions, timings or errors; the log says what failed.
+
 ## Stopping and the server's limits
 
 Comradarr stops cleanly on `SIGTERM`, `SIGINT` or `SIGHUP`: it lets the requests in progress finish,

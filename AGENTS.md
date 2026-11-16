@@ -322,12 +322,13 @@ src/
     +layout.svelte               loads app.css; marks <html data-hydrated> once mounted
     (public)/+page.svelte        `/`: placeholder page, its text from the messages, and the
                                  language switcher
-    healthz/+server.ts           `/healthz`: public one-word status
+    healthz/+server.ts           `/healthz`: the public health check, overall and per component
     setup/ login/ dashboard/ …   later: one folder per surface brief; api/ for JSON endpoints
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
                                  `#lib/server/services/health.ts`
     paraglide/                   the compiled messages (generated, gitignored)
-    server/                      server-only: services/health.ts; services/unexpected-error.ts:
+    server/                      server-only: services/health.ts: the components' status and the
+                                 `/healthz` answer; services/unexpected-error.ts:
                                  `handleError`'s log entry and generic answer; later
                                  providers/<sonarr|radarr|prowlarr>/, services/<domain>/, jobs/,
                                  http/ (SSRF-safe fetch)

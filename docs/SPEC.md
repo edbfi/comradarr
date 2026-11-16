@@ -792,8 +792,9 @@ export const GET: RequestHandler = () => healthResponse();
 
 ## Testing strategy
 
-- **Unit (Vitest, `node` environment):** the `/healthz` handler (status 200, body `ok`,
-  `cache-control: no-store`), the `secrets` module (`config/secret-key.test.ts`, and
+- **Unit (Vitest, `node` environment):** the `/healthz` handler and `services/health.test.ts`
+  (healthy, unavailable when the database fails or takes over 2 seconds, 200 or 503, JSON with no
+  version, timing or error, never cached), the `secrets` module (`config/secret-key.test.ts`, and
   `key-text.test.ts`, `keyring.test.ts`, `cipher.test.ts` and `secret.test.ts` in
   `security/secrets/`, under `src/lib/server/`), the database (`config/database-url.test.ts`, and
   in `db/`: `client.test.ts`, the wait for PostgreSQL and rollback isolation; `migrate.test.ts`,
@@ -819,8 +820,8 @@ export const GET: RequestHandler = () => healthResponse();
   Playwright generates for each run, so CI needs no stored secret.
   - `smoke.test.ts` checks that `/` returns 200, shows the placeholder heading, hydrates (it waits
     for the `data-hydrated` attribute the root layout sets when mounted), applies the Panda
-    background token and `h1` text style and logs no console errors, and that `/healthz` returns
-    `ok`.
+    background token and `h1` text style and logs no console errors, and that `/healthz` reports
+    the database healthy as JSON, never cached, and answers `HEAD` without a body.
   - `secret-key.test.ts` checks that the built server refuses to start without a valid key.
   - `setup.test.ts` starts its own servers, each on a new database: the migrations on a new
     database and nothing on a second start, a failed migration stopping startup, the database URL
@@ -885,5 +886,6 @@ design doesn't call for anything different; choices 4 and 5 are comradarr's own.
    real pages (`setup`, whose claim page comes before `sign-in`), not the skeleton.
 4. **Where the icon lives.** SvelteKit serves static files from `static/`, so the icon is
    `static/comradarr-icon.svg`, which the README shows and `src/app.html` uses as the favicon.
-5. **Health.** `/healthz` always answers `ok`. The module that adds the database replaces it with
-   the health check in `setup`'s Module notes.
+5. **Health.** `/healthz` reports the overall and per-component status as JSON, 200 or 503, with no
+   versions or timings ([SPEC-setup.md](SPEC-setup.md#health)); `setup` built it in place of the
+   ground floor's fixed `ok`.

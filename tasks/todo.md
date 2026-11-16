@@ -165,9 +165,9 @@ the built server.
 or 503, closing ground-floor choice 5.
 
 **Acceptance criteria:**
-- [ ] `server/services/health.test.ts` first fails, then passes: healthy, and unavailable when the
+- [x] `server/services/health.test.ts` first fails, then passes: healthy, and unavailable when the
   query fails or takes over 2 seconds, with no version, timing or error in the answer.
-- [ ] `routes/healthz/server.test.ts` and the smoke test move to the new answer, with
+- [x] `routes/healthz/server.test.ts` and the smoke test move to the new answer, with
   `cache-control: no-store`; `HEAD` works. The database-down answer stays a unit test: the test
   PostgreSQL is shared, so no e2e stops it.
 
