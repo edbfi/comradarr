@@ -210,8 +210,13 @@ describe("startUp's shutdown", () => {
 	it("installs no handler in dev, where Ctrl+C must still end the dev server", async () => {
 		const before = counts();
 		await startUp(await newEnv(), { dev: true });
-		expect(counts()).toEqual(before);
-		await closeServices();
+		try {
+			// The built server's handlers go in a turn later, so the check waits for that turn too.
+			await new Promise((resolve) => setImmediate(resolve));
+			expect(counts()).toEqual(before);
+		} finally {
+			await closeServices();
+		}
 	});
 
 	it("installs the handlers in the built server, after adapter-bun's own", async () => {
@@ -238,13 +243,16 @@ describe("startUp's shutdown", () => {
 		const pool = currentDatabase().$client;
 		vi.spyOn(pool, "close").mockRejectedValueOnce(new Error("socket went away"));
 
-		await expect(closeServices()).resolves.toBeUndefined();
-		const entry = JSON.parse(lines.find((line) => line.includes("closing the database")) ?? "{}");
-		expect(entry).toMatchObject({
-			level: "error",
-			metadata: { error: { message: "socket went away" } },
-		});
-		await pool.close();
+		try {
+			await expect(closeServices()).resolves.toBeUndefined();
+			const entry = JSON.parse(lines.find((line) => line.includes("closing the database")) ?? "{}");
+			expect(entry).toMatchObject({
+				level: "error",
+				metadata: { error: { message: "socket went away" } },
+			});
+		} finally {
+			await pool.close();
+		}
 	});
 
 	it("closeServices finishes the close before it flushes, and the flush before it returns", async () => {
@@ -285,8 +293,12 @@ describe("startUp's shutdown", () => {
 	it("closeServices closes the pool startup opened, once", async () => {
 		await startUp(await newEnv(), { dev: true });
 		const close = vi.spyOn(currentDatabase().$client, "close");
-		await closeServices();
-		await closeServices();
-		expect(close).toHaveBeenCalledTimes(1);
+		try {
+			await closeServices();
+			await closeServices();
+			expect(close).toHaveBeenCalledTimes(1);
+		} finally {
+			await closeServices();
+		}
 	});
 });
