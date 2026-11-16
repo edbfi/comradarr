@@ -138,6 +138,18 @@ describe("openDatabase", () => {
 		);
 	});
 
+	it("names the role it connects as when it can't reach PostgreSQL", async () => {
+		const error = await openDatabase("postgres://comradarr:secret-word@127.0.0.1:1/comradarr", {
+			waitMs: 200,
+			intervalMs: 100,
+			as: 'the app role "comradarr_app"',
+		}).catch((caught: unknown) => caught);
+
+		expect((error as Error).message).toMatch(
+			/^PostgreSQL, for the app role "comradarr_app", could not be reached within 0\.2 seconds/,
+		);
+	});
+
 	it("fails at once when PostgreSQL refuses the owner role's password", async () => {
 		const url = new URL(database.url);
 		url.password = "not-the-password";

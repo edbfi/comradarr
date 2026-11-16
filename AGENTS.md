@@ -341,10 +341,10 @@ src/
                                  app role's pool
       security/secrets/          key-text.ts: a master key's text to its 32 bytes, refusing
                                  malformed and weak keys; keyring.ts: loads the key and derives
-                                 the AES key and key ID; secret.ts: the `Secret` wrapper,
-                                 `[redacted]` everywhere but `reveal()`; cipher.ts: encrypts a
-                                 secret bound to its table, field and row, and decrypts it only
-                                 there
+                                 the AES key, the key ID and the database roles' passwords;
+                                 secret.ts: the `Secret` wrapper, `[redacted]` everywhere but
+                                 `reveal()`; cipher.ts: encrypts a secret bound to its table,
+                                 field and row, and decrypts it only there
     components/                  later: ui/ (Ark wrappers), <feature>/
       layout/LanguageSwitcher.svelte
                                  one native button per language, named in that language

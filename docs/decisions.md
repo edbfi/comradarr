@@ -77,7 +77,7 @@ Migrations and runtime access use separately scoped database roles, so the datab
 the audit rules. The owner role changes the schema, and only at startup (D17). The app role reads
 and writes every table but may only insert and read audit entries, never change or delete them. The
 audit-admin role may only read and delete audit entries, for the retention sweep, and is denied
-everything else. The implementation and tests are open (D16).
+everything else. D16 holds the implementation and its tests.
 
 Why: a bug or injection in the request path must not be able to alter or erase audit history, and
 only the database can guarantee that.

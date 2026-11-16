@@ -87,7 +87,7 @@ export async function openDatabase(url: string, options: OpenOptions = {}): Prom
 			if (Date.now() + intervalMs >= deadline) {
 				throw new ConfigError(
 					variable,
-					`${at} could not be reached within ${waitMs / 1000} seconds (${reason})`,
+					`${options.as === undefined ? at : `PostgreSQL, for ${options.as},`} could not be reached within ${waitMs / 1000} seconds (${reason})`,
 				);
 			}
 			onWaiting?.(attempt, reason);
