@@ -407,7 +407,8 @@ tests/
                                  token playwright.config.ts captures from the banner
   e2e/smoke.test.ts              Playwright smoke against the built server
   e2e/secret-key.test.ts         the built server refuses to start without a valid key
-  e2e/setup.test.ts              first run and the request checks on the built server
+  e2e/setup.test.ts              first run, the request checks, and backup and restore on the
+                                 built server
   e2e/i18n.test.ts               the built server serves each viewer's language, the browser
                                  keeps it, and the switcher changes it
   fixtures/demo-fixtures.json    design fixtures

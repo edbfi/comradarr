@@ -98,7 +98,7 @@ endpoint with the CSP, the error format with the refusal, the request id with th
 - [x] Task 9: the owner's credentials
 - [x] Task 10: the claim at `/setup`
 - [x] Task 11: the setup gate
-- [ ] Task 12: the Compose example and the restore (D18)
+- [x] Task 12: the Compose example and the restore (D18)
 
 ### Checkpoint: complete
 

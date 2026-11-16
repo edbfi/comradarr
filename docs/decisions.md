@@ -425,9 +425,14 @@ Not yet validated for this stack: production containers, realistic load, and job
 restart. Hydration is validated: the e2e smoke test waits for the hydrated app in Chromium against
 the built server, with no console errors. So is browser interaction with a real component:
 `i18n.test.ts` presses the language switcher and follows the reload it causes.
-A crash test doesn't prove recovery from power loss or storage faults. PostgreSQL backup and restore
-hasn't been validated; the procedure (D17) is still to be tested, and the database and the master
-key must be restored together. Each closes with the work that first depends on it.
+A crash test doesn't prove recovery from power loss or storage faults. Each closes with the work that
+first depends on it.
+
+Validated by `setup`: PostgreSQL backup and restore (D17). A dump with `pg_dump --no-owner
+--no-privileges`, restored as a new owner role on a new PostgreSQL with no comradarr roles and
+started with the same master key, comes back with both roles, their privileges, the owner and the
+audit history (`tests/e2e/setup.test.ts`). The README gives the commands. The database and the
+master key are restored together.
 
 ### D19. One process
 

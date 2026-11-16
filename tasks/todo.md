@@ -348,10 +348,10 @@ README, AGENTS.md.
 `depends_on`, `stop_grace_period`, the two secrets) and its backup and restore commands, tested.
 
 **Acceptance criteria:**
-- [ ] A test runs the README's exact `pg_dump --no-owner --no-privileges` and restore into a new
+- [x] A test runs the README's exact `pg_dump --no-owner --no-privileges` and restore into a new
   PostgreSQL with no comradarr roles, starts the built server with the same key, and finds the
   roles, their privileges, the owner and the audit history.
-- [ ] The Compose example starts, is claimed through the banner's link, and survives a restart (by
+- [x] The Compose example starts, is claimed through the banner's link, and survives a restart (by
   hand, in the PR body).
 
 **Verification:** the gates.

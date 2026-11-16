@@ -4,7 +4,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Page, test } from "@playwright/test";
 import { SQL } from "bun";
-import { createDatabase, dropDatabase, type TestDatabase, type TestRun } from "../database.ts";
+import {
+	createDatabase,
+	dropDatabase,
+	startServer as startPostgres,
+	stopServer as stopPostgres,
+	type TestDatabase,
+	type TestRun,
+} from "../database.ts";
 
 // First run and the request checks on the built server (docs/SPEC.md, "Testing strategy"). Each
 // test starts its own server, with a generated key and a new database on the run's PostgreSQL.
@@ -117,6 +124,25 @@ function logEntries(output: string): Record<string, unknown>[] {
 			return [];
 		}
 	});
+}
+
+/**
+ * Runs a PostgreSQL client tool, `pg_dump` or `psql`, with `args` and `input` on its standard
+ * input: the one on PATH, or else the `postgres:18` image's, on the host's network so it reaches
+ * the tests' servers on 127.0.0.1. Its standard output, or a throw with what it printed.
+ */
+function postgresTool(tool: "pg_dump" | "psql", args: string[], input?: string): string {
+	const command =
+		Bun.which(tool) !== null
+			? [tool, ...args]
+			: ["docker", "run", "--rm", "-i", "--network", "host", "postgres:18", tool, ...args];
+	const result = Bun.spawnSync(command, {
+		stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	if (!result.success) throw new Error(`${tool} failed: ${result.stderr.toString().trim()}`);
+	return result.stdout.toString();
 }
 
 /** A database role's password as D17 derives it from `key`, to search the output for. */
@@ -643,6 +669,100 @@ test.describe("the claim", () => {
 		} finally {
 			await context.close();
 			await server.stop();
+		}
+	});
+});
+
+test.describe("backup and restore (D18)", () => {
+	test("a dump with the README's pg_dump flags, restored as a new owner role on a new PostgreSQL with no comradarr roles, starts with the same key and recreates the roles, with the owner and the audit history", async () => {
+		const key = randomKey();
+		const database = await newDatabase();
+		const source = await startServer(root, {
+			COMRADARR_DATABASE_URL: database.url,
+			COMRADARR_SECRET_KEY: key,
+		});
+		try {
+			await claimServer(source);
+		} finally {
+			await source.stop();
+		}
+		const sql = new SQL(database.url);
+		const history = [...(await sql`select action, actor, context from audit_log order by id`)];
+		await sql.close();
+		expect(history.map((entry) => entry.action)).toContain("setup.owner_created");
+
+		// The README's backup: the database alone, without its owner or privileges.
+		const dump = postgresTool("pg_dump", [
+			"--no-owner",
+			"--no-privileges",
+			`--dbname=${database.url}`,
+		]);
+
+		// A new PostgreSQL, with a new owner role and an empty database of the same name. On a
+		// server the tests were given rather than a container of their own, a new name keeps the
+		// roles apart.
+		const target = await startPostgres(18);
+		const restored = await createDatabase(
+			target.adminUrl,
+			target.containerId === undefined ? undefined : database.name.slice("t_".length),
+		);
+		let server: Awaited<ReturnType<typeof startServer>> | undefined;
+		try {
+			const admin = new SQL(target.adminUrl, { max: 1 });
+			const before =
+				await admin`select rolname from pg_roles where rolname like ${`${restored.name}_%`}`;
+			expect([...before]).toEqual([]);
+			postgresTool("psql", ["-v", "ON_ERROR_STOP=1", "--quiet", `--dbname=${restored.url}`], dump);
+
+			server = await startServer(root, {
+				COMRADARR_DATABASE_URL: restored.url,
+				COMRADARR_SECRET_KEY: key,
+			});
+			expect(server.output()).not.toContain("Comradarr setup");
+			expect((await fetch(`${server.url}/`, { redirect: "manual" })).status).toBe(200);
+			expect((await fetch(`${server.url}/setup`)).status).toBe(404);
+
+			// Startup recreated both roles with the matrix's privileges.
+			const roles =
+				await admin`select rolname from pg_roles where rolname like ${`${restored.name}_%`} order by rolname`;
+			expect([...roles].map((role) => role.rolname)).toEqual([
+				`${restored.name}_app`,
+				`${restored.name}_audit_admin`,
+			]);
+			const app = `${restored.name}_app`;
+			const inRestored = new URL(target.adminUrl);
+			inRestored.pathname = `/${restored.name}`;
+			const adminThere = new SQL(inRestored.toString(), { max: 1 });
+			const [privileges] = await adminThere`
+				select has_table_privilege(${app}, 'public.owner', 'SELECT') as owner_read,
+					has_table_privilege(${app}, 'public.audit_log', 'INSERT') as audit_insert,
+					has_table_privilege(${app}, 'public.audit_log', 'UPDATE') as audit_update,
+					has_table_privilege(${app}, 'public.audit_log', 'DELETE') as audit_delete`;
+			expect(privileges).toEqual({
+				owner_read: true,
+				audit_insert: true,
+				audit_update: false,
+				audit_delete: false,
+			});
+			await adminThere.close();
+			await admin.close();
+
+			// The owner and the audit history came back, read as the app role.
+			const appUrl = new URL(restored.url);
+			appUrl.username = app;
+			appUrl.password = await rolePassword(key, "app");
+			const asApp = new SQL(appUrl.toString(), { max: 1 });
+			const owners = [...(await asApp`select username from owner`)];
+			const restoredHistory = [
+				...(await asApp`select action, actor, context from audit_log order by id`),
+			];
+			await asApp.close();
+			expect(owners).toEqual([{ username: "owner" }]);
+			expect(restoredHistory).toEqual(history);
+		} finally {
+			await server?.stop();
+			if (target.containerId === undefined) await dropDatabase(target.adminUrl, restored);
+			stopPostgres(target);
 		}
 	});
 });
