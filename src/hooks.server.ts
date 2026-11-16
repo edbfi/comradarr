@@ -6,7 +6,12 @@ import {
 } from "@sveltejs/kit/hooks";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { withRequestId } from "#lib/server/logging/logger.ts";
-import { clientAddress, logRequest, sentStatusAndSize } from "#lib/server/logging/request-line.ts";
+import {
+	clientAddress,
+	logRequest,
+	sentStatusAndSize,
+	thrownStatus,
+} from "#lib/server/logging/request-line.ts";
 import { startUp } from "#lib/server/services/setup/startup.ts";
 import { answerCaughtError } from "#lib/server/services/unexpected-error.ts";
 import { building } from "$app/env";
@@ -27,13 +32,17 @@ const requestId: Handle = ({ event, resolve }) => {
 	const started = performance.now();
 	return withRequestId(id, async () => {
 		let response: Response | undefined;
+		let thrown: unknown;
 		try {
 			response = await resolve(event);
 			return response;
+		} catch (error) {
+			thrown = error;
+			throw error;
 		} finally {
 			const sent =
 				response === undefined
-					? { status: 500, size: undefined }
+					? { status: thrownStatus(thrown), size: undefined }
 					: sentStatusAndSize(event.request.headers.get("if-none-match"), response);
 			logRequest({
 				method: event.request.method,

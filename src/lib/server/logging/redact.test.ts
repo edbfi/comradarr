@@ -259,6 +259,28 @@ describe("redact", () => {
 			expect(redact(`token ${jwt} refused`)).toBe(`token ${R} refused`);
 		});
 
+		it("redacts a JWT whose header is pretty-printed, or that follows a prefix in a path", async () => {
+			const pretty = await signedToken({ sub: "1" }, '{\n  "alg": "HS256",\n  "typ": "JWT"\n}');
+			const plain = await signedToken({ sub: "1" });
+
+			expect(pretty.startsWith("eyJ")).toBe(false);
+			expect(redact(`token ${pretty} refused`)).toBe(`token ${R} refused`);
+			expect(redact(`/hook/token-${plain}/run`)).toBe(`/hook/${R}/run`);
+		});
+
+		it("redacts a three-part token in lowercase hex", () => {
+			const hex = "a3f9c2e1b7d04e5f8a6b.c1d2e3f4a5b6c7d8e9f0.0a1b2c3d4e5f6a7b8c9d";
+
+			expect(redact(`session ${hex} expired`)).toBe(`session ${R} expired`);
+		});
+
+		it("keeps a host name with three long labels, in capitals or not", () => {
+			const mixed =
+				"connect ECONNREFUSED Media-Server-01.production-cluster.internal-services:5432";
+
+			expect(redact(mixed)).toBe(mixed);
+		});
+
 		it("keeps a host name with three long labels, which has no capitals", () => {
 			const text =
 				"connect ECONNREFUSED comradarr-postgres-01.production-cluster.internal-services:5432";
@@ -328,13 +350,21 @@ describe("redact", () => {
 	});
 });
 
-/** An HS256 JWT signed with a key made for the test, as a client would send one. */
-async function signedToken(payload: Record<string, unknown>): Promise<string> {
+/**
+ * An HS256 JWT signed with a key made for the test, as a client would send one; `header` is the
+ * header's JSON text, compact unless given.
+ */
+async function signedToken(
+	payload: Record<string, unknown>,
+	header = JSON.stringify({ alg: "HS256", typ: "JWT" }),
+): Promise<string> {
+	const base64url = (text: string) =>
+		new TextEncoder().encode(text).toBase64({ alphabet: "base64url", omitPadding: true });
 	const encode = (value: unknown) =>
 		new TextEncoder()
 			.encode(JSON.stringify(value))
 			.toBase64({ alphabet: "base64url", omitPadding: true });
-	const body = `${encode({ alg: "HS256", typ: "JWT" })}.${encode(payload)}`;
+	const body = `${base64url(header)}.${encode(payload)}`;
 	const key = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
 	const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
 	return `${body}.${new Uint8Array(signature).toBase64({ alphabet: "base64url", omitPadding: true })}`;

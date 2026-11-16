@@ -1,6 +1,13 @@
+import { error, redirect } from "@sveltejs/kit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureLogging } from "./logger.ts";
-import { clientAddress, logRequest, pathWithoutValues, sentStatusAndSize } from "./request-line.ts";
+import {
+	clientAddress,
+	logRequest,
+	pathWithoutValues,
+	sentStatusAndSize,
+	thrownStatus,
+} from "./request-line.ts";
 
 let lines: string[];
 
@@ -103,5 +110,21 @@ describe("clientAddress", () => {
 				},
 			}),
 		).toBe("unknown");
+	});
+});
+
+describe("thrownStatus", () => {
+	const caught = (work: () => never) => {
+		try {
+			work();
+		} catch (thrown) {
+			return thrown;
+		}
+	};
+
+	it("is an error()'s status, a redirect()'s 3xx, and 500 for anything else", () => {
+		expect(thrownStatus(caught(() => error(404, "gone")))).toBe(404);
+		expect(thrownStatus(caught(() => redirect(303, "/setup")))).toBe(303);
+		expect(thrownStatus(new Error("boom"))).toBe(500);
 	});
 });

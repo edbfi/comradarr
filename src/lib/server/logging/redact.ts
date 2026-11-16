@@ -89,26 +89,37 @@ const ARGON2_HASH = /\$argon2(?:id|i|d)\$[^\s"'<>]+/g;
 /** A maximal run of the characters base64url text and its dots use, each found once. */
 const TOKEN_RUN = /[A-Za-z0-9_.-]+/g;
 
+const MIXED_CASE = /^(?=.*[A-Z])(?=.*[a-z])/;
+const LONG_HEX = /^[0-9a-f]{16,}$/;
+
 /**
- * Whether a run is shaped like a secret: a stored ciphertext (`v1.<key id>.<nonce>.<ciphertext>`,
- * SPEC-secrets.md); a JWT, three parts whose first starts with `eyJ` (every JWT header is
- * base64url JSON, `{"`), however short its payload; or another three-part token, three parts of
- * 16 characters or more in a row in a run with capitals and small letters, as base64url has. Host
- * names have no capitals, so one with three long labels is kept: it is the part of a "can't
- * connect" line an operator needs.
+ * Whether a run is shaped like a secret (SPEC-setup.md, "Logging"):
+ * - a stored ciphertext, `v1.<key id>.<nonce>.<ciphertext>` (SPEC-secrets.md);
+ * - a JWT or another three-part token: three dot-separated parts where the third, a signature, is
+ *   22 characters or more with capitals and small letters, after a first of 10 or more, however
+ *   short the middle; or where the first starts with `eyJ` (a compact JSON header), for an
+ *   unsigned token; or three parts of 16 characters or more, each with capitals and small letters
+ *   or each lowercase hex. A part is the whole run between dots, so a prefix such as `token-`
+ *   joined to it doesn't hide it.
+ * Host names are kept: their labels are rarely 22 random characters with both cases, or 16 of hex,
+ * and a host is the part of a "can't connect" line an operator needs. One pass over the parts.
  */
 function secretShaped(run: string): boolean {
 	const parts = run.split(".");
 	if (parts.length === 4 && parts[0] === "v1" && parts[1]?.length === 22) return true;
-	for (let index = 0; index + 2 < parts.length; index++) {
-		const header = parts[index] as string;
-		if (header.startsWith("eyJ") && header.length >= 10 && parts[index + 1] !== "") return true;
-	}
-	if (!/[A-Z]/.test(run) || !/[a-z]/.test(run)) return false;
-	let long = 0;
-	for (const part of parts) {
-		long = part.length >= 16 ? long + 1 : 0;
-		if (long === 3) return true;
+	let mixed = 0;
+	let hex = 0;
+	for (let index = 0; index < parts.length; index++) {
+		const part = parts[index] as string;
+		const next = parts[index + 1];
+		const last = parts[index + 2];
+		if (next !== undefined && last !== undefined && next !== "") {
+			if (part.startsWith("eyJ") && part.length >= 10) return true;
+			if (part.length >= 10 && last.length >= 22 && MIXED_CASE.test(last)) return true;
+		}
+		mixed = part.length >= 16 && MIXED_CASE.test(part) ? mixed + 1 : 0;
+		hex = LONG_HEX.test(part) ? hex + 1 : 0;
+		if (mixed === 3 || hex === 3) return true;
 	}
 	return false;
 }

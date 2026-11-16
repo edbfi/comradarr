@@ -1,3 +1,4 @@
+import { isHttpError, isRedirect } from "@sveltejs/kit";
 import { createLogger } from "./logger.ts";
 
 const log = createLogger("http");
@@ -39,6 +40,15 @@ export function clientAddress(event: { getClientAddress: () => string }): string
 	} catch {
 		return "unknown";
 	}
+}
+
+/**
+ * The status SvelteKit answers with when a `handle` stage throws: an `error()` keeps its status and
+ * a `redirect()` its 3xx; anything else is a 500.
+ */
+export function thrownStatus(thrown: unknown): number {
+	if (isHttpError(thrown) || isRedirect(thrown)) return thrown.status;
+	return 500;
 }
 
 /** The URL's path with its parameters' names but none of their values. */
