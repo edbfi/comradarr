@@ -193,8 +193,9 @@ lose focus (WCAG 2.2, 3.2.2 On Input).
 - **Sharing the cookie:** it keeps Paraglide's default name. Cookies ignore ports, so every app on
   the same host shares it. A choice made in one edbfi app carries over to the others there. A value
   another app wrote that isn't `en` or `da` is ignored.
-- **Without JavaScript** the switcher does nothing, and the browser's preferred languages still
-  apply.
+- **Without JavaScript** its buttons would do nothing, so the switcher stays hidden until the page
+  has hydrated, keeping its place so nothing moves when it appears; the browser's preferred
+  languages still apply.
 - **Where it shows:** on the placeholder `/`, in a wrapping row with its heading. comradarr has no
   `/` brief, so no brief gains it here. Each shell places it when that shell is built (`setup`'s
   first-run pages, `sign-in`'s `/login` and app shell), and that shell's module adds it to its
