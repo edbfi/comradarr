@@ -420,8 +420,8 @@ tests/
                                  built server
   e2e/error-summary.test.ts      failed submits without and with JavaScript, and with a late script:
                                  the title, the summary, its links and where focus goes
-  e2e/skip-link.test.ts          the one-task pages' skip link, with and without JavaScript and
-                                 in Danish
+  e2e/skip-link.test.ts          the claim page's skip link, with and without JavaScript and in
+                                 Danish
   e2e/i18n.test.ts               the built server serves each viewer's language, the browser
                                  keeps it, and the switcher changes it
   fixtures/demo-fixtures.json    design fixtures

@@ -5,9 +5,9 @@ import { expect, type Page, test } from "@playwright/test";
 import { createDatabase, dropDatabase, type TestDatabase } from "../database.ts";
 import { adminUrl, type Server, startServer } from "./server.ts";
 
-// The one-task pages start with a skip link to their main content, shown only while it has focus.
-// The claim stands for them; it exists only before the claim, so each test starts a server of its
-// own.
+// The claim page starts with a skip link to its main content, shown only while it has focus. The
+// page exists only before the claim, so each test starts a server of its own. `sign-in`'s one-task
+// pages need the same link when they land.
 
 /** Tabs once from the top of the page, then follows the skip link with Enter. */
 async function skip(page: Page, name: string) {
