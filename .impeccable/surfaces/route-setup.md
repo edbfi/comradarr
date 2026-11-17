@@ -27,9 +27,9 @@ Use the shared [design system](../../DESIGN.md). Match hierarchy, density and pa
 
 **Acceptance criteria.**
 - The token arrives filled in when the person opens the console's link (its `#token=` fragment), and the address bar shows `/setup` at once; it can always be typed or pasted, with or without dashes and in any case. It is not a password field, so the person can check what they typed.
-- Errors sit beside their field with helper/error IDs and `aria-invalid`; a wrong or expired token gets one message that names the console, never which of the two it was. A common password is refused on submit, beside the password.
+- After a failed submit the title starts with 'Error: ', and the error summary (D26) is first in the form: 'There is a problem', then the problems in field order, each field's linking to it, a page-level one as text. Field errors also sit beside their field with helper/error IDs and `aria-invalid`. With JavaScript, focus moves to the summary after each failure; without it, nothing is focused. A wrong or expired token gets one message that names the console, never which of the two it was. A common password is refused on submit, beside the password.
 - The rules list is announced politely, never as an error, and says what is met, not a score: no strength bar or colour that could call a refused password strong.
-- After a failed submit, the username is kept; the token and password are not, and focus goes to the token field after a server failure.
+- After a failed submit, the username is kept; the token and password are not.
 - No connector, server or network detail appears. No secrets in text.
 - Works without JavaScript: no Show control, no live rules list, and the token is typed.
 - States: initial, token filled from the link, field errors, token refused, common password refused, failed, submitting. After success the browser leaves the page.

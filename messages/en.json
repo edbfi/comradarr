@@ -8,6 +8,8 @@
 	"error_access_denied_description": "The request was refused because it didn't come from this site.",
 	"error_setup_incomplete_title": "Setup isn't finished",
 	"error_setup_incomplete_description": "First run isn't complete yet. Finish it at /setup, then try again.",
+	"error_page_title": "Error: {{title}}",
+	"error_summary_title": "There is a problem",
 	"setup_page_title": "Claim this {{name}}",
 	"setup_title": "Claim this {{name}}",
 	"setup_intro": "Enter the setup token printed in the server console, then create the owner account.",
