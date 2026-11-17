@@ -902,9 +902,9 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     "Error: …" and lists the problems, a field's as a link that Tab and Enter follow into the field;
     with JavaScript, the summary takes focus after a failure and an identical repeat, stays with its
     title while the next claim is sent and while a field is edited, a link puts focus in its field,
-    the token's keeping its message and what was typed again, a server failure marks no field, and
-    it fits in Danish at 360px and at 200% zoom; and a claim before a late script loads posts
-    natively, and hydration then takes no focus.
+    and the token's link leaves the field's message and what was typed again in place, a server
+    failure marks no field, and it fits in Danish at 360px and at 200% zoom; and a claim before a
+    late script loads posts natively, and hydration then takes no focus.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
