@@ -229,10 +229,26 @@ test.describe("with JavaScript", () => {
 				await expect(summary).toBeFocused();
 				await expect(page).toHaveTitle("Fejl: Tag denne Comradarr i brug");
 				await expect(summary.getByRole("link")).toHaveCount(2);
-				const overflow = await page.evaluate(
-					() => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+				const overflow = () =>
+					page.evaluate(
+						() => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+					);
+				expect(await overflow()).toBe(0);
+
+				// The token's refusal starts with a long word, "Opsætningskoden", that must wrap too.
+				await page.locator("#token").fill("aaaa-bbbb-cccc");
+				await page.locator("#username").fill("Ejer");
+				await page.locator("#password").fill("violet harbour lanterns");
+				await page.getByRole("button", { name: "Tag i brug og opret ejer" }).click();
+				await expect(summary.getByRole("link")).toHaveText([/^Opsætningskoden/]);
+				// The field shows the same words below itself, so both must fit.
+				await expect(page.locator("#token-error")).toBeVisible();
+				expect(await overflow()).toBe(0);
+				// Here the panel's padding takes up what spills, so the page doesn't scroll; the summary
+				// must still hold its own words.
+				expect(await summary.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(
+					0,
 				);
-				expect(overflow).toBe(0);
 			} finally {
 				await context.close();
 			}
