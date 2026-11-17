@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onMount } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
 import { getLocale, type Locale, locales, setLocale } from "#lib/paraglide/runtime.js";
 import { css } from "#styled-system/css";
@@ -13,6 +14,14 @@ function ownName(locale: Locale): string {
 	return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
 }
 
+// The buttons need script, so until the page has it they are hidden, keeping their place so the
+// header doesn't move when they appear (SPEC-i18n.md, "The language switcher").
+let hydrated = $state(false);
+onMount(() => {
+	hydrated = true;
+});
+const hidden = css({ visibility: "hidden" });
+
 function choose(locale: Locale) {
 	// Writes the cookie and reloads the page in the new language.
 	if (locale !== current) void setLocale(locale);
@@ -21,7 +30,7 @@ function choose(locale: Locale) {
 
 <fieldset
 	aria-label={m.language_switcher_label()}
-	class={css({ display: "flex", flexWrap: "wrap", gap: "xs" })}
+	class={[css({ display: "flex", flexWrap: "wrap", gap: "xs" }), hydrated ? undefined : hidden]}
 >
 	{#each locales as locale (locale)}
 		<button
