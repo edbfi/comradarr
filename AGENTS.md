@@ -331,7 +331,8 @@ src/
     api/csp-report/+server.ts    the CSP's report endpoint
     setup/                       `/setup`, first run's claim step: +page.server.ts the claim
                                  action (404 once first run is complete), +page.svelte the page
-                                 (the token from the link's fragment, the live password rules),
+                                 (a skip link to the main content, shown only while it has focus;
+                                 the token from the link's fragment; the live password rules),
                                  token-format.ts the token field's dashes and caret
     login/ dashboard/ …          later: one folder per surface brief; api/ for JSON endpoints
   lib/                           imported as `#lib/<path>.<ext>`, e.g.
@@ -419,6 +420,8 @@ tests/
                                  built server
   e2e/error-summary.test.ts      failed submits without and with JavaScript, and with a late script:
                                  the title, the summary, its links and where focus goes
+  e2e/skip-link.test.ts          the one-task pages' skip link, with and without JavaScript and
+                                 in Danish
   e2e/i18n.test.ts               the built server serves each viewer's language, the browser
                                  keeps it, and the switcher changes it
   fixtures/demo-fixtures.json    design fixtures

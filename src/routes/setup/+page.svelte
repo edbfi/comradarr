@@ -214,6 +214,35 @@ const control = css({
 	<title>{problems.length > 0 ? m.error_page_title({ title }) : title}</title>
 </svelte:head>
 
+<!-- A link to a fragment, so it works without JavaScript; `main` takes focus from it. Shown only
+     while it has focus. -->
+<a
+	href="#main-content"
+	class={css({
+		srOnly: true,
+		// `srOnly: false` would reset the padding after it, so each hiding property is undone here.
+		_focus: {
+			width: "auto",
+			height: "auto",
+			margin: "[0]",
+			overflow: "visible",
+			clip: "auto",
+			whiteSpace: "normal",
+			position: "absolute",
+			insetBlockStart: "md",
+			insetInlineStart: "md",
+			paddingInline: "md",
+			paddingBlock: "sm",
+			bg: "primary",
+			color: "background",
+			textStyle: "label",
+			borderRadius: "control",
+		},
+	})}
+>
+	{m.skip_to_main()}
+</a>
+
 <!-- The top banner carries the only aurora: two soft washes of the palette's own green and violet
      from the top edge, static, so reduced motion needs nothing. -->
 <header
@@ -248,7 +277,11 @@ const control = css({
 </header>
 
 <main
+	id="main-content"
+	tabindex="-1"
 	class={css({
+		// It takes focus only from the skip link, which needs no ring of its own around the page.
+		_focus: { outlineStyle: "none" },
 		maxWidth: "formMax",
 		marginInline: "auto",
 		paddingBlock: { base: "xl", tablet: "section" },
