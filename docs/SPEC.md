@@ -914,10 +914,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
     the next visit in English; and that a browser whose `Accept-Language` says `fr-FR` but whose
     `navigator.languages` lists `da-DK` gets English, the switcher marks English as current after
-    hydration, pressing it does nothing, and no cookie is written. The switcher stays hidden until
-    the page hydrates: without JavaScript it keeps its box and Tab never reaches it, and with the
-    scripts held back it appears in the place it kept once they load. None logs a console error.
-    The smoke test runs in English, Playwright's default.
+    hydration, pressing it does nothing, and no cookie is written, none of these logging a console
+    error; and that the switcher stays hidden until the page hydrates: without JavaScript it keeps
+    its box and Tab never reaches it, and with the scripts held back it appears in the place it kept
+    once they load. The smoke test runs in English, Playwright's default.
 - prek runs the unit tests (`tests` hook); CI's `smoke` job builds with no key and runs `smoke`.
   Both get their PostgreSQL from Docker on the runner, so CI stores no database secret.
 - **Each module's tests** keep the legacy app's quality bar. Behaviour is tested against recorded
