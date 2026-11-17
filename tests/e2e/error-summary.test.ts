@@ -129,6 +129,34 @@ test.describe("with JavaScript", () => {
 		await expect(page.locator("#password")).toBeFocused();
 	});
 
+	test("the token's link reaches its field and keeps it as it is: it is no link from the console", async ({
+		page,
+	}) => {
+		await page.goto(`${server.url}/setup`);
+		await page.locator("html[data-hydrated]").waitFor({ state: "attached" });
+		await page.locator("#token").fill("aaaa-bbbb-cccc");
+		await page.locator("#username").fill("Owner");
+		await page.locator("#password").fill("violet harbour lanterns");
+		await page.getByRole("button", { name: "Claim and create owner" }).click();
+		const summary = summaryOf(page);
+		await expect(summary).toBeFocused();
+		const link = summary.getByRole("link", { name: /^That setup token isn't valid/ });
+
+		// Unedited, the field keeps its message.
+		await link.click();
+		await expect(page.locator("#token")).toBeFocused();
+		await expect(page.locator("#token")).toHaveAttribute("aria-invalid", "true");
+		await expect(page.locator("#token-error")).toBeVisible();
+
+		// What was typed again stays.
+		await page.locator("#token").pressSequentially("abcd");
+		await page.evaluate(() => history.replaceState(history.state, "", location.pathname));
+		await link.click();
+		await expect(page.locator("#token")).toBeFocused();
+		await expect(page.locator("#token")).toHaveValue("abcd");
+		await expect(summary.getByRole("link")).toHaveCount(1);
+	});
+
 	test("editing a field clears its own message, but the summary and title keep the last answer", async ({
 		page,
 	}) => {

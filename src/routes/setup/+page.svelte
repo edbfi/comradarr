@@ -37,7 +37,8 @@ let passwordValue = $state("");
  */
 function takeTokenFromLink() {
 	const token = new URLSearchParams(location.hash.slice(1)).get("token");
-	if (token === null) return;
+	// A bare `#token` is the error summary's link to the field, not a link from the console.
+	if (!token) return;
 	goto(location.pathname + location.search, { state: {}, shallow: true, replace: true }).catch(() =>
 		history.replaceState(history.state, "", location.pathname + location.search),
 	);
