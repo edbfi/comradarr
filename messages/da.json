@@ -10,6 +10,7 @@
 	"error_setup_incomplete_description": "Første opstart er ikke afsluttet endnu. Gør den færdig på /setup, og prøv så igen.",
 	"error_page_title": "Fejl: {{title}}",
 	"error_summary_title": "Der er et problem",
+	"skip_to_main": "Gå til hovedindholdet",
 	"setup_page_title": "Tag denne {{name}} i brug",
 	"setup_title": "Tag denne {{name}} i brug",
 	"setup_intro": "Skriv opsætningskoden fra serverkonsollen, og opret derefter ejerkontoen.",

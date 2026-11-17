@@ -905,6 +905,10 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     and the token's link leaves the field's message and what was typed again in place, a server
     failure marks no field, and it fits in Danish at 360px and at 200% zoom; and a claim before a
     late script loads posts natively, and hydration then takes no focus.
+  - `skip-link.test.ts` checks, on the claim page and on servers of its own, that the first Tab
+    shows "Skip to main content", which takes no room until then and then shows in full inside the
+    viewport, and that following it moves focus to the main content, whose next Tab reaches the
+    first field, without JavaScript too and in Danish.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps
