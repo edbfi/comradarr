@@ -150,6 +150,7 @@ test.describe("with JavaScript", () => {
 
 		// What was typed again stays.
 		await page.locator("#token").pressSequentially("abcd");
+		// The address already ends in `#token`, so the next click would fire no `hashchange` without this.
 		await page.evaluate(() => history.replaceState(history.state, "", location.pathname));
 		await link.click();
 		await expect(page.locator("#token")).toBeFocused();
