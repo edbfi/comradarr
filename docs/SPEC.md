@@ -888,7 +888,7 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     browser's CSP report passing, on `localhost` and on the plain-HTTP host name `app.test`, and
     the bootstrap token's banner before "Listening on", with the token in no log entry, response
     or audit entry, and the claim: the link filling the token in, a refused token keeping the
-    username, the rules list, the switcher, the right token in upper case without dashes, then
+    username and focusing the error summary, which titles the page "Error: …", the rules list, the switcher, the right token in upper case without dashes, then
     `/setup` and its action answering 404, also after a restart; and the setup gate: every page of a
     fresh instance sent to `/setup` with the headers, a JSON caller's 503 `setup_incomplete` in
     both languages, `/healthz` and the CSP report endpoint let through. The tests of a page claim
@@ -896,6 +896,13 @@ export const GET: RequestHandler = async () => healthResponse(await checkHealth(
     instance dumped with the README's `pg_dump --no-owner --no-privileges` and restored with
     `psql` as a new owner role on a new PostgreSQL with no comradarr roles starts with the same key
     and comes back with both roles, their privileges, the owner and the audit history.
+  - `error-summary.test.ts` checks the failed claims (D26) on servers of its own: without
+    JavaScript, a first visit has no summary and nothing focused, and a refusal titles the page
+    "Error: …" and lists the problems, a field's as a link that Tab and Enter follow into the field;
+    with JavaScript, the summary takes focus after a failure and an identical repeat, stays with its
+    title while the next claim is sent and while a field is edited, a link puts focus in its field,
+    a server failure marks no field, and it fits in Danish at 360px and at 200% zoom; and a claim
+    before a late script loads posts natively, and hydration then takes no focus.
   - `i18n.test.ts` checks that a Danish browser gets `/` in Danish with `<html lang="da">` and
     `Vary: Cookie, Accept-Language`; that pressing "English" in the switcher reloads `/` in English,
     writes `PARAGLIDE_LOCALE=en` with `SameSite=Lax` and without `Secure` over plain HTTP, and keeps

@@ -192,6 +192,7 @@ symmetry.
 | `secrets` | the same design; each app lists its own stored secrets | obzorarr | all |
 | `i18n` | the same rules; each app adds its own context | obzorarr | all |
 | `setup`, `sign-in`, `two-factor`, `oidc-sign-in` | a shared core; each capability map names its app's additions | obzorarr | all |
+| Failed form submits: the "Error: " title and `components/forms/ErrorSummary.svelte`, focused only by the enhanced form, never `autofocus` (D29) | the same, on every form | obzorarr | all |
 | Testing patterns: tests beside their source, the e2e smoke on the built server, environment isolation | the same | obzorarr | all |
 | SSRF-safe outbound HTTP | a shared core; each app sets its address policy | obzorarr | all |
 | Providers behind a contract, validated at the boundary | the same pattern | first to build | all |
@@ -389,6 +390,9 @@ src/
     components/                  later: ui/ (Ark wrappers), <feature>/
       layout/LanguageSwitcher.svelte
                                  one native button per language, named in that language
+      forms/ErrorSummary.svelte  a failed submit's problems, first in its form (D26): field problems
+                                 link to their fields, page-level ones are text; focused by the
+                                 page's enhance callback after each failure, never on mount
     shared/                      browser-safe shared code
       i18n/format.ts             `formatNumber` and `formatDateTime` in the current language;
                                  `formatDateTime` needs a time zone
@@ -409,8 +413,12 @@ tests/
                                  token playwright.config.ts captures from the banner
   e2e/smoke.test.ts              Playwright smoke against the built server
   e2e/secret-key.test.ts         the built server refuses to start without a valid key
+  e2e/server.ts                  the built server for the tests that start their own: started,
+                                 claimed, stopped, and its log entries
   e2e/setup.test.ts              first run, the request checks, and backup and restore on the
                                  built server
+  e2e/error-summary.test.ts      failed submits without and with JavaScript, and with a late script:
+                                 the title, the summary, its links and where focus goes
   e2e/i18n.test.ts               the built server serves each viewer's language, the browser
                                  keeps it, and the switcher changes it
   fixtures/demo-fixtures.json    design fixtures

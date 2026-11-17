@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount, tick, untrack } from "svelte";
+import ErrorSummary, { type Problem } from "#lib/components/forms/ErrorSummary.svelte";
 import LanguageSwitcher from "#lib/components/layout/LanguageSwitcher.svelte";
 import { m } from "#lib/paraglide/messages.js";
 import { type PasswordRulesMet, passwordRules } from "#lib/shared/password-rules.ts";
@@ -22,6 +23,7 @@ let hydrated = $state(false);
 let edited = $state({ token: false, username: false, password: false });
 let tokenInput = $state<HTMLInputElement>();
 let passwordInput = $state<HTMLInputElement>();
+let summary = $state<ErrorSummary>();
 // The typed username, bound to its field: a failed claim's answer sends it back, and a bound value
 // never gets written over by an attribute effect re-running mid-submit.
 // The first answer seeds it; later ones send back what the field already holds.
@@ -64,15 +66,26 @@ const passwordMessages = {
 	common: m.setup_password_common,
 };
 
-const tokenError = $derived(
-	form?.tokenRefused && !edited.token ? m.setup_token_refused() : undefined,
+/** The last answer's problems with each field; the summary and the title keep them until the next. */
+const tokenProblem = $derived(form?.tokenRefused ? m.setup_token_refused() : undefined);
+const usernameProblem = $derived(
+	form?.usernameError ? usernameMessages[form.usernameError]() : undefined,
 );
-const usernameError = $derived(
-	form?.usernameError && !edited.username ? usernameMessages[form.usernameError]() : undefined,
+const passwordProblem = $derived(
+	form?.passwordError ? passwordMessages[form.passwordError]() : undefined,
 );
-const passwordError = $derived(
-	form?.passwordError && !edited.password ? passwordMessages[form.passwordError]() : undefined,
-);
+/** A field's own message, gone once the field is edited: it no longer describes what it holds. */
+const tokenError = $derived(edited.token ? undefined : tokenProblem);
+const usernameError = $derived(edited.username ? undefined : usernameProblem);
+const passwordError = $derived(edited.password ? undefined : passwordProblem);
+/** The summary's problems in field order; a server failure names no field (D26). */
+const problems = $derived<Problem[]>([
+	...(tokenProblem ? [{ message: tokenProblem, href: "#token" }] : []),
+	...(usernameProblem ? [{ message: usernameProblem, href: "#username" }] : []),
+	...(passwordProblem ? [{ message: passwordProblem, href: "#password" }] : []),
+	...(form?.failed ? [{ message: m.setup_failed({ name: NAME }) }] : []),
+]);
+const title = $derived(m.setup_page_title({ name: NAME }));
 // "Use at least 15 characters." already says what the helper says.
 const passwordHelp = $derived(!(passwordError && form?.passwordError === "too-short"));
 
@@ -148,7 +161,7 @@ function stepOverDash(event: InputEvent & { currentTarget: HTMLInputElement }) {
 
 /**
  * While the claim runs, the button says so and can't be pressed again. A failed claim keeps the
- * username, clears the token and the password, and moves focus to the first field to fix.
+ * username, clears the token and the password, and moves focus to the error summary (D26).
  */
 const submit: SubmitFunction = () => {
 	submitting = true;
@@ -165,8 +178,7 @@ const submit: SubmitFunction = () => {
 		if (tokenInput) tokenInput.value = "";
 		passwordValue = "";
 		await tick();
-		// The first field to fix; after a server failure, the token, which the message asks for.
-		(document.querySelector<HTMLElement>("[aria-invalid='true']") ?? tokenInput)?.focus();
+		if (result.type === "failure") summary?.focus();
 	};
 };
 
@@ -190,13 +202,15 @@ const control = css({
 	transitionDuration: "feedback",
 	_hover: { borderColor: "muted" },
 	"&[aria-invalid=true]": { borderColor: "danger" },
+	// An error summary's link scrolls here: the label above stays in view.
+	scrollMarginBlockStart: "xxl",
 });
 </script>
 
 <svelte:window onhashchange={takeTokenFromLink} />
 
 <svelte:head>
-	<title>{m.setup_page_title({ name: NAME })}</title>
+	<title>{problems.length > 0 ? m.error_page_title({ title }) : title}</title>
 </svelte:head>
 
 <!-- The top banner carries the only aurora: two soft washes of the palette's own green and violet
@@ -268,6 +282,8 @@ const control = css({
 				marginBlockStart: "xl",
 			})}
 		>
+			<ErrorSummary bind:this={summary} {problems} />
+
 			<div class={field}>
 				<label class={label} for="token">{m.setup_token_label()}</label>
 				<input
@@ -352,6 +368,8 @@ const control = css({
 							caretColor: "primary",
 							borderRadius: "control",
 							_focusVisible: { outlineStyle: "none" },
+							// An error summary's link scrolls here: the label above stays in view.
+							scrollMarginBlockStart: "xxl",
 						})}
 						id="password"
 						name="password"
@@ -462,10 +480,6 @@ const control = css({
 					</div>
 				{/if}
 			</div>
-
-			{#if form?.failed}
-				<p class={error} role="alert">{m.setup_failed({ name: NAME })}</p>
-			{/if}
 
 			<button
 				type="submit"

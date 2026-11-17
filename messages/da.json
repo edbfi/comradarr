@@ -8,6 +8,8 @@
 	"error_access_denied_description": "Anmodningen blev afvist, fordi den ikke kom fra dette websted.",
 	"error_setup_incomplete_title": "Opsætningen er ikke færdig",
 	"error_setup_incomplete_description": "Første opstart er ikke afsluttet endnu. Gør den færdig på /setup, og prøv så igen.",
+	"error_page_title": "Fejl: {{title}}",
+	"error_summary_title": "Der er et problem",
 	"setup_page_title": "Tag denne {{name}} i brug",
 	"setup_title": "Tag denne {{name}} i brug",
 	"setup_intro": "Skriv opsætningskoden fra serverkonsollen, og opret derefter ejerkontoen.",

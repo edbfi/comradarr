@@ -416,6 +416,10 @@ apart). If anything after the token is used up fails while the instance is still
 token is printed, unless shutdown has begun. The claim stores no address of its own (the browser's
 address), and nothing but the owner row, the pointer and (comradarr) the audit entries.
 (comradarr) Every attempt is audited, and setup's endpoints never log request bodies.
+A failed claim answers with the error summary (D26): its field problems link to their fields, its
+page-level one marks no field. It keeps the last answer until the next, while a field's own message
+clears as it is edited. With JavaScript it takes focus after each failure; without, nothing is
+focused.
 
 **After it,** the claim no longer exists: `/setup` answers "not found" once first run is complete
 (D20), and the claim action answers it whenever the instance is claimed.
