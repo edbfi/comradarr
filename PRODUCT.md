@@ -10,7 +10,7 @@ web
 
 ## Users
 
-Sidebar Dashboard, Content, Rotation, Connectors, Notifications, Audit log, Settings. Slow heartbeat beside wordmark concept, static in raster. One owner account; operator/admin screen labels denote task focus, not roles.
+Sidebar Dashboard, Content, Rotation, Connectors, Notifications, Audit log, Settings. Slow heartbeat beside wordmark concept. One owner account; operator/admin screen labels denote task focus, not roles.
 
 ## Primary tasks
 
@@ -51,15 +51,13 @@ Comradarr sits beside Sonarr and Radarr, never between them and anything else. T
 
 ## Confirmed visual direction
 
-Aurora Observatory. Deep arctic navy and calm aurora green with violet-blue information. Selected board's gentle aurora heading translated into restrained heading wash; actual tables and forms flat. Humanist labels, mono numerals. No radar scope, no poster art. The selected direction is confirmed; these expanded layouts and exact token values are a proposed design seed for review.
+Aurora Observatory. Deep arctic navy and calm aurora green with violet-blue information. Gentle aurora as a restrained heading wash; actual tables and forms flat. Humanist labels, mono numerals. No radar scope, no poster art. The selected direction is confirmed; the layouts and exact token values are a proposed design seed for review.
 
 ## Evidence on Hand
 
 What exists:
 
 - `docs/decisions.md`: the stack and architecture decisions, decided and open.
-- `docs/design/references/aurora-observatory.webp`: the reference board for the selected visual direction.
-- `docs/design/screens/01-entry-and-setup.webp` to `docs/design/screens/10-states-and-components.webp`: generated mockups (desktop boards covering the routes, a mobile board and a states board). They're proposed design seeds; their body copy, chart axes, icons and glyphs are illustrative raster renderings.
 - `panda.config.ts`: the seed tokens, still a proposed design seed.
 - `.impeccable/surfaces/route-*.md`: proposed surface briefs, one per route (login, setup, dashboard, content, rotation, connectors, settings/rotation, settings/access, audit).
 - `tests/fixtures/demo-fixtures.json`: a fictional, dated demo snapshot (tier counts, daily commands and items covered, indexer budget arithmetic, three connector names) that the briefs use as canonical demo data.
@@ -71,8 +69,8 @@ What doesn't exist, and must not be fabricated:
 - A release, container image or deployment of the rewrite, or any product module after `i18n`. The rewrite has only its ground floor, `secrets` and `i18n` (`docs/SPEC.md`).
 - Users, customers, testimonials, case studies, press, adoption or download figures, and any pricing or commercial offering.
 - Measured performance, coverage, throughput or budget data. The demo fixture values are fictional. The defaults the legacy app's design reasoned out (tier windows, daily command limits, the safety margin, health thresholds, the planner's grouping rules, the Prowlarr cache) never ran against a real library, real indexers or real users: modules instrument each default and keep it as a named constant with its reason, so measurements can tune it, the defaults the owner can change included (SPEC.md rows 12 and 16).
-- Screenshots of a working interface. The screens are generated mockups, not captures.
-- Integration logo assets. Generated connector logos in the mockups must not be reproduced; use approved real marks or labelled generic icons (DESIGN.md).
+- Screenshots of a working interface.
+- Integration logo assets. Use approved real marks or labelled generic icons (DESIGN.md).
 - Recorded Sonarr, Radarr or Prowlarr responses. Modules test against them ([SPEC.md Testing strategy](docs/SPEC.md#testing-strategy)), and none are in `tests/fixtures/` yet.
 - Evidence from the old code branches. `legacy-old/v1` and `feat/comradarr-implementation-plan` are reference-only behaviour history, not proof of how the rewrite behaves.
 

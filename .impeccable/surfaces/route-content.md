@@ -17,9 +17,7 @@ Dense text-only content table with filter row and selected-item inspector. Compa
 
 ## Visual reference
 
-[Detailed mockup](../../docs/design/screens/03-content-and-item.webp)
-
-Use the shared [design system](../../DESIGN.md). Match hierarchy, density and palette while building real semantic components. This is a screen composition; any side-by-side stages are separate routes or states.
+Use the shared [design system](../../DESIGN.md) and build real semantic components.
 
 ## Required content
 
@@ -30,26 +28,18 @@ Use the shared [design system](../../DESIGN.md). Match hierarchy, density and pa
 No movie marked episode. Pausing item distinct from entire rotation. No artwork, playback button or download action. Filtering state shareable.
 
 - Preserve audience boundaries from [product context](../../PRODUCT.md).
-- Use canonical data in [demo fixtures](../../tests/fixtures/demo-fixtures.json); do not infer calculations from raster text.
-- Apply the raster corrections below.
+- Use canonical data in [demo fixtures](../../tests/fixtures/demo-fixtures.json).
+- Prowlarr supplies indexer health and limits only. Episode commands go to Sonarr; movie commands go to Radarr.
 - Make loading, empty, failure, pending and saved states available where the workflow needs them.
 - Test keyboard focus, visible labels, disabled behavior and 200% zoom; target 360, 390, 768 and 1440px viewports.
 - Read reduced-motion preference before animating. Long names and translated text must wrap without hiding the primary action.
 
 ## Mobile (390px)
 
-[Mobile board](../../docs/design/screens/09-mobile-operator.webp), middle view.
-
-Three mobile web viewports share one board: rotation summary, content item and connector details. The sidebar becomes a closed drawer with a labelled menu button. Same restrained aurora header. Large touch controls. No squeezed desktop table, no consumer player, no queue. Budget arithmetic matches desktop.
+The sidebar becomes a closed drawer with a labelled menu button. Same restrained aurora header. Large touch controls. No squeezed desktop table, no consumer player, no queue. Budget arithmetic matches desktop.
 
 Required content: Northbound S02E04, Missing, Search now, Pause item.
 
-## Raster corrections
-
-Use the images for composition and visual character. Use DESIGN.md, PRODUCT.md, this brief's acceptance criteria and the demo fixtures for exact values and behavior. Body copy, chart axes, tiny icons and font glyphs remain illustrative raster renderings. Rebuild them as native accessible UI and verify them against the specification. A PNG cannot verify focus order, screen-reader announcements, permission checks or real responsiveness.
-
-- Prowlarr supplies indexer health and limits only. Episode commands go to Sonarr; movie commands go to Radarr.
-
 ## Handoff prompt
 
-> Implement only this surface in Comradarr's existing application. Read PRODUCT.md, DESIGN.md and this brief first. Use the attached detailed image as a composition reference and the named tokens as exact values. Preserve Aurora Observatory. Keep the server's domain decisions authoritative. Reuse existing Panda CSS tokens and Ark UI primitives. Build native accessible controls, then compare desktop/mobile screenshots and audit the required states. Do not add incidental actions visible only in the raster.
+> Implement only this surface in Comradarr's existing application. Read PRODUCT.md, DESIGN.md and this brief first. Use the named tokens as exact values. Preserve Aurora Observatory. Keep the server's domain decisions authoritative. Reuse existing Panda CSS tokens and Ark UI primitives. Build native accessible controls, then compare desktop/mobile screenshots and audit the required states.
