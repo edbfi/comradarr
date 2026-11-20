@@ -1,4 +1,4 @@
-# Comradarr product context
+# comradarr product context
 
 <!-- impeccable:product-schema 1 -->
 
@@ -6,7 +6,7 @@
 
 comradarr coordinates recurring searches for missing movies and episodes and for upgrades to existing files across the owner's Sonarr and Radarr instances. It chooses what to search next, prioritizes missing items and groups searches to cover more of the library within the available indexer budget. Sonarr and Radarr run the searches and handle downloads.
 
-The home page is the owner's overview. At a glance it should explain what is running or waiting and why, what will happen next, and what recent searches covered. When the owner connects Prowlarr, the overview shows relevant indexer health, configured query and grab limits, usage and remaining allowances where known. If several libraries draw on the same allowance, the owner should see what that means for their next search. Without a Prowlarr connection, the overview still explains the rotation using comradarr's own activity and pacing.
+The rotation overview at `/dashboard` is the signed-in owner's home page. At a glance it should explain what is running or waiting and why, what will happen next, and what recent searches covered. When the owner connects Prowlarr, the overview shows relevant indexer health, configured query and grab limits, usage and remaining allowances where known. If several libraries draw on the same allowance, the owner should see what that means for their next search. Without a Prowlarr connection, the overview still explains the rotation using comradarr's own activity and pacing.
 
 The library is there when the owner wants detail. Sonarr and Radarr each manage one file for a given movie or episode, so owners can run separate instances to keep HD and 4K copies side by side. An anime instance can have its own library and release preferences. The owner can open any copy, see its search history, understand when it is due again, and pause it or request a priority search independently of copies in other instances.
 
@@ -41,7 +41,7 @@ Sonarr and Radarr query the indexers configured in each instance. Prowlarr can s
 
 - **Who and where.** A self-hosting home-lab operator who already runs a media stack: Sonarr, Radarr, usually Prowlarr, a download client and a media server. The install is one person, one instance and one account on their own hardware, often behind a reverse proxy and often on plain HTTP inside a LAN.
 - **Scale.** Synchronization, scheduling, the overview and item lookup must remain usable as libraries grow. Design for installations with hundreds of thousands of episodes, a million or more, alongside large movie collections. Use representative library sizes in testing and measure performance on the current stack.
-- **The surrounding stack.** Comradarr reads library state from Sonarr and Radarr and sends them search commands; it reads indexer limits, usage and health from Prowlarr as information only; it can push alerts to notification destinations the operator configures. Comradarr works with the latest stable Sonarr, Radarr and Prowlarr only (D23).
+- **The surrounding stack.** comradarr reads library state from Sonarr and Radarr and sends them search commands; it reads indexer limits, usage and health from Prowlarr as information only; it can push alerts to notification destinations the operator configures. comradarr works with the latest stable Sonarr, Radarr and Prowlarr only (D23).
 - **How it runs.** A self-hosted web application in one container, as one process on one HTTP port, with PostgreSQL in its own container next to it or an existing PostgreSQL server (D4, D5, D17). Before the first start the operator supplies two secrets: the master key and one database URL. The operator manages it from a browser: desktop first, with the phone a real but secondary use.
 - **Rituals.** First run is claimed with a one-time token printed to the console, which creates the owner account; first run then offers two-factor, verifies networking from the operator's own browser (each network setting is tested before it's saved; the app's own address is only checked, never saved), and adds the first connector (D20). Day to day the operator glances at the rotation overview, inspects or searches individual items, checks connector health and the inherited budget, and reviews the audit log when something changes or fails.
 - **Language.** English, the default, and Danish, with dates and numbers formatted for the operator's language (D21).
@@ -50,7 +50,7 @@ Sonarr and Radarr query the indexers configured in each instance. Prowlarr can s
 ## Product requirements
 
 - Rotation never finishes and is never a queue. Missing, Recent, Monitored, Completed all remain in rotation.
-- Comradarr sends search commands only, does not download or inspect download queues. No artwork/poster library.
+- comradarr sends search commands only, does not download or inspect download queues. No artwork/poster library.
 - Supported connectors Sonarr, Radarr, optional Prowlarr only. Indexer limits inherited read-only.
 - Use example limit 500, 20% reserve 100, effective budget 400; 126 used plus 274 available equals effective 400. Label reserve outside effective budget.
 - Test network changes before commit. Stored secrets never revealed. Global no-connector empty state actionable.
@@ -83,9 +83,9 @@ What doesn't exist, and must not be fabricated:
 ## Product Principles
 
 1. **The indexer budget is sacred.** Staying inside every inherited indexer limit, with the safety reserve kept and the work spread through the day, outranks covering items faster. Indexer limits are read, never set.
-2. **Never finished, never a queue.** Every item stays in rotation and is ordered only by tier and staleness. Comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
-3. **Beside the stack, never inside it.** Comradarr reads the library and outcome data it needs and sends search commands through the configured apps' APIs. It doesn't download, manage files or query indexers, and new scope that crosses that line needs a deliberate decision.
-4. **Report what Comradarr actually did.** Commands sent, items covered, budget used and connector health are facts it owns; record upgrades from the owning Sonarr or Radarr instance and attribute one to a search only when the evidence links them. Errors say what went wrong and how to fix it, without blaming the operator.
+2. **Never finished, never a queue.** Every item stays in rotation and is ordered only by tier and staleness. comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
+3. **Beside the stack, never inside it.** comradarr reads the library and outcome data it needs and sends search commands through the configured apps' APIs. It doesn't download, manage files or query indexers, and new scope that crosses that line needs a deliberate decision.
+4. **Report what comradarr actually did.** Commands sent, items covered, budget used and connector health are facts it owns; record upgrades from the owning Sonarr or Radarr instance and attribute one to a search only when the evidence links them. Errors say what went wrong and how to fix it, without blaming the operator.
 5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured, and no dependency that bundles an analytics client. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
 
 ## Accessibility and inclusion
