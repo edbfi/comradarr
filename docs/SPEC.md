@@ -70,7 +70,7 @@ components or services, and dates and numbers formatted for the viewer's languag
 | 11 | `sync` | The incremental, deep and full syncs with fingerprints, diffs, mappers and tiers computed only here, mirror and schedule written in one transaction, the coordinator job, and syncing by hand | `connectors` | "Sync now" and sync progress on `/connectors` |
 | 12 | `budgets` | The budget interface and the default budget: per connector a daily command cap spread through the day, a concurrency limit and a minimum interval, the compound limit, the read-only budget with the reason for its current limit, and editing the pacing | `connectors` | the pacing section of `/settings/rotation`; the budget block on `/connectors` |
 | 13 | `rotation` | The rotation loop in (tier, last searched) order, the Sonarr and Radarr planners with their cover lists, dispatch that moves every covered item to the back at once, command tracking with re-polling after a restart, pausing and resuming the rotation, the daily-allowance state, and the heartbeat beside the wordmark | `sync`, `budgets` | `/rotation`; the heartbeat in the app shell |
-| 14 | `content` | The content browser for 500,000 rows: filters, sorting and search kept in the URL, keyset pages and virtual scrolling; item detail with the commands that covered it; "Search now" as a priority search ahead of the rotation, and pausing an item | `rotation` | `/content`, `/content/[id]` |
+| 14 | `content` | The content browser for large libraries (scale goal in PRODUCT.md): filters, sorting and search kept in the URL, keyset pages and virtual scrolling; item detail with the commands that covered it; "Search now" as a priority search ahead of the rotation, and pausing an item | `rotation` | `/content`, `/content/[id]` |
 | 15 | `prowlarr-provider` | The Prowlarr v1 API client: indexers with their limits, usage statistics, status, and the applications and tags that map indexers to connectors, read-only. Adds Prowlarr as a connector type | `connectors` | the Prowlarr type on `/connectors` |
 | 16 | `indexer-budget` | The budget inherited from Prowlarr (PRODUCT.md): per connector the most restrictive serving indexer's limit minus the safety reserve (20% by default, which the owner can change) and minus its usage, hourly and daily limits normalised, disabled indexers left out, connector URLs matched to Prowlarr's applications, the cached reads, the Prowlarr health monitor, and the local cap kept at or below the inherited budget | `budgets`, `prowlarr-provider` | the inherited budget on `/connectors` and `/settings/rotation` |
 | 17 | `dashboard` | The rotation overview from one composed page payload, live-updated: rotation status, items and their tiers, items covered and commands today, the throughput chart, the budget with its reserve shown apart, connector health and indexer warnings | `rotation`, `indexer-budget` | `/dashboard` |
@@ -578,7 +578,7 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
 
 #### content
 
-- **The browser** holds up to 500,000 rows: filters by connector, type, tier, whether an item has a
+- **The browser** follows the [library scale goal](../PRODUCT.md#operating-context): filters by connector, type, tier, whether an item has a
   file and whether it is paused; sorting; a search that waits about 300 ms after typing; and per row
   the tier, last searched, search count and file status. Pages are keyset pages (constant cost at
   any depth) and rows are virtualised; filters, sorting, search and the page stay in the URL. A
