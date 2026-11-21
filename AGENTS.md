@@ -288,7 +288,7 @@ database that `dev` and `preview` need, see the README's [Master key](README.md#
 [Database](README.md#database).
 
 **Boundaries.**
-- The database is PostgreSQL in its own container ([D5, D17](docs/decisions.md)).
+- Target local embedded Turso. The built setup still uses PostgreSQL. See [D5](docs/decisions.md#d5-local-embedded-turso-through-drizzle) for the storage decision and migration scope.
 - Never bring code over from `legacy-old/v1` or `feat/comradarr-implementation-plan`; rebuild from
   the spec.
 

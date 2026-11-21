@@ -24,7 +24,7 @@
 | Language | TypeScript 6, strict type checking |
 | Framework | Svelte 5 and SvelteKit 3, server rendering on one origin |
 | Runtime and packages | Bun for development, CI and production |
-| Database | PostgreSQL as a separate service, through Drizzle and Bun SQL |
+| Database | The current build uses PostgreSQL through Drizzle and Bun SQL. The selected target is [local embedded Turso](docs/decisions.md#d5-local-embedded-turso-through-drizzle). |
 | Styling and primitives | Panda CSS 2 and Ark UI for Svelte |
 | HTTP API clients | `@hey-api/openapi-ts`, generated from the app's OpenAPI document |
 | Deployment | `@sveltejs/adapter-bun`: one container, one process, one HTTP port |

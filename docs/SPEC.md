@@ -5,6 +5,9 @@
 ([SPEC-secrets.md](SPEC-secrets.md)), module 2, `i18n` ([SPEC-i18n.md](SPEC-i18n.md)), and module
 3, `setup` ([SPEC-setup.md](SPEC-setup.md)), are built.
 
+The built setup and its PostgreSQL checks below describe the current runtime.
+[D5](decisions.md#d5-local-embedded-turso-through-drizzle) records the decision to move to local embedded Turso.
+
 ## Objective
 
 comradarr keeps a perpetual search rotation running over an operator's Sonarr and Radarr libraries:
@@ -451,7 +454,10 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
 
 #### sync
 
-- **The mirror** is a cache of what the instances know, never the source of truth. Each row is keyed
+- **The mirror** reads library data through each configured instance's API. comradarr never opens
+  or writes the Sonarr or Radarr database, and sends search commands through the owning instance's
+  API. A failed or partial read cannot establish a removal. Keep the last confirmed state and
+  reconcile missed changes after the connector recovers. Each row is keyed
   by its connector and upstream id, so two instances can hold the same id and one hostile instance
   can't touch another's rows. A series keeps its title, catalogue id, status (continuing, ended,
   upcoming or deleted), monitored flag, quality profile, path and its season, episode and file

@@ -41,25 +41,29 @@ Why: one runtime for every step, and the official Bun adapter needs it.
 ### D4. One application container, one process, one port
 
 [`@sveltejs/adapter-bun`](https://svelte.dev/docs/kit/adapter-bun) builds a Bun server. comradarr
-runs as one application process with one HTTP port in one container. The database is a separate
-service (D5), not part of the application container. Secrets are configured separately from the
+runs as one application process with one HTTP port in one container. D5 defines its local storage. Secrets are configured separately from the
 database and used only in server-only code.
 
 Why: a single self-hosted instance for one operator doesn't need more, and in-process state (the
 first-run claim token, the event bus behind live updates, the job loops) can assume one process
 (see D19).
 
-### D5. PostgreSQL through Drizzle and Bun SQL
+### D5. Local embedded Turso through Drizzle
 
-The database is PostgreSQL, deployed as a separate service with its own persistent storage: either
-a PostgreSQL service shipped alongside the app or an existing instance. The app reaches it through
-Drizzle's `drizzle-orm/bun-sql` adapter on Bun's built-in `SQL` client, with pool limits configured
-for the deployment. Drizzle Kit generates SQL migrations, which are reviewed and committed.
-Migrations run before the app accepts requests or starts jobs, with one migration owner per
-database.
+comradarr will use the same embedded Turso engine and Drizzle driver as the other four apps.
+Each comradarr installation owns its database file on persistent local storage. It opens that file
+in process. Operation and recovery must work without a Turso Cloud account, token or endpoint.
+The reference implementation is obzorarr's local setup with `@tursodatabase/database` and
+`drizzle-orm/tursodatabase/database`.
 
-Why: comradarr's append-only audit log and privilege separation rely on database roles and
-privileges (D7), which PostgreSQL provides.
+Why: the owner chose one self-hosted storage stack across the five apps. One install can hold
+the library mirror for several connectors and comradarr's own rotation and history.
+
+**Migration status.** The built setup still uses PostgreSQL. D7 and D15–D17 describe the roles,
+driver, deployment and backup procedures in that implementation. The Turso port must account for
+existing data, preserve transaction isolation and the append-only audit and retention guarantees,
+and verify backup and restore with the master key. The setup module spec will describe how those
+guarantees work on the local engine before the runtime changes.
 
 ### D6. Transactions and data access
 
