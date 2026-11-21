@@ -69,8 +69,8 @@ components or services, and dates and numbers formatted for the viewer's languag
 | 10 | `connectors` | Adding a Sonarr or Radarr connector through the validation pipeline that stops at the first failure, with the key encrypted and never shown again; the list with health badges (healthy, degraded, unhealthy, unreachable), detail, editing with a re-check, pausing, deleting with its cascade, the TLS overrides, the connection policy (default, strict or permissive), `http://` only for local addresses with an opt-in per URL (owner rule), the global no-connector empty state, and the Connect step of first-run setup | `sign-in`, `events`, `sonarr-provider`, `radarr-provider` | `/connectors`; the Connect step of `/setup` |
 | 11 | `sync` | The incremental, deep and full syncs with fingerprints, diffs, mappers and tiers computed only here, mirror and schedule written in one transaction, the coordinator job, and syncing by hand | `connectors` | "Sync now" and sync progress on `/connectors` |
 | 12 | `budgets` | The budget interface and the default budget: per connector a daily command cap spread through the day, a concurrency limit and a minimum interval, the compound limit, the read-only budget with the reason for its current limit, and editing the pacing | `connectors` | the pacing section of `/settings/rotation`; the budget block on `/connectors` |
-| 13 | `rotation` | The rotation loop in (tier, last searched) order, the Sonarr and Radarr planners with their cover lists, dispatch that moves every covered item to the back at once, command tracking with re-polling after a restart, pausing and resuming the rotation, the daily-allowance state, and the heartbeat beside the wordmark | `sync`, `budgets` | `/rotation`; the heartbeat in the app shell |
-| 14 | `content` | The content browser for large libraries (scale goal in PRODUCT.md): filters, sorting and search kept in the URL, keyset pages and virtual scrolling; item detail with the commands that covered it; "Search now" as a priority search ahead of the rotation, and pausing an item | `rotation` | `/content`, `/content/[id]` |
+| 13 | `rotation` | The rotation loop with missing items prioritized and recurring coverage across all tiers, the Sonarr and Radarr planners with their cover lists, dispatch that moves every covered item to the back at once, command tracking with re-polling after a restart, pausing and resuming the rotation, the daily-allowance state, and the heartbeat beside the wordmark | `sync`, `budgets` | `/rotation`; the heartbeat in the app shell |
+| 14 | `content` | The content browser for large libraries (scale goal in PRODUCT.md): filters, sorting and search kept in the URL, keyset pages and virtual scrolling; item detail with the commands that covered it; "Search now" as a priority search within the rotation, and pausing an item | `rotation` | `/content`, `/content/[id]` |
 | 15 | `prowlarr-provider` | The Prowlarr v1 API client: indexers with their limits, usage statistics, status, and the applications and tags that map indexers to connectors, read-only. Adds Prowlarr as a connector type | `connectors` | the Prowlarr type on `/connectors` |
 | 16 | `indexer-budget` | The budget inherited from Prowlarr (PRODUCT.md): per connector the most restrictive serving indexer's limit minus the safety reserve (20% by default, which the owner can change) and minus its usage, hourly and daily limits normalised, disabled indexers left out, connector URLs matched to Prowlarr's applications, the cached reads, the Prowlarr health monitor, and the local cap kept at or below the inherited budget | `budgets`, `prowlarr-provider` | the inherited budget on `/connectors` and `/settings/rotation` |
 | 17 | `dashboard` | The rotation overview from one composed page payload, live-updated: rotation status, items and their tiers, items covered and commands today, the throughput chart, the budget with its reserve shown apart, connector health and indexer warnings | `rotation`, `indexer-budget` | `/dashboard` |
@@ -463,16 +463,15 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   or ratings.
 - **The schedule** has one row per searchable episode or movie, keyed by connector, type and
   upstream id, with its series and season copied in so planning needs no joins, its last-searched
-  time (empty for never, which sorts first), its lifetime search count, its tier and its paused
+  time (empty until first covered), its lifetime search count, its tier and its paused
   flag.
 - **Tiers** (lower rotates faster): 0 Missing, no file, even in an ended series; 1 Recent, a file
   and aired or released within 90 days (episodes) or 180 days (movies); 2 Monitored, a file and a
   continuing series or a recent movie; 3 Completed, a file and an ended series or an old movie,
   still rotating. Only sync sets a tier, from files, dates and series status, never from a search's
   outcome; rotation only reads it. Sync may change a row's tier and grouping, but never its
-  last-searched time, search count or paused flag. A newly added row has never been searched, so it
-  comes first in its tier. Items gone upstream leave the schedule in the same transaction as their
-  mirror rows.
+  last-searched time, search count or paused flag. A newly added row enters the rotation when
+  first seen. Items gone upstream leave the schedule in the same transaction as their mirror rows.
 - **Three modes:** incremental, every 5 minutes: one call for the series or movie list, a
   fingerprint compared with the stored one, and episodes fetched only for the series and seasons
   whose statistics changed; deep, every hour: every episode or movie fetched and compared field by
@@ -522,17 +521,24 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
 #### rotation
 
 - **The loop** ticks every 15 to 30 seconds (a setting). For each active connector that isn't
-  unhealthy it asks the budget how many commands may go, takes pending priority searches first
-  (`content`), then that many of the stalest unpaused items in tier and last-searched order, plans
-  them, dispatches the commands, records them and updates the schedule. It does nothing before first
+  unhealthy it asks the budget how many commands may go. It selects eligible items and pending
+  priority searches under the coverage rule below, groups them, dispatches and records the
+  commands, and updates the schedule. It does nothing before first
   run is complete and idles when the budget is spent, the connector is unhealthy or paused, or
   there's nothing to do. It logs one summary per tick, and dispatching, tracking and idling are
   events. Rotation starts on a connector only once its schedule is filled.
-- **Order.** The next items come from one indexed query in (tier, last searched) order over unpaused
-  rows, never-searched first, whose cost doesn't grow with the library (the legacy app aimed at
-  under a millisecond at 500,000 rows).
-- **The only state per item** is its last-searched time and its search count: no queue, no retry
-  state and nothing to get stuck, so a restart resumes from the times.
+- **Coverage.** Whenever search allowance continues to become available, every continuously
+  eligible item on each active, healthy connector must receive a first search and subsequent
+  searches for as long as it remains eligible. Give missing items more frequent turns and use
+  indexed selection to reach long-waiting items across all tiers.
+  Fresh arrivals, persistently missing items and repeated priority requests must leave room for
+  both first searches and revisits. Select a bounded batch per tick as the library grows.
+- **Continuity.** Keep coverage history and any scheduling position needed to resume after a
+  restart or a budget pause. A grouped command counts as a turn for every item it covers.
+- **Acceptance case.** With one command available per budget window, exercise several tiers,
+  a permanently missing item, continuing new arrivals and priority requests. Verify repeated
+  coverage of the original items and first coverage of waiting arrivals. Include a season search
+  and a restart between windows. The rotation module spec sets the expected turns for its policy.
 - **Sonarr's planner** groups the due items by series, then season: a series search when they span
   more than half the series' seasons, or at least three; a season search when two or more fall in
   one season, or more than 30% of a season's episodes are due; an episode search, batched, for the
@@ -550,8 +556,8 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   finishes, so an item in flight is never sent again.
 - **Tracking** polls command status every 30 seconds and resolves finished commands. A completed
   command may trigger a sync of the items it covered, to see a new file and change tiers. A failed
-  or timed-out command is just resolved: there is no retry, and its items come round again when they
-  are stalest. Commands in flight at a crash are polled again after the restart.
+  or timed-out command is recorded as resolved. Its items come around again under the coverage
+  rule, without an immediate retry. Commands in flight at a crash are polled again after the restart.
 - **Pausing and resuming** the rotation, and pausing or resuming an item (`content`), are audited;
   routine ticks aren't.
 - **The heartbeat** beside the wordmark beats only while rotation is dispatching; it is still when
@@ -586,9 +592,9 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
 - **An item's detail** shows its mirror fields, its schedule state and the recent commands that
   covered it, with "Search now" and pausing.
 - **Search now** is a priority search: one pending search per item (connector, type and upstream
-  id), so a double click can't make two. Rotation dispatches it before any other item on its next
-  tick, within the budget like any command (while the budget is spent it waits, PRODUCT.md principle
-  1), and at dispatch the item's last-searched time updates as usual, so it rejoins the rotation.
+  id), so a double click can't make two. Rotation gives it priority at the next available opportunity
+  within the budget and the rotation's recurring-coverage rule. At dispatch the item's last-searched
+  time updates as usual, so it rejoins the rotation.
   Its completion is an event.
 - **Pausing an item** (in the browser or on its detail) takes it out of the rotation without
   deleting it, and resuming puts it back. Searching, pausing and resuming are audited.
