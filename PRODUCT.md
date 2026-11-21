@@ -4,7 +4,7 @@
 
 ## Product Purpose
 
-comradarr coordinates recurring searches for missing movies and episodes and for upgrades to existing files across the owner's Sonarr and Radarr instances. It chooses what to search next, prioritizes missing items and groups searches to cover more of the library within the available indexer budget. Sonarr and Radarr run the searches and handle downloads.
+comradarr coordinates recurring searches for missing movies and episodes and for upgrades to existing files across the owner's Sonarr and Radarr instances. It keeps searching for as long as the owner leaves the rotation running. Missing items get searched more often, and every eligible movie and episode keeps getting another turn, even when new items arrive. Grouping searches lets each indexer allowance cover more of the library. Sonarr and Radarr run the searches and handle downloads.
 
 The rotation overview at `/dashboard` is the signed-in owner's home page. At a glance it should explain what is running or waiting and why, what will happen next, and what recent searches covered. When the owner connects Prowlarr, the overview shows relevant indexer health, configured query and grab limits, usage and remaining allowances where known. If several libraries draw on the same allowance, the owner should see what that means for their next search. Without a Prowlarr connection, the overview still explains the rotation using comradarr's own activity and pacing.
 
@@ -83,7 +83,7 @@ What doesn't exist, and must not be fabricated:
 ## Product Principles
 
 1. **The indexer budget is sacred.** Staying inside every inherited indexer limit, with the safety reserve kept and the work spread through the day, outranks covering items faster. Indexer limits are read, never set.
-2. **Never finished, never a queue.** Every item stays in rotation and is ordered only by tier and staleness. comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
+2. **Never finished, never a queue.** Tier sets priority, and time since coverage helps the rotation reach items that have waited longest. A search that finds nothing leaves the item eligible for a later turn. comradarr never presents progress toward "done", a queue depth or an exhausted library; a paused or budget-limited rotation is a temporary state, not an ending.
 3. **Beside the stack, never inside it.** comradarr reads the library and outcome data it needs and sends search commands through the configured apps' APIs. It doesn't download, manage files or query indexers, and new scope that crosses that line needs a deliberate decision.
 4. **Report what comradarr actually did.** Commands sent, items covered, budget used and connector health are facts it owns; record upgrades from the owning Sonarr or Radarr instance and attribute one to a search only when the evidence links them. Errors say what went wrong and how to fix it, without blaming the operator.
 5. **Built for one owner on their own hardware.** One owner account on one instance, with no roles and no multi-tenancy, so choose the simplest design that allows (one process, no broker). Data stays on the instance: no telemetry, no phone-home, and no outbound traffic except to what the owner configured, and no dependency that bundles an analytics client. Security is structural rather than procedural: fail closed, never reveal a stored secret, and let the database enforce the append-only audit log.
