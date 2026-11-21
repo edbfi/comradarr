@@ -470,8 +470,8 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   continuing series or a recent movie; 3 Completed, a file and an ended series or an old movie,
   still rotating. Only sync sets a tier, from files, dates and series status, never from a search's
   outcome; rotation only reads it. Sync may change a row's tier and grouping, but never its
-  last-searched time, search count or paused flag. A newly added row enters the rotation when first seen. Items gone upstream leave the schedule in the same transaction as their
-  mirror rows.
+  last-searched time, search count or paused flag. A newly added row enters the rotation when
+  first seen. Items gone upstream leave the schedule in the same transaction as their mirror rows.
 - **Three modes:** incremental, every 5 minutes: one call for the series or movie list, a
   fingerprint compared with the stored one, and episodes fetched only for the series and seasons
   whose statistics changed; deep, every hour: every episode or movie fetched and compared field by
@@ -528,8 +528,9 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   there's nothing to do. It logs one summary per tick, and dispatching, tracking and idling are
   events. Rotation starts on a connector only once its schedule is filled.
 - **Coverage.** Whenever search allowance continues to become available, every continuously
-  eligible item on each active, healthy connector must be covered repeatedly. Give missing items
-  more frequent turns and use indexed selection to reach long-waiting items across all tiers.
+  eligible item on each active, healthy connector must receive a first search and subsequent
+  searches for as long as it remains eligible. Give missing items more frequent turns and use
+  indexed selection to reach long-waiting items across all tiers.
   Fresh arrivals, persistently missing items and repeated priority requests must leave room for
   both first searches and revisits. Select a bounded batch per tick as the library grows.
 - **Continuity.** Keep coverage history and any scheduling position needed to resume after a
@@ -555,8 +556,8 @@ them. The facts about Sonarr and Radarr are in [docs/research/sonarr.md](researc
   finishes, so an item in flight is never sent again.
 - **Tracking** polls command status every 30 seconds and resolves finished commands. A completed
   command may trigger a sync of the items it covered, to see a new file and change tiers. A failed
-  or timed-out command is just resolved: there is no retry, and its items come round again when they
-  are stalest. Commands in flight at a crash are polled again after the restart.
+  or timed-out command is recorded as resolved. Its items come around again under the coverage
+  rule, without an immediate retry. Commands in flight at a crash are polled again after the restart.
 - **Pausing and resuming** the rotation, and pausing or resuming an item (`content`), are audited;
   routine ticks aren't.
 - **The heartbeat** beside the wordmark beats only while rotation is dispatching; it is still when
